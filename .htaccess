@@ -1,0 +1,23 @@
+Options -Indexes
+RewriteEngine On
+
+RewriteRule ^config/ - [F,L]
+RewriteRule ^includes/ - [F,L]
+RewriteRule ^database\.sql$ - [F,L]
+
+RewriteRule ^product/([a-z0-9-]+)/?$ product.php?slug=$1 [L,QSA]
+RewriteRule ^order/([A-Za-z0-9]+)/?$ order.php?token=$1 [L,QSA]
+RewriteRule ^(about|nursery|faq|shipping|returns|privacy|terms|wholesale)/?$ page.php?p=$1 [L,QSA]
+RewriteRule ^shop/?$ shop.php [L,QSA]
+RewriteRule ^cart/?$ cart.php [L]
+RewriteRule ^checkout/?$ checkout.php [L]
+RewriteRule ^account/?$ account.php [L]
+RewriteRule ^contact/?$ contact.php [L]
+RewriteRule ^login/?$ login.php [L]
+RewriteRule ^register/?$ register.php [L]
+RewriteRule ^setup/?$ setup.php [L]
+RewriteRule ^admin/?$ admin/index.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([A-Za-z0-9_-]+)/?$ $1.php [L,QSA]

@@ -1,0 +1,6 @@
+Upload the contents of this folder into Hostinger public_html.
+
+1. In phpMyAdmin, import database.sql into an empty MySQL database.
+2. Edit config/config.local.php and put the Hostinger database name, user and password.
+3. Open https://your-domain/setup once and create the staff login.
+4. Open https://your-domain/ and the shop should list 20 trays.
