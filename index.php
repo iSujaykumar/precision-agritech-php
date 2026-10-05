@@ -7,7 +7,7 @@ $base = 'SELECT p.*, c.name AS category_name FROM products p
      JOIN categories c ON c.id = p.category_id
      WHERE p.active = 1 AND p.stock_qty > p.reserved_qty';
 $bestsellers = db()->query($base . ' AND p.bestseller = 1 ORDER BY p.name LIMIT 8')->fetchAll();
-$offers = db()->query($base . ' AND (p.on_offer = 1 OR (p.compare_at_inr IS NOT NULL AND p.compare_at_inr > p.price_inr)) ORDER BY p.name LIMIT 8')->fetchAll();
+$offers = db()->query($base . ' AND (p.on_offer = 1 OR (p.compare_at_inr IS NOT NULL AND p.compare_at_inr > p.price_inr)) AND (p.offer_starts_at IS NULL OR p.offer_starts_at <= NOW()) AND (p.offer_ends_at IS NULL OR p.offer_ends_at >= NOW()) ORDER BY p.name LIMIT 8')->fetchAll();
 $categories = db()->query(
     'SELECT c.*, (
         SELECT image_url FROM products p

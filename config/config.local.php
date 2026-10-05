@@ -9,4 +9,8 @@ return [
     'db_user' => '',
     'db_pass' => '',
     'site_url' => 'https://precisionagritech.in',
+    'mail_from' => 'info@precisionagritech.in',
+    'twilio_sid' => '',
+    'twilio_token' => '',
+    'twilio_verify' => '',
 ];

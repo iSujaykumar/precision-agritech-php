@@ -1,11 +1,11 @@
 Upload the contents of this folder into Hostinger public_html.
 
-1. In phpMyAdmin, import database/schema.sql into an empty MySQL database.
-   database.sql in the site root is the same file. The web server blocks both.
-2. Edit config/config.local.php with the Hostinger database name, user and password.
-3. Open https://your-domain/setup once and create the staff login. The page closes after that.
-4. Customers sign in with email or the same account's 10-digit mobile, plus password.
-   There is no OTP and no password-reset email.
+1. Import database/schema.sql into an empty MySQL database. If the database already exists, open the site once: it adds the new login and stock tables itself.
+2. Edit config/config.local.php with the database name, user and password.
+3. For mobile codes, add the Twilio Verify keys in that same file:
+   twilio_sid, twilio_token, twilio_verify
+   Leave them empty and the site will not pretend a code was sent.
+4. Password reset uses the server mail function. Test it on Hostinger before relying on it.
+5. Open /setup once, only if no staff account exists yet.
 
-The site is PHP and MySQL only. Do not run Node or npm.
-If the database settings are empty, the shop stops. It does not switch to another database.
+Do not overwrite config/config.local.php if it already has the live database password.

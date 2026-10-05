@@ -36,7 +36,7 @@ render_header('Account | Precision Agritech');
 ?>
 <section class="section"><div class="wrap">
   <h1><?= e($user['name']) ?></h1>
-  <p><?= e($user['email']) ?> · <?= $phone !== '' ? e(mask_phone($phone)) : 'No mobile yet' ?> · <a href="/logout">Sign out</a><?php if ($user['role'] === 'admin'): ?> · <a href="/admin">Nursery desk</a><?php endif; ?></p>
+  <p><?= e($user['email']) ?> · <?= $phone !== '' ? e(mask_phone($phone)) : 'No mobile yet' ?> · <?= empty($user['phone_verified_at']) ? '<a href="/verify-mobile">Verify mobile</a> · ' : 'Mobile verified · ' ?><a href="/change-password">Change password</a><?php if ($user['role'] === 'admin'): ?> · <a href="/admin">Nursery desk</a><?php endif; ?></p>
   <?php if ($error): ?><p class="flash" role="alert"><?= e($error) ?></p><?php endif; ?>
   <h2>Mobile number</h2>
   <form method="post" class="narrow">

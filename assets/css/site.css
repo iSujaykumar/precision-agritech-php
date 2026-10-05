@@ -67,7 +67,9 @@ img { max-width: 100%; display: block; }
 form { display: grid; gap: 0.6rem; }
 input, select, textarea { width: 100%; min-height: 2.75rem; border: 1px solid var(--line); border-radius: 0.4rem; padding: 0.5rem 0.7rem; font: inherit; background: white; }
 textarea { min-height: 7rem; }
+button.linkish, .linkish { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; }
 .narrow { max-width: 34rem; }
+.wrap table, table { width: 100%; overflow-x: auto; display: block; }
 .flash { background: #efe7d6; padding: 0.7rem 1rem; }
 table { width: 100%; border-collapse: collapse; background: var(--surface); }
 th, td { text-align: left; padding: 0.55rem; border-bottom: 1px solid var(--line); vertical-align: top; }

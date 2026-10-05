@@ -14,11 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string) ($_POST['name'] ?? ''));
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
+        $phone = normalize_phone((string) ($_POST['phone'] ?? ''));
         if (strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12) {
-            throw new RuntimeException('Use a name, email and a password of at least 12 characters.');
+            throw new RuntimeException('Use a name, email, mobile and a password of at least 12 characters.');
         }
-        db()->prepare('INSERT INTO users (name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?)')
-            ->execute([$name, $email, '9011975959', password_hash($password, PASSWORD_DEFAULT), 'admin']);
+        db()->prepare('INSERT INTO users (name, email, phone, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)')
+            ->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT), 'admin', 'active']);
         $_SESSION['user_id'] = (int) db()->lastInsertId();
         header('Location: /admin');
         exit;
@@ -36,6 +37,7 @@ render_header('Create the staff account');
     <?= csrf_field() ?>
     <label>Name <input name="name" required></label>
     <label>Email <input name="email" type="email" required></label>
+    <label>Mobile <input name="phone" type="tel" inputmode="tel" required placeholder="10-digit mobile"></label>
     <label>Password <input name="password" type="password" minlength="12" required></label>
     <button class="btn">Create staff login</button>
   </form>

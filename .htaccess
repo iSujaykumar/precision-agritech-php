@@ -20,6 +20,7 @@ RewriteRule ^login/?$ login.php [L]
 RewriteRule ^register/?$ register.php [L]
 RewriteRule ^setup/?$ setup.php [L]
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
+RewriteRule ^admin/([a-z0-9-]+)/?$ admin/$1.php [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

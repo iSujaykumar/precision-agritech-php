@@ -52,30 +52,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $subtotal = 0;
         foreach ($locked as $line) {
             $subtotal += $line['line'];
-        }
-        $quote = quote_cart($couponCode);
-        foreach ($locked as $line) {
             $upd = $pdo->prepare('UPDATE products SET reserved_qty = reserved_qty + ? WHERE id = ? AND stock_qty - reserved_qty >= ?');
             $upd->execute([$line['qty'], (int) $line['product']['id'], $line['qty']]);
             if ($upd->rowCount() !== 1) {
                 throw new RuntimeException('Those trays were just reserved by another order.');
             }
         }
+        $coupon = lock_coupon($pdo, $couponCode, $subtotal);
+        $discount = $coupon['discount'] ?? 0;
+        $after = $subtotal - $discount;
+        $shipFlat = (int) setting('shipping_flat_inr', '180');
+        $freeOver = (int) setting('free_shipping_over_inr', '4000');
+        $shipping = ($after >= $freeOver || $after === 0) ? 0 : $shipFlat;
+        $total = $after + $shipping;
         $status = $method === 'cod' ? 'placed' : 'payment_pending';
         $payment = $method === 'cod' ? 'unpaid' : 'pending';
         $token = bin2hex(random_bytes(16));
-        $number = 'PA' . strtoupper(bin2hex(random_bytes(4)));
         $ins = $pdo->prepare('INSERT INTO orders (
             order_number, lookup_token, user_id, customer_name, customer_phone, customer_email,
             status, payment_status, payment_method, inventory_state, subtotal_inr, discount_inr,
             shipping_inr, total_inr, address_line, city, state_name, postal_code
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-        $ins->execute([
-            $number, $token, $user['id'] ?? null, $name, $phone, $email,
-            $status, $payment, $method, 'reserved', $quote['subtotal'], $quote['discount'],
-            $quote['shipping'], $quote['total'], $address, $city, $state, $postal,
-        ]);
-        $orderId = (int) $pdo->lastInsertId();
+        $orderId = 0;
+        $number = '';
+        for ($try = 0; $try < 3; $try++) {
+            $number = 'PA' . strtoupper(bin2hex(random_bytes(4)));
+            $pdo->exec('SAVEPOINT order_number');
+            try {
+                $ins->execute([
+                    $number, $token, $user['id'] ?? null, $name, $phone, $email,
+                    $status, $payment, $method, 'reserved', $subtotal, $discount,
+                    $shipping, $total, $address, $city, $state, $postal,
+                ]);
+                $orderId = (int) $pdo->lastInsertId();
+                break;
+            } catch (PDOException $duplicate) {
+                $pdo->exec('ROLLBACK TO SAVEPOINT order_number');
+                if ($try === 2) {
+                    throw $duplicate;
+                }
+            }
+        }
         $item = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, sku, unit_label, unit_price_inr, quantity, line_total_inr) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($locked as $line) {
             $item->execute([
@@ -85,9 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $pdo->prepare('INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)')
             ->execute([$orderId, $status, 'Order received. Trays are reserved. Payment is not confirmed until the nursery says so.']);
-        if ($quote['coupon']) {
+        if ($coupon) {
             $pdo->prepare('INSERT INTO coupon_redemptions (coupon_id, order_id, customer_email, amount_inr) VALUES (?, ?, ?, ?)')
-                ->execute([(int) $quote['coupon']['id'], $orderId, $email, $quote['discount']]);
+                ->execute([(int) $coupon['id'], $orderId, $email, $discount]);
         }
         $pdo->commit();
         $_SESSION['cart'] = [];

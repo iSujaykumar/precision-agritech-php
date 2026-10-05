@@ -32,6 +32,12 @@ function render_header(string $title, string $description = ''): void
     <a href="/wholesale">Wholesale</a>
     <a href="/account"><?= $user ? 'Account' : 'Sign in' ?></a>
     <a href="/cart">Cart<?= $count ? ' (' . $count . ')' : '' ?></a>
+    <?php if ($user): ?>
+    <form method="post" action="/logout" style="display:inline">
+      <?= csrf_field() ?>
+      <button class="linkish" type="submit">Sign out</button>
+    </form>
+    <?php endif; ?>
   </nav>
 </header>
 <main>
@@ -89,6 +95,7 @@ function connect_or_explain(): void
 {
     try {
         db();
+        ensure_schema();
     } catch (Throwable $err) {
         render_header('Database setup | Precision Agritech');
         echo '<section class="section"><div class="wrap narrow">';
