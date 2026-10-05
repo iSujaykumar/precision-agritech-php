@@ -77,10 +77,9 @@ function product_card(array $product): void
   <a href="<?= e($href) ?>"><img src="<?= e((string) $product['image_url']) ?>" alt="<?= e($product['name']) ?> seedling tray" width="800" height="600"></a>
   <div class="card-body">
     <h3><a href="<?= e($href) ?>"><?= e($product['name']) ?></a></h3>
-    <p class="muted"><?= e($product['scientific_name']) ?></p>
-    <p class="price"><?= inr((int) $product['price_inr']) ?> <span><?= e($product['unit_label']) ?></span></p>
-    <?php if ($product['compare_at_inr']): ?><p class="compare"><?= inr((int) $product['compare_at_inr']) ?></p><?php endif; ?>
-    <p class="muted"><?= $stock > 0 ? $stock . ' trays ready' : 'Ask the nursery' ?></p>
+    <p class="muted"><?= e($product['variety'] ?? $product['scientific_name']) ?></p>
+    <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ tray</span><?php if ($product['compare_at_inr']): ?><span class="compare"><?= inr((int) $product['compare_at_inr']) ?></span><?php endif; ?></p>
+    <p class="muted"><?= $stock > 0 ? $stock . ' trays available' : 'Out of stock' ?></p>
   </div>
 </article>
 <?php
