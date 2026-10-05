@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     } catch (Throwable $err) {
         if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
-        $error = $err instanceof PDOException ? 'The stock change was not saved.' : $err->getMessage();
+        $error = safe_error($err, 'The stock change was not saved.');
     }
 }
 admin_open('Stock');

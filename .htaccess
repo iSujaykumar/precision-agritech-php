@@ -5,6 +5,8 @@ RewriteRule ^config/ - [F,L]
 RewriteRule ^includes/ - [F,L]
 RewriteRule ^database/ - [F,L]
 RewriteRule ^database\.sql$ - [F,L]
+RewriteRule ^admin/common\.php$ - [F,L]
+RewriteRule "(^|/)\." - [F,L]
 
 RewriteRule ^product/([a-z0-9-]+)/?$ product.php?slug=$1 [L,QSA]
 RewriteRule ^order/([A-Za-z0-9]+)/?$ order.php?token=$1 [L,QSA]

@@ -9,6 +9,9 @@ function twilio_call(string $path, array $fields): array
     }
     $url = 'https://verify.twilio.com/v2/Services/' . rawurlencode((string) $config['twilio_verify']) . '/' . $path;
     $ch = curl_init($url);
+    if ($ch === false) {
+        throw new RuntimeException('The SMS service could not be reached.');
+    }
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => http_build_query($fields),
@@ -29,7 +32,7 @@ function twilio_call(string $path, array $fields): array
 
 function otp_send_allowed(string $phone): void
 {
-    $recent = db()->prepare('SELECT created_at FROM mobile_verifications WHERE phone = ? ORDER BY id DESC LIMIT 1');
+    $recent = db()->prepare('SELECT created_at FROM mobile_verifications WHERE phone = ? AND purpose <> "" ORDER BY id DESC LIMIT 1');
     $recent->execute([$phone]);
     $last = $recent->fetchColumn();
     if ($last && strtotime((string) $last) > time() - 45) {
@@ -50,34 +53,49 @@ function otp_send_allowed(string $phone): void
 function start_mobile_code(string $phone, string $purpose, ?int $userId): void
 {
     otp_send_allowed($phone);
+    db()->prepare("UPDATE mobile_verifications SET status = 'expired' WHERE phone = ? AND purpose = ? AND status = 'pending'")
+        ->execute([$phone, $purpose]);
     $result = twilio_call('Verifications', [
         'To' => phone_e164($phone),
         'Channel' => 'sms',
     ]);
     db()->prepare('INSERT INTO mobile_verifications (phone, purpose, provider_sid, status, expires_at, ip, user_id) VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), ?, ?)')
         ->execute([$phone, $purpose, (string) ($result['sid'] ?? ''), 'pending', client_ip(), $userId]);
+    $_SESSION['otp_id'] = (int) db()->lastInsertId();
     $_SESSION['otp_phone'] = $phone;
     $_SESSION['otp_purpose'] = $purpose;
-    $_SESSION['otp_tries'] = 0;
+    unset($_SESSION['otp_decoy']);
 }
 
-function check_mobile_code(string $phone, string $code): void
+function check_mobile_code(string $code, string $purpose): string
 {
-    $tries = (int) ($_SESSION['otp_tries'] ?? 0);
-    if (($_SESSION['otp_phone'] ?? '') !== $phone || $tries >= 5) {
+    $id = (int) ($_SESSION['otp_id'] ?? 0);
+    $phone = (string) ($_SESSION['otp_phone'] ?? '');
+    if ($phone === '' || (string) ($_SESSION['otp_purpose'] ?? '') !== $purpose || !preg_match('/^[0-9]{4,10}$/', $code)) {
+        throw new RuntimeException('That code is not right.');
+    }
+    if (!empty($_SESSION['otp_decoy']) || $id < 1) {
+        note_login_failure('otp:' . $phone);
+        throw new RuntimeException('That code is not right.');
+    }
+    $burn = db()->prepare("UPDATE mobile_verifications SET attempts = attempts + 1 WHERE id = ? AND phone = ? AND purpose = ? AND status = 'pending' AND attempts < 5 AND expires_at > NOW()");
+    $burn->execute([$id, $phone, $purpose]);
+    if ($burn->rowCount() !== 1) {
+        db()->prepare("UPDATE mobile_verifications SET status = 'locked' WHERE id = ? AND status = 'pending' AND attempts >= 5")->execute([$id]);
         throw new RuntimeException('That code is not right. Ask for a new one.');
     }
-    $_SESSION['otp_tries'] = $tries + 1;
     $result = twilio_call('VerificationCheck', [
         'To' => phone_e164($phone),
         'Code' => $code,
     ]);
     if (($result['status'] ?? '') !== 'approved') {
-        db()->prepare('UPDATE mobile_verifications SET attempts = attempts + 1 WHERE phone = ? ORDER BY id DESC LIMIT 1')
-            ->execute([$phone]);
         throw new RuntimeException('That code is not right.');
     }
-    db()->prepare("UPDATE mobile_verifications SET status = 'approved', verified_at = NOW() WHERE phone = ? AND status = 'pending'")
-        ->execute([$phone]);
-    unset($_SESSION['otp_phone'], $_SESSION['otp_purpose'], $_SESSION['otp_tries']);
+    $done = db()->prepare("UPDATE mobile_verifications SET status = 'approved', verified_at = NOW() WHERE id = ? AND status = 'pending'");
+    $done->execute([$id]);
+    if ($done->rowCount() !== 1) {
+        throw new RuntimeException('That code is not right.');
+    }
+    unset($_SESSION['otp_id'], $_SESSION['otp_phone'], $_SESSION['otp_purpose'], $_SESSION['otp_decoy']);
+    return $phone;
 }

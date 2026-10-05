@@ -27,7 +27,7 @@ if ($key === 'wholesale' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         db()->prepare('INSERT INTO wholesale_requests (name, phone, email, location, products, quantity, notes) VALUES (?, ?, ?, ?, ?, ?, ?)')
             ->execute([
                 trim((string) $_POST['name']),
-                trim((string) $_POST['phone']),
+                normalize_phone((string) $_POST['phone']),
                 strtolower(trim((string) $_POST['email'])),
                 trim((string) $_POST['location']),
                 trim((string) $_POST['products']),
@@ -36,7 +36,7 @@ if ($key === 'wholesale' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         $done = true;
     } catch (Throwable $err) {
-        $error = $err->getMessage();
+        $error = safe_error($err, 'The form could not be saved.');
     }
 }
 [$title, $body] = $pages[$key];
@@ -54,7 +54,7 @@ render_header($title . ' | Precision Agritech');
     <form method="post">
       <?= csrf_field() ?>
       <label>Name <input name="name" required></label>
-      <label>Phone <input name="phone" required pattern="[0-9]{10}"></label>
+      <label>Phone <input name="phone" required></label>
       <label>Email <input name="email" type="email" required></label>
       <label>Location <input name="location" required></label>
       <label>Trays needed <input name="products" required></label>

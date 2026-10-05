@@ -12,19 +12,17 @@ $step = (string) ($_POST['step'] ?? 'ask');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
-        $identifier = $mode === 'email'
-            ? strtolower(trim((string) ($_POST['email'] ?? '')))
-            : normalize_phone((string) ($_POST['mobile'] ?? ''));
-        if (too_many_attempts($identifier)) {
-            throw new RuntimeException('Too many attempts. Wait and try again.');
-        }
         if ($mode === 'otp' && $step === 'code') {
             $phone = (string) ($_SESSION['otp_phone'] ?? '');
-            check_mobile_code($phone, trim((string) ($_POST['code'] ?? '')));
+            if ($phone === '' || too_many_attempts('otp:' . $phone)) {
+                throw new RuntimeException('That sign-in is not right.');
+            }
+            $phone = check_mobile_code(trim((string) ($_POST['code'] ?? '')), 'login');
             $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND phone_verified_at IS NOT NULL AND status = "active"');
             $stmt->execute([$phone]);
             $user = $stmt->fetch();
             if (!$user) {
+                note_login_failure('otp:' . $phone);
                 throw new RuntimeException('That sign-in is not right.');
             }
             sign_in_user($user);
@@ -36,9 +34,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('SMS codes are not set up on this server yet. Use your password.');
             }
             $phone = normalize_phone((string) ($_POST['mobile'] ?? ''));
-            start_mobile_code($phone, 'login', null);
+            if (too_many_attempts('otp:' . $phone)) {
+                throw new RuntimeException('Too many attempts. Wait and try again.');
+            }
+            $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND phone_verified_at IS NOT NULL AND status = "active"');
+            $stmt->execute([$phone]);
+            $user = $stmt->fetch();
+            if ($user) {
+                start_mobile_code($phone, 'login', (int) $user['id']);
+            } else {
+                $_SESSION['otp_phone'] = $phone;
+                $_SESSION['otp_purpose'] = 'login';
+                $_SESSION['otp_id'] = 0;
+                $_SESSION['otp_decoy'] = 1;
+            }
             $step = 'code';
         } else {
+            $identifier = $mode === 'email'
+                ? strtolower(trim((string) ($_POST['email'] ?? '')))
+                : normalize_phone((string) ($_POST['mobile'] ?? ''));
+            if (too_many_attempts($identifier)) {
+                throw new RuntimeException('Too many attempts. Wait and try again.');
+            }
             $password = (string) ($_POST['password'] ?? '');
             if ($mode === 'mobile') {
                 $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND status = "active"');

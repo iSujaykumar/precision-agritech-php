@@ -8,8 +8,9 @@ $user = current_user();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
+        take_checkout_token((string) ($_POST['checkout_token'] ?? ''));
         $name = trim((string) ($_POST['name'] ?? ''));
-        $phone = trim((string) ($_POST['phone'] ?? ''));
+        $phone = normalize_phone((string) ($_POST['phone'] ?? ''));
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
         $address = trim((string) ($_POST['address'] ?? ''));
         $city = trim((string) ($_POST['city'] ?? ''));
@@ -17,8 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postal = trim((string) ($_POST['postal'] ?? ''));
         $method = (string) ($_POST['method'] ?? 'cod');
         $couponCode = trim((string) ($_POST['coupon'] ?? ''));
-        if (strlen($name) < 2 || !preg_match('/^[0-9]{10}$/', $phone) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new RuntimeException('Check the name, 10-digit phone and email.');
+        if (strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('Check the name, mobile and email.');
         }
         if (strlen($address) < 8 || strlen($city) < 2 || strlen($state) < 2 || !preg_match('/^[0-9]{6}$/', $postal)) {
             throw new RuntimeException('Check the address and 6-digit PIN code.');
@@ -41,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('A tray in this cart is no longer listed.');
             }
             $qty = (int) $line['qty'];
-            if ($qty < (int) $product['min_order']) {
-                throw new RuntimeException($product['name'] . ' starts at ' . $product['min_order'] . ' trays.');
+            if ($qty < (int) $product['min_order'] || $qty > 50) {
+                throw new RuntimeException($product['name'] . ' must be between ' . (int) $product['min_order'] . ' and 50 trays.');
             }
             if ($qty > ((int) $product['stock_qty'] - (int) $product['reserved_qty'])) {
                 throw new RuntimeException($product['name'] . ' does not have that many trays left.');
@@ -67,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $total = $after + $shipping;
         $status = $method === 'cod' ? 'placed' : 'payment_pending';
         $payment = $method === 'cod' ? 'unpaid' : 'pending';
-        $token = bin2hex(random_bytes(16));
+        $token = bin2hex(random_bytes(32));
         $ins = $pdo->prepare('INSERT INTO orders (
             order_number, lookup_token, user_id, customer_name, customer_phone, customer_email,
             status, payment_status, payment_method, inventory_state, subtotal_inr, discount_inr,
@@ -80,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->exec('SAVEPOINT order_number');
             try {
                 $ins->execute([
-                    $number, $token, $user['id'] ?? null, $name, $phone, $email,
+                    $number, $token, $user ? (int) $user['id'] : null, $name, $phone, $email,
                     $status, $payment, $method, 'reserved', $subtotal, $discount,
                     $shipping, $total, $address, $city, $state, $postal,
                 ]);
@@ -136,9 +137,10 @@ render_header('Checkout | Precision Agritech');
   <p>Total <?= inr($quote['total']) ?>. Shipping <?= inr($quote['shipping']) ?>. The server calculates this total.</p>
   <form method="post">
     <?= csrf_field() ?>
-    <label>Name <input name="name" required value="<?= e($user['name'] ?? '') ?>"></label>
-    <label>Phone <input name="phone" required pattern="[0-9]{10}" value="<?= e($user['phone'] ?? '') ?>"></label>
-    <label>Email <input name="email" type="email" required value="<?= e($user['email'] ?? '') ?>"></label>
+    <input type="hidden" name="checkout_token" value="<?= e(checkout_token()) ?>">
+    <label>Name <input name="name" required value="<?= e($user ? (string) $user['name'] : '') ?>"></label>
+    <label>Phone <input name="phone" required value="<?= e($user ? (string) $user['phone'] : '') ?>"></label>
+    <label>Email <input name="email" type="email" required value="<?= e($user ? (string) $user['email'] : '') ?>"></label>
     <label>Address <textarea name="address" required></textarea></label>
     <label>City <input name="city" required></label>
     <label>State <input name="state" required value="Maharashtra"></label>

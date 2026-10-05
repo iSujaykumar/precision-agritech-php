@@ -18,13 +18,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12) {
             throw new RuntimeException('Use a name, email, mobile and a password of at least 12 characters.');
         }
-        db()->prepare('INSERT INTO users (name, email, phone, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)')
-            ->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT), 'admin', 'active']);
-        $_SESSION['user_id'] = (int) db()->lastInsertId();
+        $pdo = db();
+        $lock = $pdo->query("SELECT GET_LOCK('pa_setup_admin', 10)")->fetchColumn();
+        if ((string) $lock !== '1') {
+            throw new RuntimeException('Setup is busy. Try again.');
+        }
+        try {
+            $count = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+            if ($count > 0) {
+                throw new RuntimeException('A staff account already exists.');
+            }
+            $pdo->prepare('INSERT INTO users (name, email, phone, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)')
+                ->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT), 'admin', 'active']);
+            $id = (int) $pdo->lastInsertId();
+        } finally {
+            $pdo->query("SELECT RELEASE_LOCK('pa_setup_admin')");
+        }
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
+        $stmt->execute([$id]);
+        sign_in_user($stmt->fetch());
         header('Location: /admin');
         exit;
     } catch (Throwable $err) {
-        $error = $err->getMessage();
+        $error = safe_error($err, 'The staff account could not be created.');
     }
 }
 render_header('Create the staff account');

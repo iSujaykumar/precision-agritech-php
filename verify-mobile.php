@@ -13,8 +13,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new RuntimeException('Add a mobile number on your account first.');
         }
         if (($_POST['step'] ?? '') === 'code') {
-            check_mobile_code($phone, trim((string) ($_POST['code'] ?? '')));
-            db()->prepare('UPDATE users SET phone_verified_at = NOW() WHERE id = ?')->execute([(int) $user['id']]);
+            $verified = check_mobile_code(trim((string) ($_POST['code'] ?? '')), 'verify');
+            if ($verified !== $phone) {
+                throw new RuntimeException('That code is not right.');
+            }
+            db()->prepare('UPDATE users SET phone_verified_at = NOW() WHERE id = ? AND phone = ?')->execute([(int) $user['id'], $phone]);
             header('Location: /account');
             exit;
         }

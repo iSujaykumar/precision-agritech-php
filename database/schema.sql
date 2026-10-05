@@ -8,6 +8,10 @@ CREATE TABLE users (
   phone VARCHAR(20) NULL,
   password_hash VARCHAR(255) NOT NULL,
   role VARCHAR(20) NOT NULL DEFAULT 'customer',
+  status VARCHAR(20) NOT NULL DEFAULT 'active',
+  phone_verified_at TIMESTAMP NULL,
+  last_login_at TIMESTAMP NULL,
+  password_changed_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY users_email (email),
   UNIQUE KEY users_phone (phone)
@@ -56,6 +60,8 @@ CREATE TABLE products (
   bestseller TINYINT(1) NOT NULL DEFAULT 0,
   is_new TINYINT(1) NOT NULL DEFAULT 0,
   on_offer TINYINT(1) NOT NULL DEFAULT 0,
+  offer_starts_at DATETIME NULL,
+  offer_ends_at DATETIME NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
   UNIQUE KEY products_slug (slug),
   UNIQUE KEY products_sku (sku),
@@ -146,6 +152,9 @@ CREATE TABLE contact_messages (
   email VARCHAR(160) NOT NULL,
   phone VARCHAR(20) NULL,
   body TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'new',
+  handled_at TIMESTAMP NULL,
+  staff_note VARCHAR(400) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE wholesale_requests (
@@ -157,6 +166,8 @@ CREATE TABLE wholesale_requests (
   products VARCHAR(255) NOT NULL,
   quantity VARCHAR(80) NOT NULL,
   notes TEXT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'new',
+  staff_note VARCHAR(400) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE settings (
@@ -166,8 +177,62 @@ CREATE TABLE settings (
 CREATE TABLE login_attempts (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   ip VARCHAR(64) NOT NULL,
+  identifier VARCHAR(160) NOT NULL DEFAULT '',
   attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY login_attempts_ip (ip, attempted_at)
+  KEY login_attempts_ip (ip, attempted_at),
+  KEY login_attempts_identifier (identifier, attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE lookup_attempts (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(64) NOT NULL,
+  attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY lookup_attempts_ip (ip, attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE mobile_verifications (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  phone VARCHAR(20) NOT NULL,
+  purpose VARCHAR(30) NOT NULL,
+  provider_sid VARCHAR(80) NULL,
+  status VARCHAR(20) NOT NULL,
+  attempts INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NULL,
+  verified_at TIMESTAMP NULL,
+  ip VARCHAR(64) NOT NULL,
+  user_id INT UNSIGNED NULL,
+  KEY mobile_verifications_phone (phone, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE password_resets (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY password_resets_hash (token_hash),
+  CONSTRAINT password_resets_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE inventory_movements (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  admin_user_id INT UNSIGNED NOT NULL,
+  change_qty INT NOT NULL,
+  stock_before INT NOT NULL,
+  stock_after INT NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY inventory_movements_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE admin_audit_log (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  admin_user_id INT UNSIGNED NOT NULL,
+  action VARCHAR(80) NOT NULL,
+  entity VARCHAR(40) NOT NULL,
+  entity_id INT UNSIGNED NOT NULL,
+  before_text VARCHAR(500) NULL,
+  after_text VARCHAR(500) NULL,
+  ip VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 SET FOREIGN_KEY_CHECKS=1;
 INSERT INTO categories (id, slug, name, sort_order) VALUES

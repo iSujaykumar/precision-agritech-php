@@ -19,7 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (strlen($next) < 8 || !hash_equals($next, $confirm)) {
             throw new RuntimeException('Use matching passwords of at least 8 characters.');
         }
-        db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([password_hash($next, PASSWORD_DEFAULT), (int) $user['id']]);
+        db()->prepare('UPDATE users SET password_hash = ?, password_changed_at = NOW() WHERE id = ?')->execute([password_hash($next, PASSWORD_DEFAULT), (int) $user['id']]);
+        $stamp = db()->prepare('SELECT password_changed_at FROM users WHERE id = ?');
+        $stamp->execute([(int) $user['id']]);
+        $_SESSION['pwd_stamp'] = (string) $stamp->fetchColumn();
         rotate_csrf();
         $notice = 'Password updated.';
     } catch (Throwable $err) {

@@ -18,8 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$row) {
             throw new RuntimeException('This reset link is no longer valid.');
         }
-        db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([password_hash($password, PASSWORD_DEFAULT), (int) $row['user_id']]);
-        db()->prepare('UPDATE password_resets SET used_at = NOW() WHERE id = ?')->execute([(int) $row['id']]);
+        db()->prepare('UPDATE users SET password_hash = ?, password_changed_at = NOW() WHERE id = ?')->execute([password_hash($password, PASSWORD_DEFAULT), (int) $row['user_id']]);
+        db()->prepare('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')->execute([(int) $row['user_id']]);
         header('Location: /login');
         exit;
     } catch (Throwable $err) {

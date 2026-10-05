@@ -17,11 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_csrf();
         if (($_POST['action'] ?? '') === 'review') {
             $user = require_user();
-            $bought = db()->prepare('SELECT oi.id, o.status FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = ? AND o.user_id = ? ORDER BY oi.id DESC LIMIT 1');
+            $bought = db()->prepare("SELECT oi.id FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = ? AND o.user_id = ? AND o.status = 'delivered' LIMIT 1");
             $bought->execute([(int) $product['id'], (int) $user['id']]);
-            $order = $bought->fetch();
-            if (!$order) {
-                throw new RuntimeException('A review needs an order for this tray on this account.');
+            if (!$bought->fetch()) {
+                throw new RuntimeException('A review is available after this tray has been delivered to your account.');
             }
             $existing = db()->prepare('SELECT id FROM reviews WHERE product_id = ? AND user_id = ? LIMIT 1');
             $existing->execute([(int) $product['id'], (int) $user['id']]);
@@ -35,16 +34,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Add your name and a short review.');
             }
             db()->prepare('INSERT INTO reviews (product_id, user_id, author_name, rating, body, status, verified) VALUES (?, ?, ?, ?, ?, ?, ?)')
-                ->execute([(int) $product['id'], (int) $user['id'], $author, $rating, $body, 'pending', $order['status'] === 'delivered' ? 1 : 0]);
+                ->execute([(int) $product['id'], (int) $user['id'], $author, $rating, $body, 'pending', 1]);
             header('Location: /product/' . rawurlencode($product['slug']));
             exit;
         }
-        $qty = max(1, (int) ($_POST['qty'] ?? 1));
-        $_SESSION['cart'][$product['slug']] = (int) (cart()[$product['slug']] ?? 0) + $qty;
+        $qty = tray_qty((int) ($_POST['qty'] ?? 0));
+        $next = (int) (cart()[$product['slug']] ?? 0) + $qty;
+        if ($next > 50) {
+            throw new RuntimeException('Choose between 1 and 50 trays.');
+        }
+        $_SESSION['cart'][$product['slug']] = $next;
         header('Location: /cart');
         exit;
     } catch (Throwable $err) {
-        $error = $err->getMessage();
+        $error = safe_error($err, 'That could not be saved.');
     }
 }
 $reviews = db()->prepare("SELECT author_name, rating, body FROM reviews WHERE product_id = ? AND status = 'approved' ORDER BY id DESC");

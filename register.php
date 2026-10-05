@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? 'That mobile number is already on an account.'
                 : (str_contains($message, 'email') ? 'That email already has an account.' : 'The account could not be created.');
         } else {
-            $error = $message;
+            $error = safe_error($err, 'The account could not be created.');
         }
     }
 }

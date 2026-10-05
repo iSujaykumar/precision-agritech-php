@@ -1,23 +1,38 @@
 <?php
 declare(strict_types=1);
-
+function request_is_https(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        return true;
+    }
+    return strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+}
 $config = require dirname(__DIR__) . '/config/config.php';
-
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
         'httponly' => true,
         'samesite' => 'Lax',
-        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'secure' => request_is_https(),
     ]);
     session_start();
 }
-
+$siteUrl = (string) ($config['site_url'] ?? '');
+$siteHost = (string) parse_url($siteUrl, PHP_URL_HOST);
+$requestHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
+if ($siteHost !== '' && strcasecmp($requestHost, $siteHost) === 0 && str_starts_with($siteUrl, 'https://') && !request_is_https()) {
+    header('Location: https://' . $requestHost . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+    exit;
+}
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('X-Frame-Options: SAMEORIGIN');
 header("Permissions-Policy: camera=(), microphone=(), geolocation=()");
 header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'self'");
-
+if (request_is_https()) {
+    header('Strict-Transport-Security: max-age=15552000');
+}
 if (!empty($_SESSION['user_id'])) {
     $seen = (int) ($_SESSION['seen'] ?? 0);
     if ($seen > 0 && time() - $seen > 12 * 3600) {
@@ -27,12 +42,10 @@ if (!empty($_SESSION['user_id'])) {
         $_SESSION['seen'] = time();
     }
 }
-
 function e(?string $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
-
 function normalize_phone(string $raw): string
 {
     $digits = preg_replace('/\D+/', '', $raw) ?? '';
@@ -47,127 +60,10 @@ function normalize_phone(string $raw): string
     }
     return $digits;
 }
-
 function phone_e164(string $raw): string
 {
     return '+91' . normalize_phone($raw);
 }
-
-function ensure_schema(): void
-{
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-    $pdo = db();
-    $have = [];
-    foreach ($pdo->query('SHOW COLUMNS FROM users') as $column) {
-        $have[$column['Field']] = true;
-    }
-    $add = [
-        'phone_verified_at' => 'ALTER TABLE users ADD COLUMN phone_verified_at TIMESTAMP NULL',
-        'email_verified_at' => 'ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP NULL',
-        'status' => "ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'",
-        'updated_at' => 'ALTER TABLE users ADD COLUMN updated_at TIMESTAMP NULL',
-        'last_login_at' => 'ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP NULL',
-    ];
-    foreach ($add as $name => $sql) {
-        if (!isset($have[$name])) {
-            $pdo->exec($sql);
-        }
-    }
-    $productColumns = [];
-    foreach ($pdo->query('SHOW COLUMNS FROM products') as $column) {
-        $productColumns[$column['Field']] = true;
-    }
-    if (!isset($productColumns['offer_starts_at'])) {
-        $pdo->exec('ALTER TABLE products ADD COLUMN offer_starts_at DATETIME NULL');
-    }
-    if (!isset($productColumns['offer_ends_at'])) {
-        $pdo->exec('ALTER TABLE products ADD COLUMN offer_ends_at DATETIME NULL');
-    }
-    $attemptColumns = [];
-    foreach ($pdo->query('SHOW COLUMNS FROM login_attempts') as $column) {
-        $attemptColumns[$column['Field']] = true;
-    }
-    if (!isset($attemptColumns['identifier'])) {
-        $pdo->exec("ALTER TABLE login_attempts ADD COLUMN identifier VARCHAR(160) NOT NULL DEFAULT ''");
-    }
-    foreach (['status', 'handled_at', 'staff_note'] as $index => $name) {
-        $messageColumns = [];
-        foreach ($pdo->query('SHOW COLUMNS FROM contact_messages') as $column) {
-            $messageColumns[$column['Field']] = true;
-        }
-        if (!isset($messageColumns['status'])) {
-            $pdo->exec("ALTER TABLE contact_messages ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'new'");
-        }
-        if (!isset($messageColumns['handled_at'])) {
-            $pdo->exec('ALTER TABLE contact_messages ADD COLUMN handled_at TIMESTAMP NULL');
-        }
-        if (!isset($messageColumns['staff_note'])) {
-            $pdo->exec('ALTER TABLE contact_messages ADD COLUMN staff_note VARCHAR(400) NULL');
-        }
-        break;
-    }
-    $wholesaleColumns = [];
-    foreach ($pdo->query('SHOW COLUMNS FROM wholesale_requests') as $column) {
-        $wholesaleColumns[$column['Field']] = true;
-    }
-    if (!isset($wholesaleColumns['status'])) {
-        $pdo->exec("ALTER TABLE wholesale_requests ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'new'");
-    }
-    if (!isset($wholesaleColumns['staff_note'])) {
-        $pdo->exec('ALTER TABLE wholesale_requests ADD COLUMN staff_note VARCHAR(400) NULL');
-    }
-    $pdo->exec("CREATE TABLE IF NOT EXISTS mobile_verifications (
-        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        phone VARCHAR(20) NOT NULL,
-        purpose VARCHAR(30) NOT NULL,
-        provider_sid VARCHAR(80) NULL,
-        status VARCHAR(20) NOT NULL,
-        attempts INT NOT NULL DEFAULT 0,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP NULL,
-        verified_at TIMESTAMP NULL,
-        ip VARCHAR(64) NOT NULL,
-        user_id INT UNSIGNED NULL,
-        KEY mobile_verifications_phone (phone, created_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    $pdo->exec("CREATE TABLE IF NOT EXISTS password_resets (
-        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT UNSIGNED NOT NULL,
-        token_hash CHAR(64) NOT NULL,
-        expires_at TIMESTAMP NOT NULL,
-        used_at TIMESTAMP NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY password_resets_hash (token_hash),
-        CONSTRAINT password_resets_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    $pdo->exec("CREATE TABLE IF NOT EXISTS inventory_movements (
-        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        product_id INT UNSIGNED NOT NULL,
-        admin_user_id INT UNSIGNED NOT NULL,
-        change_qty INT NOT NULL,
-        stock_before INT NOT NULL,
-        stock_after INT NOT NULL,
-        reason VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        KEY inventory_movements_product (product_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    $pdo->exec("CREATE TABLE IF NOT EXISTS admin_audit_log (
-        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        admin_user_id INT UNSIGNED NOT NULL,
-        action VARCHAR(80) NOT NULL,
-        entity VARCHAR(40) NOT NULL,
-        entity_id INT UNSIGNED NOT NULL,
-        before_text VARCHAR(500) NULL,
-        after_text VARCHAR(500) NULL,
-        ip VARCHAR(64) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-}
-
 function twilio_configured(): bool
 {
     global $config;
@@ -175,24 +71,15 @@ function twilio_configured(): bool
         && ($config['twilio_token'] ?? '') !== ''
         && ($config['twilio_verify'] ?? '') !== '';
 }
-
 function audit_log(int $adminId, string $action, string $entity, int $entityId, ?string $before, ?string $after): void
 {
     db()->prepare('INSERT INTO admin_audit_log (admin_user_id, action, entity, entity_id, before_text, after_text, ip) VALUES (?, ?, ?, ?, ?, ?, ?)')
         ->execute([$adminId, $action, $entity, $entityId, $before, $after, client_ip()]);
 }
-{
-    if (strlen($phone) < 4) {
-        return $phone;
-    }
-    return substr($phone, 0, 2) . 'XXXXXX' . substr($phone, -2);
-}
-
 function client_ip(): string
 {
     return substr((string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'), 0, 64);
 }
-
 function too_many_attempts(string $identifier): bool
 {
     db()->exec('DELETE FROM login_attempts WHERE attempted_at < (NOW() - INTERVAL 2 DAY)');
@@ -202,26 +89,26 @@ function too_many_attempts(string $identifier): bool
     $who->execute([$identifier]);
     return (int) $ip->fetchColumn() >= 20 || (int) $who->fetchColumn() >= 8;
 }
-
 function note_login_failure(string $identifier = ''): void
 {
     db()->prepare('INSERT INTO login_attempts (ip, identifier) VALUES (?, ?)')->execute([client_ip(), substr($identifier, 0, 160)]);
 }
-
 function safe_error(Throwable $err, string $fallback): string
 {
     if ($err instanceof PDOException) {
         error_log($err->getMessage());
         return $fallback;
     }
-    return $err->getMessage();
+    if ($err instanceof RuntimeException) {
+        return $err->getMessage();
+    }
+    error_log($err::class . ' ' . $err->getMessage());
+    return $fallback;
 }
-
 function inr(int $amount): string
 {
     return '₹' . number_format($amount);
 }
-
 function db(): PDO
 {
     static $pdo = null;
@@ -245,7 +132,6 @@ function db(): PDO
     ]);
     return $pdo;
 }
-
 function setting(string $key, string $fallback = ''): string
 {
     static $map = null;
@@ -257,22 +143,26 @@ function setting(string $key, string $fallback = ''): string
     }
     return $map[$key] ?? $fallback;
 }
-
 function current_user(): ?array
 {
     $id = $_SESSION['user_id'] ?? null;
     if (!$id) {
         return null;
     }
-    $stmt = db()->prepare('SELECT id, name, email, phone, role, phone_verified_at, status FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT id, name, email, phone, role, phone_verified_at, status, password_changed_at FROM users WHERE id = ?');
     $stmt->execute([(int) $id]);
     $user = $stmt->fetch();
     if (!$user || ($user['status'] ?? '') === 'disabled') {
         return null;
     }
+    $stamp = (string) ($user['password_changed_at'] ?? '');
+    $known = (string) ($_SESSION['pwd_stamp'] ?? '');
+    if (!hash_equals($stamp, $known)) {
+        unset($_SESSION['user_id']);
+        return null;
+    }
     return $user;
 }
-
 function require_user(): array
 {
     $user = current_user();
@@ -282,7 +172,6 @@ function require_user(): array
     }
     return $user;
 }
-
 function require_admin(): array
 {
     $user = require_user();
@@ -292,7 +181,6 @@ function require_admin(): array
     }
     return $user;
 }
-
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {
@@ -300,12 +188,10 @@ function csrf_token(): string
     }
     return $_SESSION['csrf'];
 }
-
 function csrf_field(): string
 {
     return '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">';
 }
-
 function mask_phone(string $phone): string
 {
     if (strlen($phone) < 4) {
@@ -313,12 +199,10 @@ function mask_phone(string $phone): string
     }
     return substr($phone, 0, 2) . 'XXXXXX' . substr($phone, -2);
 }
-
 function rotate_csrf(): void
 {
     $_SESSION['csrf'] = bin2hex(random_bytes(32));
 }
-
 function require_csrf(): void
 {
     $sent = (string) ($_POST['csrf'] ?? '');
@@ -327,32 +211,61 @@ function require_csrf(): void
         throw new RuntimeException('The form expired. Reload the page and try again.');
     }
 }
-
 function sign_in_user(array $user): void
 {
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int) $user['id'];
     $_SESSION['seen'] = time();
+    $_SESSION['pwd_stamp'] = (string) ($user['password_changed_at'] ?? '');
     rotate_csrf();
     db()->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?')->execute([(int) $user['id']]);
 }
-
+function tray_qty(int $qty): int
+{
+    if ($qty < 1 || $qty > 50) {
+        throw new RuntimeException('Choose between 1 and 50 trays.');
+    }
+    return $qty;
+}
+function checkout_token(): string
+{
+    if (empty($_SESSION['checkout_token'])) {
+        $_SESSION['checkout_token'] = bin2hex(random_bytes(16));
+    }
+    return (string) $_SESSION['checkout_token'];
+}
+function take_checkout_token(string $sent): void
+{
+    $known = (string) ($_SESSION['checkout_token'] ?? '');
+    unset($_SESSION['checkout_token']);
+    if ($known === '' || $sent === '' || !hash_equals($known, $sent)) {
+        throw new RuntimeException('This checkout was already submitted. Look at your orders before placing it again.');
+    }
+}
+function lookup_is_limited(): bool
+{
+    db()->exec('DELETE FROM lookup_attempts WHERE attempted_at < (NOW() - INTERVAL 1 DAY)');
+    $stmt = db()->prepare('SELECT COUNT(*) FROM lookup_attempts WHERE ip = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)');
+    $stmt->execute([client_ip()]);
+    return (int) $stmt->fetchColumn() >= 20;
+}
+function note_lookup(): void
+{
+    db()->prepare('INSERT INTO lookup_attempts (ip) VALUES (?)')->execute([client_ip()]);
+}
 function cart(): array
 {
     $cart = $_SESSION['cart'] ?? [];
     return is_array($cart) ? $cart : [];
 }
-
 function cart_count(): int
 {
     return array_sum(array_map('intval', cart()));
 }
-
 function available_trays(array $product): int
 {
     return max(0, (int) $product['stock_qty'] - (int) $product['reserved_qty']);
 }
-
 function product_by_slug(string $slug): ?array
 {
     $stmt = db()->prepare(
@@ -364,7 +277,6 @@ function product_by_slug(string $slug): ?array
     $row = $stmt->fetch();
     return $row ?: null;
 }
-
 function quote_cart(string $couponCode = ''): array
 {
     $lines = [];
@@ -417,7 +329,6 @@ function quote_cart(string $couponCode = ''): array
         'coupon' => $coupon,
     ];
 }
-
 function lock_coupon(PDO $pdo, string $code, int $subtotal): ?array
 {
     $code = strtoupper(trim($code));
@@ -446,7 +357,6 @@ function lock_coupon(PDO $pdo, string $code, int $subtotal): ?array
     $coupon['discount'] = max(0, min($discount, $subtotal));
     return $coupon;
 }
-
 function apply_order_status(PDO $pdo, int $id, string $status, int $adminId): void
 {
     $allowed = [
@@ -487,7 +397,6 @@ function apply_order_status(PDO $pdo, int $id, string $status, int $adminId): vo
     $pdo->prepare('INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)')->execute([$id, $status, 'Nursery updated the order.']);
     audit_log($adminId, 'order_status', 'order', $id, $from, $status);
 }
-
 function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int $adminId): void
 {
     if (strlen($reason) < 3) {
@@ -509,6 +418,5 @@ function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int
         ->execute([$productId, $adminId, $change, $before, $after, $reason]);
     audit_log($adminId, 'stock', 'product', $productId, (string) $before, (string) $after);
 }
-
 require dirname(__DIR__) . '/includes/otp.php';
 require dirname(__DIR__) . '/includes/layout.php';

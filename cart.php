@@ -4,17 +4,21 @@ require __DIR__ . '/includes/bootstrap.php';
 connect_or_explain();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_csrf();
-    $slug = (string) ($_POST['slug'] ?? '');
-    if (($_POST['action'] ?? '') === 'remove') {
-        unset($_SESSION['cart'][$slug]);
-    } else {
-        $qty = (int) ($_POST['qty'] ?? 0);
-        if ($qty < 1) {
+    try {
+        require_csrf();
+        $slug = (string) ($_POST['slug'] ?? '');
+        if (($_POST['action'] ?? '') === 'remove') {
             unset($_SESSION['cart'][$slug]);
         } else {
-            $_SESSION['cart'][$slug] = $qty;
+            $qty = (int) ($_POST['qty'] ?? 0);
+            if ($qty < 1) {
+                unset($_SESSION['cart'][$slug]);
+            } else {
+                $_SESSION['cart'][$slug] = tray_qty($qty);
+            }
         }
+    } catch (Throwable $err) {
+        error_log($err->getMessage());
     }
     header('Location: /cart');
     exit;

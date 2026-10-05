@@ -9,12 +9,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_csrf();
         if (($_POST['action'] ?? '') === 'phone') {
             $phone = normalize_phone((string) ($_POST['phone'] ?? ''));
+            if ($phone === (string) ($user['phone'] ?? '')) {
+                header('Location: /account');
+                exit;
+            }
             $taken = db()->prepare('SELECT id FROM users WHERE phone = ? AND id <> ?');
             $taken->execute([$phone, (int) $user['id']]);
             if ($taken->fetch()) {
                 throw new RuntimeException('That mobile number is already on an account.');
             }
-            db()->prepare('UPDATE users SET phone = ? WHERE id = ?')->execute([$phone, (int) $user['id']]);
+            db()->prepare('UPDATE users SET phone = ?, phone_verified_at = NULL WHERE id = ?')->execute([$phone, (int) $user['id']]);
+            unset($_SESSION['otp_id'], $_SESSION['otp_phone'], $_SESSION['otp_purpose'], $_SESSION['otp_decoy']);
         } else {
             db()->prepare('INSERT INTO addresses (user_id, line, city, state_name, postal_code) VALUES (?, ?, ?, ?, ?)')
                 ->execute([(int) $user['id'], trim((string) $_POST['line']), trim((string) $_POST['city']), trim((string) $_POST['state']), trim((string) $_POST['postal'])]);

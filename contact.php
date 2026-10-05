@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $done = true;
         }
     } catch (Throwable $err) {
-        $error = $err->getMessage();
+        $error = safe_error($err, 'The message could not be saved.');
     }
 }
 render_header('Contact | Precision Agritech');

@@ -95,12 +95,18 @@ function connect_or_explain(): void
 {
     try {
         db();
-        ensure_schema();
     } catch (Throwable $err) {
-        render_header('Database setup | Precision Agritech');
+        error_log($err::class . ' ' . $err->getMessage());
+        $connection = $err instanceof PDOException || str_contains($err->getMessage(), 'not configured');
+        render_header($connection ? 'Database setup | Precision Agritech' : 'Unavailable | Precision Agritech');
         echo '<section class="section"><div class="wrap narrow">';
-        echo '<h1>Connect the database</h1>';
-        echo '<p>Import <code>database.sql</code> in phpMyAdmin, then put the Hostinger MySQL name, user and password in <code>config/config.local.php</code>.</p>';
+        if ($connection) {
+            echo '<h1>Connect the database</h1>';
+            echo '<p>Import <code>database/schema.sql</code> into an empty database. If this database already exists, import <code>database/upgrade.sql</code> once. Then fill <code>config/config.local.php</code> from <code>config/config.example.php</code>.</p>';
+        } else {
+            echo '<h1>The shop could not be opened</h1>';
+            echo '<p>The nursery has the details. Nothing on this page is a database password or a file path.</p>';
+        }
         echo '</div></section>';
         render_footer();
         exit;

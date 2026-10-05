@@ -1,11 +1,14 @@
-Upload the contents of this folder into Hostinger public_html.
+Hostinger
+1. Create an empty MySQL database and a database user in hPanel. Do not use a superuser account and do not leave the password empty.
+2. Import database/schema.sql in phpMyAdmin.
+3. If the database was created earlier, import database/upgrade.sql once instead of starting over.
+4. Copy config/config.example.php to config/config.local.php on the server.
+5. Fill the database host, name, user and password that hPanel shows. Set site_url to https://precisionagritech.in.
+6. Leave the Twilio lines empty until a real Verify service exists. The site will not pretend an SMS was sent.
+7. Upload the site files into public_html. Do not upload a config.local.php that already contains a password into a public place.
+8. Open /setup once to create the staff account. After that, /setup stays closed.
 
-1. Import database/schema.sql into an empty MySQL database. If the database already exists, open the site once: it adds the new login and stock tables itself.
-2. Edit config/config.local.php with the database name, user and password.
-3. For mobile codes, add the Twilio Verify keys in that same file:
-   twilio_sid, twilio_token, twilio_verify
-   Leave them empty and the site will not pretend a code was sent.
-4. Password reset uses the server mail function. Test it on Hostinger before relying on it.
-5. Open /setup once, only if no staff account exists yet.
+Local computer
+Use the same files. In config.local.php set the local database name, the local database account, and site_url to the address you actually open, including the port. An http site URL does not force https, so local browsing keeps working.
 
-Do not overwrite config/config.local.php if it already has the live database password.
+Ordinary pages do not alter the database. Schema changes belong in schema.sql and upgrade.sql.
