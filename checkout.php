@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $method === 'cod' ? 'placed' : 'payment_pending';
         $payment = $method === 'cod' ? 'unpaid' : 'pending';
         $token = bin2hex(random_bytes(16));
-        $number = 'PA' . random_int(100000, 999999);
+        $number = 'PA' . strtoupper(bin2hex(random_bytes(4)));
         $ins = $pdo->prepare('INSERT INTO orders (
             order_number, lookup_token, user_id, customer_name, customer_phone, customer_email,
             status, payment_status, payment_method, inventory_state, subtotal_inr, discount_inr,
@@ -97,14 +97,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($pdo) && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        $error = $err->getMessage();
+        $error = safe_error($err, 'The order could not be saved. Nothing was charged.');
     }
 }
 try {
     $quote = quote_cart((string) ($_POST['coupon'] ?? ''));
 } catch (Throwable $err) {
-    $quote = quote_cart();
-    $error = $error ?: $err->getMessage();
+    try {
+        $quote = quote_cart();
+    } catch (Throwable $ignored) {
+        $quote = ['lines' => [], 'subtotal' => 0, 'discount' => 0, 'shipping' => 0, 'total' => 0, 'coupon' => null];
+    }
+    $error = $error ?: safe_error($err, 'The cart could not be priced.');
 }
 render_header('Checkout | Precision Agritech');
 ?>

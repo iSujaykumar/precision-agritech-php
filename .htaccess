@@ -3,6 +3,7 @@ RewriteEngine On
 
 RewriteRule ^config/ - [F,L]
 RewriteRule ^includes/ - [F,L]
+RewriteRule ^database/ - [F,L]
 RewriteRule ^database\.sql$ - [F,L]
 
 RewriteRule ^product/([a-z0-9-]+)/?$ product.php?slug=$1 [L,QSA]
@@ -12,6 +13,8 @@ RewriteRule ^shop/?$ shop.php [L,QSA]
 RewriteRule ^cart/?$ cart.php [L]
 RewriteRule ^checkout/?$ checkout.php [L]
 RewriteRule ^account/?$ account.php [L]
+RewriteRule ^orders/?$ account.php [L]
+RewriteRule ^track/?$ order-tracking.php [L]
 RewriteRule ^contact/?$ contact.php [L]
 RewriteRule ^login/?$ login.php [L]
 RewriteRule ^register/?$ register.php [L]

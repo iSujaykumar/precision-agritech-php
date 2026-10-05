@@ -17,6 +17,55 @@ function e(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function normalize_phone(string $raw): string
+{
+    $digits = preg_replace('/\D+/', '', $raw) ?? '';
+    if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
+        $digits = substr($digits, 2);
+    }
+    if (strlen($digits) === 11 && str_starts_with($digits, '0')) {
+        $digits = substr($digits, 1);
+    }
+    if (!preg_match('/^[6-9][0-9]{9}$/', $digits)) {
+        throw new RuntimeException('Use a 10-digit Indian mobile number.');
+    }
+    return $digits;
+}
+
+function mask_phone(string $phone): string
+{
+    if (strlen($phone) < 4) {
+        return $phone;
+    }
+    return substr($phone, 0, 2) . 'XXXXXX' . substr($phone, -2);
+}
+
+function client_ip(): string
+{
+    return substr((string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'), 0, 64);
+}
+
+function login_is_allowed(): bool
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)');
+    $stmt->execute([client_ip()]);
+    return (int) $stmt->fetchColumn() < 8;
+}
+
+function note_login_failure(): void
+{
+    db()->prepare('INSERT INTO login_attempts (ip) VALUES (?)')->execute([client_ip()]);
+}
+
+function safe_error(Throwable $err, string $fallback): string
+{
+    if ($err instanceof PDOException) {
+        error_log($err->getMessage());
+        return $fallback;
+    }
+    return $err->getMessage();
+}
+
 function inr(int $amount): string
 {
     return '₹' . number_format($amount);
@@ -41,6 +90,7 @@ function db(): PDO
     $pdo = new PDO($dsn, $config['db_user'], $config['db_pass'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
     ]);
     return $pdo;
 }

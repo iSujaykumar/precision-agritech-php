@@ -8,7 +8,7 @@
   --sale: #8d4334;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: "Source Sans 3", sans-serif; line-height: 1.5; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: "Source Sans 3", sans-serif; line-height: 1.5; overflow-x: hidden; }
 h1, h2, h3 { font-family: Newsreader, Georgia, serif; font-weight: 560; letter-spacing: -0.02em; }
 a { color: inherit; }
 img { max-width: 100%; display: block; }
