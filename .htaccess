@@ -1,13 +1,23 @@
 Options -Indexes
 RewriteEngine On
 
+RewriteCond %{HTTP_HOST} ^www\.precisionagritech\.in$ [NC]
+RewriteRule ^ https://precisionagritech.in%{REQUEST_URI} [R=301,L]
+RewriteCond %{HTTP_HOST} ^precisionagritech\.in$ [NC]
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteRule ^ https://precisionagritech.in%{REQUEST_URI} [R=301,L]
+
 RewriteRule ^config/ - [F,L]
 RewriteRule ^includes/ - [F,L]
 RewriteRule ^database/ - [F,L]
-RewriteRule ^database\.sql$ - [F,L]
+RewriteRule ^storage/ - [F,L]
 RewriteRule ^admin/common\.php$ - [F,L]
+RewriteRule ^robots\.txt$ - [L]
+RewriteRule \.(sql|md|txt|log)$ - [F,L]
 RewriteRule "(^|/)\." - [F,L]
 
+RewriteRule ^sitemap\.xml$ sitemap.php [L]
 RewriteRule ^product/([a-z0-9-]+)/?$ product.php?slug=$1 [L,QSA]
 RewriteRule ^order/([A-Za-z0-9]+)/?$ order.php?token=$1 [L,QSA]
 RewriteRule ^(about|nursery|faq|shipping|returns|privacy|terms|wholesale)/?$ page.php?p=$1 [L,QSA]
@@ -24,6 +34,13 @@ RewriteRule ^setup/?$ setup.php [L]
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
 RewriteRule ^admin/([a-z0-9-]+)/?$ admin/$1.php [L,QSA]
 
+RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^([A-Za-z0-9_-]+)/?$ $1.php [L,QSA]
+
+ErrorDocument 403 /404.php
+ErrorDocument 404 /404.php
+ErrorDocument 500 /404.php

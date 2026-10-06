@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('That sign-in is not right.');
             }
             $phone = check_mobile_code(trim((string) ($_POST['code'] ?? '')), 'login');
-            $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND phone_verified_at IS NOT NULL AND status = "active"');
+            $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND phone_verified_at IS NOT NULL AND status = 'active'');
             $stmt->execute([$phone]);
             $user = $stmt->fetch();
             if (!$user) {
@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('That sign-in is not right.');
             }
             sign_in_user($user);
+            clear_login_failures('otp:' . $phone);
             header('Location: ' . ($user['role'] === 'admin' ? '/admin' : '/account'));
             exit;
         }
@@ -37,16 +38,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (too_many_attempts('otp:' . $phone)) {
                 throw new RuntimeException('Too many attempts. Wait and try again.');
             }
-            $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND phone_verified_at IS NOT NULL AND status = "active"');
+            $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND phone_verified_at IS NOT NULL AND status = 'active'');
             $stmt->execute([$phone]);
             $user = $stmt->fetch();
             if ($user) {
                 start_mobile_code($phone, 'login', (int) $user['id']);
             } else {
-                $_SESSION['otp_phone'] = $phone;
-                $_SESSION['otp_purpose'] = 'login';
-                $_SESSION['otp_id'] = 0;
-                $_SESSION['otp_decoy'] = 1;
+                record_decoy_otp($phone);
             }
             $step = 'code';
         } else {
@@ -58,10 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $password = (string) ($_POST['password'] ?? '');
             if ($mode === 'mobile') {
-                $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND status = "active"');
+                $stmt = db()->prepare('SELECT * FROM users WHERE phone = ? AND status = 'active'');
                 $stmt->execute([$identifier]);
             } else {
-                $stmt = db()->prepare('SELECT * FROM users WHERE email = ? AND status = "active"');
+                $stmt = db()->prepare('SELECT * FROM users WHERE email = ? AND status = 'active'');
                 $stmt->execute([$identifier]);
             }
             $user = $stmt->fetch();
@@ -70,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('That sign-in is not right.');
             }
             sign_in_user($user);
+            clear_login_failures($identifier);
             header('Location: ' . ($user['role'] === 'admin' ? '/admin' : '/account'));
             exit;
         }
@@ -103,7 +102,9 @@ render_header('Sign in | Precision Agritech');
     <div class="filters">
       <label><input type="radio" name="mode" value="email" <?= $mode === 'email' ? 'checked' : '' ?>> Email</label>
       <label><input type="radio" name="mode" value="mobile" <?= $mode === 'mobile' ? 'checked' : '' ?>> Mobile and password</label>
+      <?php if (twilio_configured()): ?>
       <label><input type="radio" name="mode" value="otp" <?= $mode === 'otp' ? 'checked' : '' ?>> Mobile code</label>
+      <?php endif; ?>
     </div>
     <label class="field-email">Email
       <input name="email" type="email" autocomplete="username" inputmode="email" value="<?= e((string) ($_POST['email'] ?? '')) ?>">

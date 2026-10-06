@@ -24,7 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stamp->execute([(int) $user['id']]);
         $_SESSION['pwd_stamp'] = (string) $stamp->fetchColumn();
         rotate_csrf();
-        $notice = 'Password updated.';
+        send_mail((string) $user['email'], 'Your Precision Agritech password was changed', "The password on your account was just changed. If this was not you, call 9011975959.");
+        flash('success', 'Password updated.');
+        header('Location: /account');
+        exit;
     } catch (Throwable $err) {
         $error = safe_error($err, 'The password could not be changed.');
     }

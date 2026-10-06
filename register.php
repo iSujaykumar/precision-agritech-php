@@ -11,27 +11,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone = normalize_phone((string) ($_POST['phone'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
         $confirm = (string) ($_POST['confirm'] ?? '');
-        if (strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) {
+        if (mb_strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) {
             throw new RuntimeException('Use a name, email, mobile and a password of at least 8 characters.');
         }
         if (!hash_equals($password, $confirm)) {
             throw new RuntimeException('The two passwords do not match.');
+        }
+        $holder = db()->prepare('SELECT id, email_verified_at, phone_verified_at, created_at FROM users WHERE phone = ?');
+        $holder->execute([$phone]);
+        $other = $holder->fetch();
+        if ($other && empty($other['email_verified_at']) && empty($other['phone_verified_at']) && strtotime((string) $other['created_at']) < time() - 7 * 86400) {
+            db()->prepare('UPDATE users SET phone = NULL WHERE id = ?')->execute([(int) $other['id']]);
         }
         db()->prepare('INSERT INTO users (name, email, phone, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)')
             ->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT), 'customer', 'active']);
         $id = (int) db()->lastInsertId();
         $stmt = db()->prepare('SELECT * FROM users WHERE id = ?');
         $stmt->execute([$id]);
-        sign_in_user($stmt->fetch());
-        header('Location: /verify-mobile');
+        $created = $stmt->fetch();
+        sign_in_user($created);
+        send_verify_email($created);
+        header('Location: ' . (twilio_configured() ? '/verify-mobile' : '/account'));
         exit;
     } catch (Throwable $err) {
-        $message = $err->getMessage();
-        if ($err instanceof PDOException) {
-            error_log($message);
-            $error = str_contains($message, 'phone')
-                ? 'That mobile number is already on an account.'
-                : (str_contains($message, 'email') ? 'That email already has an account.' : 'The account could not be created.');
+        if ($err instanceof PDOException && duplicate_key($err) !== '') {
+            error_log($err->getMessage());
+            $error = 'If this email and mobile are new, try again. If you already have an account, sign in.';
         } else {
             $error = safe_error($err, 'The account could not be created.');
         }

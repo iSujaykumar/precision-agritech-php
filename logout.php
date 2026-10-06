@@ -7,7 +7,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     render_footer();
     exit;
 }
-require_csrf();
+try {
+    require_csrf();
+} catch (Throwable $err) {
+    error_log($err->getMessage());
+}
 $_SESSION = [];
 if (ini_get('session.use_cookies')) {
     $params = session_get_cookie_params();

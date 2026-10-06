@@ -25,6 +25,9 @@ function twilio_call(string $path, array $fields): array
     $data = json_decode((string) $raw, true);
     if (!is_array($data) || $status >= 400) {
         error_log('Twilio Verify HTTP ' . $status);
+        if ($status === 404) {
+            throw new RuntimeException('That code has expired. Ask for a new one.');
+        }
         throw new RuntimeException('The SMS service could not complete that request.');
     }
     return $data;
@@ -32,10 +35,9 @@ function twilio_call(string $path, array $fields): array
 
 function otp_send_allowed(string $phone): void
 {
-    $recent = db()->prepare('SELECT created_at FROM mobile_verifications WHERE phone = ? AND purpose <> "" ORDER BY id DESC LIMIT 1');
+    $recent = db()->prepare('SELECT COUNT(*) FROM mobile_verifications WHERE phone = ? AND created_at > (NOW() - INTERVAL 45 SECOND)');
     $recent->execute([$phone]);
-    $last = $recent->fetchColumn();
-    if ($last && strtotime((string) $last) > time() - 45) {
+    if ((int) $recent->fetchColumn() > 0) {
         throw new RuntimeException('Wait a moment before asking for another code.');
     }
     $hour = db()->prepare('SELECT COUNT(*) FROM mobile_verifications WHERE phone = ? AND created_at > (NOW() - INTERVAL 1 HOUR)');
@@ -48,6 +50,17 @@ function otp_send_allowed(string $phone): void
     if ((int) $ip->fetchColumn() >= 10) {
         throw new RuntimeException('Too many codes were requested. Try again later.');
     }
+}
+
+function record_decoy_otp(string $phone): void
+{
+    otp_send_allowed($phone);
+    db()->prepare("INSERT INTO mobile_verifications (phone, purpose, status, expires_at, ip) VALUES (?, 'login', 'decoy', DATE_ADD(NOW(), INTERVAL 10 MINUTE), ?)")
+        ->execute([$phone, client_ip()]);
+    $_SESSION['otp_phone'] = $phone;
+    $_SESSION['otp_purpose'] = 'login';
+    $_SESSION['otp_id'] = 0;
+    $_SESSION['otp_decoy'] = 1;
 }
 
 function start_mobile_code(string $phone, string $purpose, ?int $userId): void

@@ -9,8 +9,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $bucket = 'reset:' . $email;
     if (!too_many_attempts($bucket)) {
         note_login_failure($bucket);
-        $stmt = db()->prepare('SELECT id, email FROM users WHERE email = ? AND status = "active"');
-        $stmt->execute([$email]);
+        $stmt = db()->prepare('SELECT id, email FROM users WHERE email = ? AND status = ?');
+        $stmt->execute([$email, 'active']);
         $user = $stmt->fetch();
         if ($user) {
             $token = bin2hex(random_bytes(32));
@@ -20,15 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             global $config;
             $link = rtrim((string) ($config['site_url'] ?? ''), '/') . '/reset-password?token=' . $token;
             $from = (string) ($config['mail_from'] ?? 'info@precisionagritech.in');
-            $sent = mail(
+            send_mail(
                 (string) $user['email'],
                 'Reset your Precision Agritech password',
-                "Use this link within 30 minutes. It works once.\n\n" . $link,
-                'From: ' . $from . "\r\nContent-Type: text/plain; charset=UTF-8"
+                "Use this link within 30 minutes. It works once.\n\n" . $link
             );
-            if (!$sent) {
-                error_log('Password reset mail was not accepted for delivery.');
-            }
         }
     } else {
         error_log('Password reset rate limit reached.');

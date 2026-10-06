@@ -10,6 +10,7 @@ CREATE TABLE users (
   role VARCHAR(20) NOT NULL DEFAULT 'customer',
   status VARCHAR(20) NOT NULL DEFAULT 'active',
   phone_verified_at TIMESTAMP NULL,
+  email_verified_at TIMESTAMP NULL,
   last_login_at TIMESTAMP NULL,
   password_changed_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -23,6 +24,7 @@ CREATE TABLE addresses (
   city VARCHAR(80) NOT NULL,
   state_name VARCHAR(80) NOT NULL,
   postal_code VARCHAR(12) NOT NULL,
+  is_default TINYINT(1) NOT NULL DEFAULT 0,
   KEY addresses_user (user_id),
   CONSTRAINT addresses_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -48,9 +50,11 @@ CREATE TABLE products (
   flowering_info TEXT NOT NULL,
   colour VARCHAR(160) NOT NULL,
   uses VARCHAR(400) NOT NULL,
+  use_tags VARCHAR(200) NOT NULL DEFAULT '',
   image_url VARCHAR(255) NOT NULL,
   unit_label VARCHAR(80) NOT NULL,
   price_inr INT NOT NULL,
+  sale_price_inr INT NULL,
   compare_at_inr INT NULL,
   stock_qty INT NOT NULL,
   reserved_qty INT NOT NULL DEFAULT 0,
@@ -87,6 +91,9 @@ CREATE TABLE orders (
   city VARCHAR(80) NOT NULL,
   state_name VARCHAR(80) NOT NULL,
   postal_code VARCHAR(12) NOT NULL,
+  reserved_until DATETIME NULL,
+  cancel_reason VARCHAR(255) NULL,
+  cancel_requested TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY orders_number (order_number),
   UNIQUE KEY orders_token (lookup_token),
@@ -110,6 +117,7 @@ CREATE TABLE order_events (
   order_id INT UNSIGNED NOT NULL,
   status VARCHAR(40) NOT NULL,
   note VARCHAR(255) NOT NULL,
+  public_note TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT order_events_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -134,6 +142,8 @@ CREATE TABLE coupons (
   amount INT NOT NULL,
   min_order_inr INT NOT NULL DEFAULT 0,
   usage_limit INT NULL,
+  per_customer_limit INT NULL,
+  expires_at DATETIME NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
   UNIQUE KEY coupons_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -174,6 +184,52 @@ CREATE TABLE settings (
   `key` VARCHAR(80) NOT NULL PRIMARY KEY,
   `value` VARCHAR(255) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE carts (
+  user_id INT UNSIGNED NOT NULL,
+  slug VARCHAR(80) NOT NULL,
+  qty INT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, slug),
+  CONSTRAINT carts_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE order_attempts (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(64) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY order_attempts_ip (ip, created_at),
+  KEY order_attempts_phone (phone, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE email_tokens (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  purpose VARCHAR(30) NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY email_tokens_hash (token_hash),
+  CONSTRAINT email_tokens_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE slug_redirects (
+  from_slug VARCHAR(80) NOT NULL PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  CONSTRAINT slug_redirects_product_fk FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE stock_alerts (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  email VARCHAR(160) NOT NULL,
+  phone VARCHAR(20) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY stock_alerts_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE schema_migrations (
+  version VARCHAR(40) NOT NULL PRIMARY KEY,
+  applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE login_attempts (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   ip VARCHAR(64) NOT NULL,
@@ -264,4 +320,40 @@ INSERT INTO products (slug, sku, name, scientific_name, variety, category_id, sh
 INSERT INTO settings (`key`, `value`) VALUES
 ('shipping_flat_inr','180'),
 ('free_shipping_over_inr','4000'),
-('tax_percent','0');
+('tax_percent','0'),
+('bank_account_name',''),
+('bank_name',''),
+('bank_account_number',''),
+('bank_ifsc',''),
+('upi_id',''),
+('cod_reserve_hours','72'),
+('bank_reserve_hours','48'),
+('contact_phone','9011975959'),
+('contact_email','info@precisionagritech.in'),
+('whatsapp_number','919011975959'),
+('business_hours','9:00 to 6:00, Monday to Saturday');
+UPDATE products SET sale_price_inr = price_inr, price_inr = compare_at_inr
+WHERE compare_at_inr IS NOT NULL AND compare_at_inr > price_inr AND on_offer = 1 AND sale_price_inr IS NULL;
+UPDATE products SET use_tags = CASE slug
+ WHEN 'marigold' THEN 'beds,borders,garlands'
+ WHEN 'petunia' THEN 'beds,pots,borders'
+ WHEN 'vinca' THEN 'beds,borders,pots,landscaping'
+ WHEN 'pansy' THEN 'beds,pots,borders'
+ WHEN 'geranium' THEN 'pots,landscaping'
+ WHEN 'zinnia' THEN 'beds'
+ WHEN 'celosia' THEN 'beds,landscaping'
+ WHEN 'sunflower' THEN 'beds,landscaping'
+ WHEN 'antirrhinum' THEN 'beds'
+ WHEN 'dianthus' THEN 'pots,borders'
+ WHEN 'cineraria' THEN 'pots'
+ WHEN 'lobelia' THEN 'pots,borders'
+ WHEN 'gazania' THEN 'beds,pots,landscaping'
+ WHEN 'salvia' THEN 'beds,landscaping'
+ WHEN 'begonia' THEN 'beds,pots,landscaping'
+ WHEN 'impatiens' THEN 'beds'
+ WHEN 'chrysanthemum' THEN 'beds,pots'
+ WHEN 'pentas' THEN 'beds,landscaping'
+ WHEN 'platycodon' THEN 'beds,pots'
+ WHEN 'ptilotus' THEN 'beds,pots,landscaping'
+ ELSE use_tags END;
+INSERT INTO schema_migrations (version) VALUES ('2026-10-06-shop');
