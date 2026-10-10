@@ -8,31 +8,18 @@ function admin_boot(): array
     return require_admin();
 }
 
-function admin_open(string $title): void
+function admin_open(string $title, string $section = ''): void
 {
-    render_header($title . ' | Nursery desk');
-    echo '<section class="section"><div class="wrap">';
-    echo '<h1>' . e($title) . '</h1><p class="filters">';
-    $links = [
-        'Desk' => '/admin',
-        'Products' => '/admin/products',
-        'Categories' => '/admin/categories',
-        'Stock' => '/admin/inventory',
-        'Stock history' => '/admin/inventory-history',
-        'Orders' => '/admin/orders',
-        'Customers' => '/admin/customers',
-        'Reviews' => '/admin/reviews',
-        'Coupons' => '/admin/coupons',
-        'Messages' => '/admin/messages',
-        'Wholesale' => '/admin/wholesale',
-        'Settings' => '/admin/settings',
-        'Staff' => '/admin/staff',
-        'Audit' => '/admin/audit-log',
-    ];
-    foreach ($links as $label => $href) {
-        echo '<a href="' . e($href) . '">' . e($label) . '</a>';
+    render_header($title . ' | Nursery desk', '', 'admin');
+    echo '<section class="section admin-page"><div class="wrap">';
+    if ($section !== '') {
+        admin_tabs($section);
     }
-    echo '</p>';
+    echo '<h1>' . e($title) . '</h1>';
+    $flash = flash_take();
+    if ($flash) {
+        echo '<p class="flash ' . e($flash['kind']) . '" role="status">' . e($flash['message']) . '</p>';
+    }
 }
 
 function admin_close(): void

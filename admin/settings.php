@@ -2,46 +2,54 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
+$fields = [
+    'shop_phone' => 'Shop phone',
+    'whatsapp_number' => 'WhatsApp number',
+    'shop_email' => 'Email',
+    'mail_from' => 'Mail from',
+    'shop_address' => 'Address',
+    'opening_hours' => 'Opening hours',
+    'map_url' => 'Map link',
+    'shipping_flat_inr' => 'Shipping flat INR',
+    'free_shipping_over_inr' => 'Free shipping over INR',
+    'min_order_inr' => 'Minimum order INR',
+    'payment_instructions' => 'Payment instructions',
+    'announcement' => 'Announcement',
+];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
-        $numberKeys = ['shipping_flat_inr', 'free_shipping_over_inr', 'cod_reserve_hours', 'bank_reserve_hours'];
-        $textKeys = ['bank_account_name', 'bank_name', 'bank_account_number', 'bank_ifsc', 'upi_id', 'contact_phone', 'contact_email', 'whatsapp_number', 'business_hours'];
-        foreach (array_merge($numberKeys, $textKeys) as $key) {
-            $value = in_array($key, $numberKeys, true)
-                ? (string) max(0, (int) ($_POST[$key] ?? 0))
-                : trim((string) ($_POST[$key] ?? ''));
-            $before = setting($key, '');
-            db()->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)')->execute([$key, $value]);
-            audit_log((int) $admin['id'], 'setting', 'setting', 0, $before, $key . '=' . $value);
+        foreach (['shipping_flat_inr', 'free_shipping_over_inr', 'min_order_inr'] as $key) {
+            save_setting($key, (string) max(0, (int) ($_POST[$key] ?? 0)));
         }
-        flash('success', 'Settings saved.');
+        foreach (['shop_phone', 'whatsapp_number', 'shop_email', 'mail_from', 'shop_address', 'opening_hours', 'map_url', 'payment_instructions', 'announcement'] as $key) {
+            save_setting($key, trim((string) ($_POST[$key] ?? '')));
+        }
+        save_setting('announcement_on', isset($_POST['announcement_on']) ? '1' : '0');
+        save_setting('shop_paused', isset($_POST['shop_paused']) ? '1' : '0');
+        audit_log((int) $admin['id'], 'settings', 'setting', 0, null, 'shop');
+        flash_set('Settings saved');
+        header('Location: /admin/settings');
+        exit;
     } catch (Throwable $err) {
-        flash('error', safe_error($err, 'The settings could not be saved.'));
+        $error = safe_error($err, 'Those settings could not be saved.');
     }
-    header('Location: /admin/settings');
-    exit;
 }
-admin_open('Settings');
+admin_open('Shop settings', 'settings');
+if (!empty($error)) {
+    echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
+}
 echo '<form method="post" class="narrow">' . csrf_field();
-$fields = [
-    'shipping_flat_inr' => 'Delivery charge in rupees',
-    'free_shipping_over_inr' => 'Free delivery from (rupees)',
-    'cod_reserve_hours' => 'Hours a cash order holds trays',
-    'bank_reserve_hours' => 'Hours a bank order holds trays',
-    'bank_account_name' => 'Bank account name',
-    'bank_name' => 'Bank name',
-    'bank_account_number' => 'Account number',
-    'bank_ifsc' => 'IFSC',
-    'upi_id' => 'UPI ID',
-    'contact_phone' => 'Phone shown on the site',
-    'contact_email' => 'Email shown on the site',
-    'whatsapp_number' => 'WhatsApp number',
-    'business_hours' => 'Hours',
-];
 foreach ($fields as $key => $label) {
-    echo '<label>' . e($label) . ' <input name="' . e($key) . '" value="' . e(setting($key, '')) . '"></label>';
+    $value = setting($key, '');
+    if ($key === 'payment_instructions' || $key === 'announcement' || $key === 'shop_address') {
+        echo '<label>' . e($label) . ' <textarea name="' . e($key) . '">' . e($value) . '</textarea></label>';
+    } else {
+        $type = str_contains($key, 'inr') ? 'number' : 'text';
+        echo '<label>' . e($label) . ' <input name="' . e($key) . '" type="' . $type . '" value="' . e($value) . '"></label>';
+    }
 }
-echo '<button class="btn">Save</button></form>';
-echo '<p class="muted">SMS, mail and online payment keys stay in config.local.php, not in this form. Tax is not added. The unused tax setting has been left out of the shop total.</p>';
+echo '<label><input type="checkbox" name="announcement_on" ' . (setting('announcement_on', '0') === '1' ? 'checked' : '') . '> Show announcement</label>';
+echo '<label><input type="checkbox" name="shop_paused" ' . (setting('shop_paused', '0') === '1' ? 'checked' : '') . '> Shop paused</label>';
+echo '<button class="btn" type="submit">Save</button></form>';
 admin_close();

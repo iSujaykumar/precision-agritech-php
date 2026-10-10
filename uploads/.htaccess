@@ -1,0 +1,9 @@
+Options -Indexes -ExecCGI
+php_flag engine off
+RemoveHandler .php .phtml .php3 .phar
+<FilesMatch "\.(php|phtml|php3|phar)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.(jpg|jpeg|png|webp|gif)$">
+  Require all granted
+</FilesMatch>

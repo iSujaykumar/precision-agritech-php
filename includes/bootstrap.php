@@ -1,95 +1,65 @@
 <?php
 declare(strict_types=1);
-if (PHP_VERSION_ID < 80100) {
-    http_response_code(500);
-    echo 'This shop needs PHP 8.1 or newer.';
-    exit;
-}
-$config = require dirname(__DIR__) . '/config/config.php';
-if (empty($config['debug'])) {
-    ini_set('display_errors', '0');
-    ini_set('log_errors', '1');
-} else {
-    ini_set('display_errors', '1');
-}
 date_default_timezone_set('Asia/Kolkata');
 function request_is_https(): bool
 {
-    global $config;
     if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
         return true;
     }
-    if (!empty($config['trust_proxy']) && strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https') {
-        return true;
-    }
-    return false;
+    return strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
 }
-function ensure_session(): void
-{
-    if (session_status() === PHP_SESSION_ACTIVE) {
-        return;
-    }
-    $lifetime = 7 * 86400;
-    ini_set('session.gc_maxlifetime', (string) $lifetime);
-    $save = dirname(__DIR__) . '/storage/sessions';
-    if (!is_dir($save)) {
-        @mkdir($save, 0700, true);
-    }
-    if (is_dir($save) && is_writable($save)) {
-        ini_set('session.save_path', $save);
-    }
+global $config;
+$config = require dirname(__DIR__) . '/config/config.php';
+$debug = !empty($config['debug']);
+ini_set('display_errors', $debug ? '1' : '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    ini_set('session.gc_maxlifetime', '43200');
+    ini_set('session.use_strict_mode', '1');
+    session_name('pa_session');
     session_set_cookie_params([
-        'lifetime' => $lifetime,
+        'lifetime' => 12 * 3600,
         'path' => '/',
         'httponly' => true,
         'samesite' => 'Lax',
         'secure' => request_is_https(),
     ]);
     session_start();
-    if (!empty($_SESSION['user_id'])) {
-        $seen = (int) ($_SESSION['seen'] ?? 0);
-        if ($seen > 0 && time() - $seen > 12 * 3600) {
-            $_SESSION = [];
-            session_regenerate_id(true);
-        } else {
-            $_SESSION['seen'] = time();
-        }
-    }
-}
-$uriPath = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
-$needsSession = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'
-    || isset($_COOKIE[session_name()])
-    || (bool) preg_match('#^/(cart|checkout|account|login|register|logout|setup|admin|verify|change-password|forgot|reset|track|contact|order)(/|$)#', $uriPath);
-if ($needsSession) {
-    ensure_session();
 }
 $siteUrl = (string) ($config['site_url'] ?? '');
-$siteHost = strtolower((string) parse_url($siteUrl, PHP_URL_HOST));
-$requestHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
-if ($siteHost !== '' && str_starts_with($siteUrl, 'https://')) {
-    $canonical = $siteHost;
-    if ($requestHost === 'www.' . $siteHost || ($requestHost === $siteHost && !request_is_https())) {
-        header('Location: https://' . $canonical . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
-        exit;
-    }
+$siteHost = (string) parse_url($siteUrl, PHP_URL_HOST);
+$requestHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
+if ($siteHost !== '' && strcasecmp($requestHost, $siteHost) === 0 && str_starts_with($siteUrl, 'https://') && !request_is_https()) {
+    header('Location: https://' . $requestHost . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+    exit;
 }
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('X-Frame-Options: SAMEORIGIN');
 header("Permissions-Policy: camera=(), microphone=(), geolocation=()");
-$scriptSrc = "'self'";
-if (($config['razorpay_key'] ?? '') !== '') {
-    $scriptSrc .= ' https://checkout.razorpay.com';
-}
-if (($config['turnstile_site_key'] ?? '') !== '') {
-    $scriptSrc .= ' https://challenges.cloudflare.com';
-}
-header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; script-src " . $scriptSrc . "; connect-src 'self' https://api.razorpay.com https://challenges.cloudflare.com; form-action 'self'; base-uri 'self'; frame-ancestors 'self'; frame-src https://challenges.cloudflare.com");
+header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'self'");
 if (request_is_https()) {
     header('Strict-Transport-Security: max-age=15552000');
 }
-if (session_status() !== PHP_SESSION_ACTIVE && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
-    header('Cache-Control: public, max-age=300');
+$robotPath = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+$robotScript = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+if (str_starts_with($robotPath, '/admin') || str_contains($robotScript, '/admin/')) {
+    header('X-Robots-Tag: noindex, nofollow');
+}
+if (!empty($_SESSION['user_id'])) {
+    $seen = (int) ($_SESSION['seen'] ?? 0);
+    $idle = (($_SESSION['role'] ?? '') === 'admin') ? 2 * 3600 : 12 * 3600;
+    if ($seen > 0 && time() - $seen > $idle) {
+        $wasAdmin = (($_SESSION['role'] ?? '') === 'admin');
+        $_SESSION = [];
+        session_regenerate_id(true);
+        if ($wasAdmin) {
+            $_SESSION['login_notice'] = 'Session ended, please sign in again';
+        }
+    } else {
+        $_SESSION['seen'] = time();
+    }
 }
 function e(?string $value): string
 {
@@ -131,12 +101,12 @@ function client_ip(): string
 }
 function too_many_attempts(string $identifier): bool
 {
-    maybe_cleanup();
-    $ip = db()->prepare('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND identifier = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)');
-    $ip->execute([client_ip(), $identifier]);
-    $spray = db()->prepare('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)');
-    $spray->execute([client_ip()]);
-    return (int) $ip->fetchColumn() >= 8 || (int) $spray->fetchColumn() >= 20;
+    db()->exec('DELETE FROM login_attempts WHERE attempted_at < (NOW() - INTERVAL 2 DAY)');
+    $ip = db()->prepare('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)');
+    $ip->execute([client_ip()]);
+    $who = db()->prepare('SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND identifier <> "" AND attempted_at > (NOW() - INTERVAL 15 MINUTE)');
+    $who->execute([$identifier]);
+    return (int) $ip->fetchColumn() >= 20 || (int) $who->fetchColumn() >= 8;
 }
 function note_login_failure(string $identifier = ''): void
 {
@@ -166,7 +136,8 @@ function db(): PDO
     }
     global $config;
     if (($config['db_user'] ?? '') === '' || ($config['db_name'] ?? '') === '') {
-        throw new RuntimeException('Database is not configured.');
+        error_log('Database is not configured.');
+        throw new RuntimeException('The shop is not ready yet. Please call 9011975959.');
     }
     $dsn = sprintf(
         'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
@@ -195,63 +166,65 @@ function setting(string $key, string $fallback = ''): string
 }
 function current_user(): ?array
 {
-    global $paUserCache, $paUser;
-    if ($paUserCache) {
-        return $paUser;
-    }
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        if (!isset($_COOKIE[session_name()])) {
-            return null;
-        }
-        ensure_session();
-    }
     $id = $_SESSION['user_id'] ?? null;
     if (!$id) {
-        $paUserCache = true;
-        $paUser = null;
         return null;
     }
-    $stmt = db()->prepare('SELECT id, name, email, phone, role, phone_verified_at, email_verified_at, status, password_changed_at, last_login_at FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT id, name, email, phone, role, phone_verified_at, status, password_changed_at, must_change_password FROM users WHERE id = ?');
     $stmt->execute([(int) $id]);
-    $found = $stmt->fetch() ?: null;
-    if (!$found || ($found['status'] ?? '') === 'disabled') {
-        $paUserCache = true;
-        $paUser = null;
+    $user = $stmt->fetch();
+    if (!$user || ($user['status'] ?? '') === 'disabled') {
         return null;
     }
-    $stamp = (string) ($found['password_changed_at'] ?? '');
+    $stamp = (string) ($user['password_changed_at'] ?? '');
     $known = (string) ($_SESSION['pwd_stamp'] ?? '');
     if (!hash_equals($stamp, $known)) {
         unset($_SESSION['user_id']);
-        $paUserCache = true;
-        $paUser = null;
         return null;
     }
-    $paUserCache = true;
-    $paUser = $found;
-    return $paUser;
+    return $user;
 }
-function forget_current_user(): void
+function safe_next(?string $next, string $fallback = '/account'): string
 {
-    global $paUserCache, $paUser;
-    $paUserCache = false;
-    $paUser = null;
+    $next = trim((string) $next);
+    if ($next === '') {
+        return $fallback;
+    }
+    $decoded = rawurldecode($next);
+    foreach ([$next, $decoded] as $candidate) {
+        if ($candidate === '' || $candidate[0] !== '/' || str_starts_with($candidate, '//') || str_starts_with($candidate, '/\\')) {
+            return $fallback;
+        }
+        if (str_contains($candidate, '://') || str_contains($candidate, '\\') || preg_match('/[\r\n]/', $candidate)) {
+            return $fallback;
+        }
+    }
+    return $next;
 }
 function require_user(): array
 {
     $user = current_user();
     if (!$user) {
-        header('Location: /login');
+        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/account');
+        $path = (string) (parse_url($uri, PHP_URL_PATH) ?: '/account');
+        $query = (string) (parse_url($uri, PHP_URL_QUERY) ?: '');
+        $next = $path . ($query !== '' ? '?' . $query : '');
+        header('Location: /login?next=' . rawurlencode(safe_next($next)));
         exit;
     }
     return $user;
 }
 function require_admin(): array
 {
-    $user = require_user();
-    if ($user['role'] !== 'admin') {
-        http_response_code(403);
-        exit('The nursery desk is not open for this account.');
+    $user = current_user();
+    if (!$user || $user['role'] !== 'admin') {
+        header('Location: /admin/login');
+        exit;
+    }
+    $path = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+    if (!empty($user['must_change_password']) && !str_contains($path, 'change-password')) {
+        header('Location: /change-password');
+        exit;
     }
     return $user;
 }
@@ -282,29 +255,33 @@ function require_csrf(): void
     $sent = (string) ($_POST['csrf'] ?? '');
     $known = (string) ($_SESSION['csrf'] ?? '');
     if ($sent === '' || !hash_equals($known, $sent)) {
-        throw new RuntimeException('Your session expired. Reload the page and try again.');
+        throw new RuntimeException('The form expired. Reload the page and try again.');
     }
 }
 function sign_in_user(array $user): void
 {
-    ensure_session();
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int) $user['id'];
+    $_SESSION['role'] = (string) ($user['role'] ?? 'customer');
     $_SESSION['seen'] = time();
     $_SESSION['pwd_stamp'] = (string) ($user['password_changed_at'] ?? '');
-    forget_current_user();
     rotate_csrf();
-    $params = session_get_cookie_params();
-    setcookie(session_name(), session_id(), [
-        'expires' => time() + 30 * 86400,
-        'path' => $params['path'],
-        'domain' => $params['domain'],
-        'secure' => (bool) $params['secure'],
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
     db()->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?')->execute([(int) $user['id']]);
-    merge_saved_cart((int) $user['id']);
+}
+function login_destination(): string
+{
+    $dest = safe_next((string) ($_SESSION['login_next'] ?? ''), '/account');
+    unset(
+        $_SESSION['login_next'],
+        $_SESSION['otp_id'],
+        $_SESSION['otp_phone'],
+        $_SESSION['otp_purpose'],
+        $_SESSION['otp_decoy'],
+        $_SESSION['otp_debug'],
+        $_SESSION['otp_sent_at'],
+        $_SESSION['otp_verified_phone']
+    );
+    return $dest;
 }
 function tray_qty(int $qty): int
 {
@@ -341,56 +318,12 @@ function note_lookup(): void
 }
 function cart(): array
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        return [];
-    }
     $cart = $_SESSION['cart'] ?? [];
     return is_array($cart) ? $cart : [];
 }
-function remember_cart_line(string $slug, int $qty): void
-{
-    ensure_session();
-    if ($qty < 1) {
-        unset($_SESSION['cart'][$slug]);
-    } else {
-        $_SESSION['cart'][$slug] = $qty;
-    }
-    $user = current_user();
-    if (!$user) {
-        return;
-    }
-    if ($qty < 1) {
-        db()->prepare('DELETE FROM carts WHERE user_id = ? AND slug = ?')->execute([(int) $user['id'], $slug]);
-        return;
-    }
-    db()->prepare('INSERT INTO carts (user_id, slug, qty) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE qty = VALUES(qty), updated_at = CURRENT_TIMESTAMP')
-        ->execute([(int) $user['id'], $slug, $qty]);
-}
-function merge_saved_cart(int $userId): void
-{
-    $saved = db()->prepare('SELECT slug, qty FROM carts WHERE user_id = ?');
-    $saved->execute([$userId]);
-    foreach ($saved->fetchAll() as $row) {
-        $slug = (string) $row['slug'];
-        $qty = (int) $row['qty'];
-        $have = (int) ($_SESSION['cart'][$slug] ?? 0);
-        $_SESSION['cart'][$slug] = min(50, max($have, $qty));
-    }
-    db()->prepare('DELETE FROM carts WHERE user_id = ?')->execute([$userId]);
-    foreach (cart() as $slug => $qty) {
-        db()->prepare('INSERT INTO carts (user_id, slug, qty) VALUES (?, ?, ?)')->execute([$userId, (string) $slug, (int) $qty]);
-    }
-}
 function cart_count(): int
 {
-    $count = 0;
-    foreach (cart() as $qty) {
-        $qty = (int) $qty;
-        if ($qty >= 1 && $qty <= 50) {
-            $count += $qty;
-        }
-    }
-    return $count;
+    return array_sum(array_map('intval', cart()));
 }
 function available_trays(array $product): int
 {
@@ -406,6 +339,128 @@ function product_by_slug(string $slug): ?array
     $stmt->execute([$slug]);
     $row = $stmt->fetch();
     return $row ?: null;
+}
+function quote_cart(string $couponCode = ''): array
+{
+    $lines = [];
+    $subtotal = 0;
+    foreach (cart() as $slug => $qty) {
+        $product = product_by_slug((string) $slug);
+        $qty = (int) $qty;
+        if (!$product || $qty < 1) {
+            continue;
+        }
+        $line = (int) $product['price_inr'] * $qty;
+        $subtotal += $line;
+        $lines[] = ['product' => $product, 'qty' => $qty, 'line' => $line];
+    }
+    $discount = 0;
+    $coupon = null;
+    $code = strtoupper(trim($couponCode));
+    if ($code !== '') {
+        $stmt = db()->prepare('SELECT * FROM coupons WHERE code = ? AND active = 1 LIMIT 1');
+        $stmt->execute([$code]);
+        $coupon = $stmt->fetch() ?: null;
+        if (!$coupon) {
+            throw new RuntimeException('This coupon is not valid.');
+        }
+        assert_coupon_window($coupon);
+        if ($subtotal < (int) $coupon['min_order_inr']) {
+            throw new RuntimeException('This coupon needs a larger order.');
+        }
+        if ($coupon['usage_limit'] !== null) {
+            $used = db()->prepare('SELECT COUNT(*) FROM coupon_redemptions WHERE coupon_id = ?');
+            $used->execute([(int) $coupon['id']]);
+            if ((int) $used->fetchColumn() >= (int) $coupon['usage_limit']) {
+                throw new RuntimeException('This coupon has reached its limit.');
+            }
+        }
+        $discount = $coupon['kind'] === 'percent'
+            ? (int) round($subtotal * ((int) $coupon['amount']) / 100)
+            : (int) $coupon['amount'];
+        $discount = max(0, min($discount, $subtotal));
+    }
+    $shipFlat = (int) setting('shipping_flat_inr', '180');
+    $freeOver = (int) setting('free_shipping_over_inr', '4000');
+    $after = $subtotal - $discount;
+    $shipping = ($after >= $freeOver || $after === 0) ? 0 : $shipFlat;
+    return [
+        'lines' => $lines,
+        'subtotal' => $subtotal,
+        'discount' => $discount,
+        'shipping' => $shipping,
+        'total' => $after + $shipping,
+        'coupon' => $coupon,
+    ];
+}
+function lock_coupon(PDO $pdo, string $code, int $subtotal): ?array
+{
+    $code = strtoupper(trim($code));
+    if ($code === '') {
+        return null;
+    }
+    $stmt = $pdo->prepare('SELECT * FROM coupons WHERE code = ? AND active = 1 FOR UPDATE');
+    $stmt->execute([$code]);
+    $coupon = $stmt->fetch();
+    if (!$coupon) {
+        throw new RuntimeException('This coupon is not valid.');
+    }
+    assert_coupon_window($coupon);
+    if ($subtotal < (int) $coupon['min_order_inr']) {
+        throw new RuntimeException('This coupon needs a larger order.');
+    }
+    if ($coupon['usage_limit'] !== null) {
+        $used = $pdo->prepare('SELECT COUNT(*) FROM coupon_redemptions WHERE coupon_id = ?');
+        $used->execute([(int) $coupon['id']]);
+        if ((int) $used->fetchColumn() >= (int) $coupon['usage_limit']) {
+            throw new RuntimeException('This coupon has reached its limit.');
+        }
+    }
+    $discount = $coupon['kind'] === 'percent'
+        ? (int) round($subtotal * ((int) $coupon['amount']) / 100)
+        : (int) $coupon['amount'];
+    $coupon['discount'] = max(0, min($discount, $subtotal));
+    return $coupon;
+}
+function apply_order_status(PDO $pdo, int $id, string $status, int $adminId): void
+{
+    $allowed = [
+        'placed' => ['payment_pending', 'payment_confirmed', 'preparing', 'cancelled'],
+        'payment_pending' => ['payment_confirmed', 'cancelled'],
+        'payment_confirmed' => ['preparing', 'cancelled'],
+        'preparing' => ['dispatched', 'cancelled'],
+        'dispatched' => ['delivered'],
+        'delivered' => [],
+        'cancelled' => [],
+    ];
+    $order = $pdo->prepare('SELECT * FROM orders WHERE id = ? FOR UPDATE');
+    $order->execute([$id]);
+    $row = $order->fetch();
+    if (!$row) {
+        throw new RuntimeException('Order not found.');
+    }
+    $from = (string) $row['status'];
+    if (!in_array($status, $allowed[$from] ?? [], true)) {
+        throw new RuntimeException('That order status change is not allowed.');
+    }
+    if ($status === 'cancelled') {
+        if ($row['inventory_state'] === 'sold') {
+            throw new RuntimeException('A sold order cannot be cancelled here.');
+        }
+        if ($row['inventory_state'] === 'reserved') {
+            $pdo->prepare('UPDATE products p JOIN order_items oi ON oi.product_id = p.id SET p.reserved_qty = GREATEST(0, p.reserved_qty - oi.quantity) WHERE oi.order_id = ?')->execute([$id]);
+            $pdo->prepare("UPDATE orders SET inventory_state = 'released', status = 'cancelled' WHERE id = ?")->execute([$id]);
+        } else {
+            $pdo->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?")->execute([$id]);
+        }
+    } elseif ($status === 'payment_confirmed' && $row['inventory_state'] === 'reserved') {
+        $pdo->prepare('UPDATE products p JOIN order_items oi ON oi.product_id = p.id SET p.reserved_qty = GREATEST(0, p.reserved_qty - oi.quantity), p.stock_qty = GREATEST(0, p.stock_qty - oi.quantity) WHERE oi.order_id = ?')->execute([$id]);
+        $pdo->prepare("UPDATE orders SET inventory_state = 'sold', status = 'payment_confirmed', payment_status = 'paid' WHERE id = ?")->execute([$id]);
+    } else {
+        $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $id]);
+    }
+    $pdo->prepare('INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)')->execute([$id, $status, 'Nursery updated the order.']);
+    audit_log($adminId, 'order_status', 'order', $id, $from, $status);
 }
 function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int $adminId): void
 {
@@ -428,25 +483,6 @@ function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int
         ->execute([$productId, $adminId, $change, $before, $after, $reason]);
     audit_log($adminId, 'stock', 'product', $productId, (string) $before, (string) $after);
 }
+require dirname(__DIR__) . '/includes/desk.php';
 require dirname(__DIR__) . '/includes/otp.php';
-require dirname(__DIR__) . '/includes/commerce.php';
-require dirname(__DIR__) . '/includes/mail.php';
 require dirname(__DIR__) . '/includes/layout.php';
-set_exception_handler(static function (Throwable $err): void {
-    error_log($err::class . ' ' . $err->getMessage());
-    if (!headers_sent()) {
-        http_response_code(500);
-    }
-    $message = $err instanceof RuntimeException ? $err->getMessage() : 'Something went wrong. Please try again, or call 9011975959.';
-    if (function_exists('render_header')) {
-        try {
-            render_header('Something went wrong | Precision Agritech');
-            echo '<section class="section"><div class="wrap narrow"><h1>Something went wrong</h1><p class="flash error" role="alert">' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</p><p><a href="/">Back to the shop</a></p></div></section>';
-            render_footer();
-            return;
-        } catch (Throwable $inner) {
-            error_log($inner->getMessage());
-        }
-    }
-    echo '<!doctype html><meta charset="utf-8"><title>Something went wrong</title><h1>Something went wrong</h1><p>Please try again, or call 9011975959.</p>';
-});

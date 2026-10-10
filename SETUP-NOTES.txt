@@ -1,0 +1,31 @@
+Precision Agritech — setup notes. Not a public page.
+
+1. Local setup
+Use XAMPP or the local PHP server on port 8080. Copy config/config.example.php to config/config.local.php. Fill the local database host, name, user and password, and set site_url to the address you open, including the port. For a private local test, show_otp_on_screen and debug may be true. They must be false on the live site.
+
+2. Live setup on Hostinger
+Create a MySQL database and user in hPanel. Import database/schema.sql for a new database. Copy config/config.example.php to config/config.local.php on the server. Set the Hostinger database host, name, user and password. Set site_url to https://precisionagritech.in. Set show_otp_on_screen to false and debug to false. Upload the site into public_html. Do not upload a config.local.php that already has a password from another machine.
+
+3. Twilio Verify SMS
+Put twilio_sid, twilio_token and twilio_verify in config.local.php. twilio_sid and twilio_token are the account credentials. twilio_verify is the Verify service id. Without those keys, a new customer cannot receive a code on the live site. Email can only reach a customer who already has an email on the account. Check Twilio's rules before sending codes to Indian numbers.
+
+4. Email
+mail_from in Settings > Shop is the address used in the From line. Hostinger mail() sends the messages. Add SPF and DKIM for the domain so order mail is less likely to be marked as spam. A mail failure must not stop an order.
+
+5. Image uploads
+The folder uploads/products must be writable by PHP. The GD extension is required to resize photos to WebP. The limit is 5 MB, so upload_max_filesize and post_max_size on the server must be at least 8M. JPEG, PNG and WebP only, at least 600 by 450. Uploaded files are renamed. Files under /products and /brand are never deleted by the desk.
+
+6. WhatsApp number
+Settings > Shop stores whatsapp_number as digits with the country code, for example 919011975959. The public button uses https://wa.me/ that number. Leave it empty to hide the button. Confirm the number with the nursery before going live.
+
+7. First staff account
+Open /setup once while no staff account exists. After that the page stays closed. To reset the only staff password in an emergency, set a new password_hash in the users table from SQL with PHP's password_hash, and set must_change_password to 1.
+
+8. Backups
+Export the database from phpMyAdmin once a week and copy the uploads folder.
+
+9. Upgrading an old database
+Run database/upgrade.sql once. It is safe to run again.
+
+10. Security checklist before going live
+Use HTTPS. debug is false. show_otp_on_screen is false. Remove test customers and test orders. Change any temporary staff password. Delete SETUP-NOTES.txt and UPLOAD.txt from public_html if you prefer not to keep them on the server. The site already refuses to serve those two files.

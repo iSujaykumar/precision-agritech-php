@@ -1,16 +1,3 @@
-Precision Agritech on Hostinger. PHP 8.1 or newer. Do not upload this note into public_html if you can avoid it. The site also blocks .txt files.
+Technical setup lives in SETUP-NOTES.txt. Do not leave that file where customers can open it. The site blocks SETUP-NOTES.txt and this file.
 
-1. Create an empty MySQL database and a normal database user in hPanel. Do not use a superuser account. Do not leave the password empty.
-2. New database: import database/schema.sql. Existing database: import database/upgrade.sql once. It is safe to run again.
-3. Copy config/config.example.php to config.local.php. Prefer putting that file one level above public_html. The site also looks in config/config.local.php.
-4. Fill the database host, name, user and password from hPanel. Set site_url to https://precisionagritech.in.
-5. Set setup_token to a long random string. Open /setup, type that string, create the staff account, then delete setup.php from the server.
-6. In the nursery desk, fill the bank account before you want bank transfer to appear at checkout.
-7. Mail: fill smtp_host, smtp_port, smtp_user, smtp_pass if you want Hostinger mailbox mail. If those are empty, the site uses PHP mail() and logs a failure without cancelling the order.
-8. Leave Twilio empty until SMS is ready. Password sign-in works without it. Mobile-code sign-in stays hidden.
-9. Optional: turnstile keys, cron_token, and a daily call to /cron.php?token=YOUR_TOKEN so unpaid reservations expire even when nobody visits checkout.
-10. trust_proxy should stay false unless Hostinger tells you the site sits behind a proxy that sets X-Forwarded-Proto.
-11. debug must stay false on the live site.
-12. Confirm the legal pages with a lawyer before you treat them as policy.
-
-Local computer: use an http site_url such as http://localhost:8081. That does not force https. Comment out the two precisionagritech.in redirect blocks in .htaccess only if you are not on the live host. Import upgrade.sql before opening the new code against an old database.
+Before the live site: copy config/config.example.php to config/config.local.php on the server, set the Hostinger database, set site_url to https://precisionagritech.in, and keep show_otp_on_screen and debug false.
