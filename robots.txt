@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /admin
+Disallow: /setup
+Disallow: /account
+Disallow: /cart
+Disallow: /checkout
+Disallow: /login
+
+Sitemap: https://precisionagritech.in/sitemap.xml

@@ -1,0 +1,62 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+RewriteEngine On
+
+ErrorDocument 404 /404.php
+ErrorDocument 500 /500.php
+
+RewriteRule ^config/ - [F,L]
+RewriteRule ^includes/ - [F,L]
+RewriteRule ^database/ - [F,L]
+RewriteRule ^database\.sql$ - [F,L]
+RewriteRule \.sql$ - [F,L]
+RewriteRule \.md$ - [F,L]
+RewriteRule ^SETUP-NOTES\.txt$ - [F,L]
+RewriteRule ^UPLOAD\.txt$ - [F,L]
+RewriteRule ^CHANGELOG\.md$ - [F,L]
+RewriteRule ^uploads/private/ - [F,L]
+RewriteRule ^admin/common\.php$ - [F,L]
+RewriteRule "(^|/)\." - [F,L]
+
+RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
+RewriteRule ^product/([a-z0-9-]+)/?$ product.php?slug=$1 [L,QSA]
+RewriteRule ^order/([A-Za-z0-9]+)/?$ order.php?token=$1 [L,QSA]
+RewriteRule ^auth/google/callback/?$ auth/google-callback.php [L,QSA]
+RewriteRule ^auth/google/?$ auth/google.php [L,QSA]
+RewriteRule ^(about|nursery|faq|shipping|returns|cancellation|privacy|terms|wholesale)/?$ page.php?p=$1 [L,QSA]
+RewriteRule ^shop/?$ shop.php [L,QSA]
+RewriteRule ^cart/?$ cart.php [L]
+RewriteRule ^checkout/?$ checkout.php [L]
+RewriteRule ^account/?$ account.php [L]
+RewriteRule ^orders/?$ account.php [L]
+RewriteRule ^track/?$ order-tracking.php [L]
+RewriteRule ^contact/?$ contact.php [L]
+RewriteRule ^login/?$ login.php [L]
+RewriteRule ^register/?$ /login [R=301,L]
+RewriteRule ^forgot-password/?$ /login [R=301,L]
+RewriteRule ^reset-password/?$ /login [R=301,L]
+RewriteRule ^verify-mobile/?$ /login [R=301,L]
+RewriteRule ^setup/?$ setup.php [L]
+RewriteRule ^admin/login/?$ admin/login.php [L]
+RewriteRule ^admin/?$ admin/index.php [L,QSA]
+RewriteRule ^admin/([a-z0-9-]+)/?$ admin/$1.php [L,QSA]
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain application/javascript image/svg+xml
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 30 days"
+  ExpiresByType application/javascript "access plus 30 days"
+  ExpiresByType image/webp "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 30 days"
+  ExpiresByType font/woff2 "access plus 30 days"
+</IfModule>
+<FilesMatch "\.(php)$">
+  Header set Cache-Control "no-store"
+</FilesMatch>
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([A-Za-z0-9_-]+)/?$ $1.php [L,QSA]

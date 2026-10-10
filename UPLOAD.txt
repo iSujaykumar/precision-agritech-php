@@ -1,0 +1,3 @@
+Technical setup lives in SETUP-NOTES.txt. Do not leave that file where customers can open it. The site blocks SETUP-NOTES.txt and this file.
+
+Before the live site: copy config/config.example.php to config/config.local.php on the server, set the Hostinger database, set site_url to https://precisionagritech.in, and keep show_otp_on_screen and debug false.

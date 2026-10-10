@@ -1,0 +1,7 @@
+config/config.local.php
+uploads/products/*
+!uploads/products/.gitkeep
+uploads/private/*
+!uploads/private/.htaccess
+*.log
+.DS_Store

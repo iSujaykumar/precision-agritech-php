@@ -1,0 +1,64 @@
+Precision Agritech — setup notes. Not a public page.
+
+1. Local setup
+Use XAMPP or the local PHP server on port 8080. Copy config/config.example.php to config/config.local.php. Fill the local database host, name, user and password, and set site_url to the address you open, including the port. For a private local test, show_otp_on_screen and debug may be true. They must be false on the live site.
+
+2. Live setup on Hostinger
+Create a MySQL database and user in hPanel. Import database/schema.sql for a new database. Copy config/config.example.php to config/config.local.php on the server. Set the Hostinger database host, name, user and password. Set site_url to https://precisionagritech.in. Set show_otp_on_screen to false and debug to false. Upload the site into public_html. Do not upload a config.local.php that already has a password from another machine.
+
+3. Sign-in
+Customers sign in with an emailed 6-digit code. No customer password. Google sign-in is optional and is set up in section 12. Mobile OTP stays hidden until sms_provider is set, as in section 13. Staff still sign in with email and password at /admin/login only.
+
+4. Email
+mail_from in Settings > Shop is the address used in the From line. Hostinger mail() sends the messages. Add SPF and DKIM for the domain so order mail is less likely to be marked as spam. A mail failure must not stop an order.
+
+5. Image uploads
+The folder uploads/products must be writable by PHP. The GD extension is required to resize photos to WebP. The limit is 5 MB, so upload_max_filesize and post_max_size on the server must be at least 8M. JPEG, PNG and WebP only, at least 600 by 450. Uploaded files are renamed. Files under /products and /brand are never deleted by the desk.
+
+6. WhatsApp number
+Settings > Shop stores whatsapp_number as digits with the country code, for example 919011975959. The public button uses https://wa.me/ that number. Leave it empty to hide the button. Confirm the number with the nursery before going live.
+
+7. First staff account
+Open /setup once while no staff account exists. After that the page stays closed. To reset the only staff password in an emergency, set a new password_hash in the users table from SQL with PHP's password_hash, and set must_change_password to 1.
+
+8. Backups
+Export the database from phpMyAdmin once a week and copy the uploads folder.
+
+9. Upgrading an old database
+Run database/upgrade.sql once. It is safe to run again.
+
+10. Security checklist before going live
+Use HTTPS. debug is false. show_otp_on_screen is false. Remove test customers and test orders. Change any temporary staff password. Delete SETUP-NOTES.txt and UPLOAD.txt from public_html if you prefer not to keep them on the server. The site already refuses to serve those two files.
+
+11. Go-live checklist
+1. Create the database and user in hPanel.
+2. Import database/schema.sql on a new database, or run database/upgrade.sql on the existing one. upgrade.sql can be run again.
+3. Upload the site into public_html. Do not upload config.local.php from a laptop.
+4. Copy config/config.example.php to config/config.local.php. Set the database, site_url to https://precisionagritech.in, show_otp_on_screen false, debug false, and a long cron_token. Add SMTP only if you use it: smtp_host, smtp_port, smtp_secure, smtp_user, smtp_pass.
+5. PHP 8.1 or newer. upload_max_filesize and post_max_size at least 8M. GD, fileinfo and curl must be on.
+6. Force HTTPS and one host name.
+7. Set allow_setup true, open /setup once, create the staff account, then set allow_setup false.
+8. Fill Settings, Payments and Delivery: phone, WhatsApp, email, address, UPI, bank, QR, grievance officer, shipping, PIN codes and the banner.
+9. In hPanel > Advanced > Cron Jobs, every 15 minutes, run: curl -s "https://precisionagritech.in/cron.php?token=YOURTOKEN"
+10. Place a real test order, confirm the email arrives, pay Rs 1 by UPI, and mark it received.
+11. Add SPF, DKIM and DMARC for the email domain.
+12. Take a weekly database backup and a copy of uploads, and try one restore.
+
+12. Google sign-in
+Google Cloud Console, new project, APIs and Services, OAuth consent screen. External. App name Precision Agritech. Support email. Authorised domain precisionagritech.in. Scopes openid, email and profile. Credentials, Create OAuth client ID, Web application. Authorised redirect URIs: https://precisionagritech.in/auth/google/callback and http://localhost:8080/auth/google/callback for local tests. Copy the client id and secret into config.local.php as google_client_id and google_client_secret. Publish the consent screen. Testing mode only allows a few test users.
+
+13. Mobile OTP later
+Leave sms_provider empty until an India SMS provider and DLT registration are ready. Then set sms_provider to twilio or msg91 and fill that provider's keys. Until then customers sign in with email or Google, and mobile numbers are contact numbers only.
+
+14. Mail
+smtp_host and smtp_user switch the shop from mail() to SMTP. Leave them empty to keep mail(). A mail failure must not stop an order.
+
+15. Legal pages
+A lawyer or CA should review About, Shipping, Returns, Cancellation, Privacy, Terms and the invoice wording before you rely on them. If GSTIN is empty the order page says bill of supply and does not add tax.
+
+16. Online payment gateway
+Not connected. UPI QR and bank transfer stay until you choose a gateway later.
+
+17. Future vehicle tracking
+The nursery has a Vi business vehicle-tracking SIM. A website feed is not connected. Do not promise live tracking.
+
