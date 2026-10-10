@@ -1,14 +1,25 @@
 (function () {
-  var form = document.getElementById("signin");
-  if (!form) return;
-  function sync() {
-    var mode = "email";
-    var chosen = form.querySelector('input[name="mode"]:checked');
-    if (chosen) mode = chosen.value;
-    form.querySelector(".field-email").hidden = mode !== "email";
-    form.querySelector(".field-mobile").hidden = mode === "email";
-    form.querySelector(".field-password").hidden = mode === "otp";
+  var button = document.querySelector("[data-resend]");
+  if (!button) return;
+  var left = parseInt(button.getAttribute("data-resend") || "0", 10);
+  if (isNaN(left) || left < 0) left = 0;
+  var label = button.getAttribute("data-label") || "Resend code";
+
+  function paint() {
+    if (left > 0) {
+      button.disabled = true;
+      button.textContent = "Resend code (" + left + "s)";
+      return;
+    }
+    button.disabled = false;
+    button.textContent = label;
   }
-  form.addEventListener("change", sync);
-  sync();
+
+  paint();
+  if (left < 1) return;
+  var timer = window.setInterval(function () {
+    left -= 1;
+    paint();
+    if (left < 1) window.clearInterval(timer);
+  }, 1000);
 })();

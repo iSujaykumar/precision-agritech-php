@@ -1,19 +1,37 @@
 <?php
 declare(strict_types=1);
 
-function canonical_url(): string
+function nav_here(string $href): string
 {
-    global $config;
-    $site = rtrim((string) ($config['site_url'] ?? ''), '/');
-    $path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
-    if ($path === '/index.php') {
-        $path = '/';
+    $path = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+    $path = rtrim($path, '/') ?: '/';
+    $href = rtrim($href, '/') ?: '/';
+    if ($href === '/') {
+        return $path === '/' ? ' aria-current="page"' : '';
     }
-    return $site . ($path === '' ? '/' : $path);
+    return ($path === $href || str_starts_with($path, $href . '/')) ? ' aria-current="page"' : '';
 }
 
-function render_header(string $title, string $description = '', array $extra = []): void
+function product_image(?string $url): string
 {
+    $fallback = '/brand/seedling.webp';
+    $url = trim((string) $url);
+    if ($url === '') {
+        return $fallback;
+    }
+    if (preg_match('#^https?://#i', $url)) {
+        return $url;
+    }
+    if ($url[0] !== '/') {
+        $url = '/' . $url;
+    }
+    $path = dirname(__DIR__) . $url;
+    return is_file($path) ? $url : $fallback;
+}
+
+function render_header(string $title, string $description = '', string $chrome = 'shop'): void
+{
+    $GLOBALS['page_chrome'] = $chrome;
     $user = null;
     try {
         $user = current_user();
@@ -26,10 +44,6 @@ function render_header(string $title, string $description = '', array $extra = [
     } catch (Throwable $err) {
         $count = 0;
     }
-    $desc = $description !== '' ? $description : 'Flower seedling trays from Precision Agritech, Theur, Pune.';
-    $image = (string) ($extra['image'] ?? '/brand/greenhouse-hero.webp');
-    global $config;
-    $site = rtrim((string) ($config['site_url'] ?? ''), '/');
     ?>
 <!doctype html>
 <html lang="en">
@@ -37,69 +51,104 @@ function render_header(string $title, string $description = '', array $extra = [
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= e($title) ?></title>
-  <meta name="description" content="<?= e($desc) ?>">
-  <meta name="theme-color" content="#234d38">
-  <link rel="canonical" href="<?= e(canonical_url()) ?>">
-  <meta property="og:title" content="<?= e($title) ?>">
-  <meta property="og:description" content="<?= e($desc) ?>">
-  <meta property="og:image" content="<?= e($site . $image) ?>">
-  <meta name="twitter:card" content="summary_large_image">
+  <?php if ($description !== ''): ?><meta name="description" content="<?= e($description) ?>"><?php endif; ?>
+  <?php if ($chrome !== 'shop'): ?><meta name="robots" content="noindex"><?php endif; ?>
   <link rel="icon" href="/favicon.svg">
-  <link rel="preload" href="/assets/fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/assets/css/site.css?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/css/site.css') ?>">
-  <?php if (!empty($extra['json'])): ?>
-  <script type="application/ld+json"><?= $extra['json'] ?></script>
-  <?php endif; ?>
+  <link rel="stylesheet" href="/assets/css/site.css">
 </head>
 <body>
-<a class="skip" href="#main">Skip to content</a>
+<?php if ($chrome === 'admin'): ?>
+<header class="admin-bar">
+  <a class="logo" href="/admin">Nursery desk</a>
+  <p class="admin-who"><?= e((string) ($user['email'] ?? '')) ?></p>
+  <form method="post" action="/logout">
+    <?= csrf_field() ?>
+    <input type="hidden" name="next" value="/admin/login">
+    <button class="btn" type="submit">Sign out</button>
+  </form>
+</header>
+<?php admin_menu(); ?>
+<?php elseif ($chrome === 'staff'): ?>
+<header class="admin-bar">
+  <a class="logo" href="/admin/login">Precision Agritech</a>
+  <p class="admin-who">Staff only</p>
+</header>
+<?php else: ?>
 <header class="nav">
-  <div class="wrap nav-inner">
-    <a class="logo" href="/">Precision Agritech</a>
-    <a class="cart-link" href="/cart">Cart<?= $count ? ' (' . $count . ')' : '' ?></a>
-    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-    <nav id="site-nav" aria-label="Shop">
-      <a href="/shop">Shop</a>
-      <a href="/nursery">Our nursery</a>
-      <a href="/wholesale">Wholesale</a>
-      <a href="/account"><?= $user ? 'Account' : 'Sign in' ?></a>
-      <a href="/cart">Cart<?= $count ? ' (' . $count . ')' : '' ?></a>
-      <?php if ($user): ?>
-      <form method="post" action="/logout" class="inline-form">
+  <a class="logo" href="/">Precision Agritech</a>
+  <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+  <nav id="site-nav">
+    <a href="/shop"<?= nav_here('/shop') ?>>Shop</a>
+    <a href="/nursery"<?= nav_here('/nursery') ?>>Our nursery</a>
+    <a href="/wholesale"<?= nav_here('/wholesale') ?>>Wholesale</a>
+    <?php if ($user): ?>
+      <a href="/account"<?= nav_here('/account') ?>>Account</a>
+      <form method="post" action="/logout">
         <?= csrf_field() ?>
+        <input type="hidden" name="next" value="/">
         <button class="linkish" type="submit">Sign out</button>
       </form>
-      <?php endif; ?>
-    </nav>
-  </div>
+    <?php else: ?>
+      <a href="/login"<?= nav_here('/login') ?>>Sign in</a>
+    <?php endif; ?>
+    <a class="nav-cart" href="/cart"<?= nav_here('/cart') ?>>Cart (<?= (int) $count ?>)</a>
+  </nav>
 </header>
-<main id="main">
+<?php endif; ?>
+<main>
 <?php
-    render_flash();
+}
+
+function admin_menu(): void
+{
+    $links = [
+        'Desk' => '/admin',
+        'Products' => '/admin/products',
+        'Categories' => '/admin/categories',
+        'Stock' => '/admin/inventory',
+        'Stock history' => '/admin/inventory-history',
+        'Orders' => '/admin/orders',
+        'Customers' => '/admin/customers',
+        'Reviews' => '/admin/reviews',
+        'Coupons' => '/admin/coupons',
+        'Messages' => '/admin/messages',
+        'Wholesale' => '/admin/wholesale',
+        'Settings' => '/admin/settings',
+        'Staff' => '/admin/staff',
+        'Audit' => '/admin/audit-log',
+        'Password' => '/change-password',
+    ];
+    $path = rtrim((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), '/') ?: '/';
+    $alias = [
+        '/admin/product-edit' => '/admin/products',
+        '/admin/order-view' => '/admin/orders',
+        '/admin/customer-view' => '/admin/customers',
+    ];
+    $here = $alias[$path] ?? $path;
+    echo '<nav class="admin-nav" aria-label="Desk">';
+    foreach ($links as $label => $href) {
+        $on = rtrim($href, '/') === $here;
+        echo '<a href="' . e($href) . '"' . ($on ? ' aria-current="page"' : '') . '>' . e($label) . '</a>';
+    }
+    echo '</nav>';
 }
 
 function render_footer(): void
 {
-    $phone = setting_safe('contact_phone', '9011975959');
+    $chrome = (string) ($GLOBALS['page_chrome'] ?? 'shop');
     ?>
 </main>
+<?php if ($chrome === 'shop'): ?>
 <footer class="footer">
   <div class="wrap footer-grid">
     <div>
       <strong>Precision Agritech</strong>
       <p>Survey No. 44/2, Theur Naygaon Road, Gaikwadvasti, Pune 412110.</p>
-      <p><a href="tel:+91<?= e(preg_replace('/\D+/', '', $phone) ?? '') ?>"><?= e($phone) ?></a> · <a href="mailto:info@precisionagritech.in">info@precisionagritech.in</a></p>
-      <p class="muted">Nursery hours: 9:00 to 6:00, Monday to Saturday. Have the legal pages checked by a lawyer before you rely on them.</p>
-      <?php
-      try {
-          $wa = whatsapp_link('Hello, I would like to ask about seedling trays.');
-      } catch (Throwable $err) {
-          $wa = 'https://wa.me/919011975959';
-      }
-      ?>
-      <p><a href="<?= e($wa) ?>">WhatsApp the nursery</a></p>
+      <p><a href="tel:+919011975959">9011975959</a></p>
+      <p><a href="mailto:info@precisionagritech.in">info@precisionagritech.in</a></p>
     </div>
     <div>
+      <p class="footer-title">Shop</p>
       <a href="/shop">Shop</a>
       <a href="/shipping">Shipping</a>
       <a href="/returns">Returns</a>
@@ -107,46 +156,58 @@ function render_footer(): void
       <a href="/contact">Contact</a>
     </div>
     <div>
+      <p class="footer-title">Company</p>
       <a href="/about">About</a>
+      <a href="/wholesale">Wholesale</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
     </div>
   </div>
+  <div class="wrap footer-copy"><p>(c) Precision Agritech</p></div>
 </footer>
-<script src="/assets/js/nav.js" defer></script>
+<script src="/assets/js/nav.js"></script>
+<script src="/assets/js/rail.js"></script>
+<?php endif; ?>
 </body>
 </html>
 <?php
 }
 
-function setting_safe(string $key, string $fallback): string
-{
-    try {
-        return setting($key, $fallback);
-    } catch (Throwable $err) {
-        return $fallback;
-    }
-}
-
-function product_card(array $product): void
+function product_card(array $product, bool $eager = false): void
 {
     $stock = available_trays($product);
     $href = '/product/' . rawurlencode((string) $product['slug']);
-    $price = effective_price($product);
-    $onSale = offer_is_active($product);
-    $img = image_variants((string) $product['image_url']);
-    $out = $stock < 1 || ($product['availability'] ?? '') === 'not_in_season';
+    $image = product_image((string) ($product['image_url'] ?? ''));
+    $onSale = $product['compare_at_inr'] !== null && (int) $product['compare_at_inr'] > (int) $product['price_inr'];
+    $variety = (string) ($product['variety'] ?? $product['scientific_name'] ?? '');
     ?>
-<article class="card<?= $out ? ' is-out' : '' ?>">
-  <a href="<?= e($href) ?>">
-    <img src="<?= e($img['src']) ?>" <?php if ($img['srcset'] !== ''): ?>srcset="<?= e($img['srcset']) ?>" sizes="(max-width: 700px) 50vw, 280px" <?php endif; ?>alt="<?= e($product['name']) ?> seedling tray" width="<?= (int) $img['width'] ?>" height="<?= (int) $img['height'] ?>" loading="lazy" decoding="async">
+<article class="card">
+  <a class="card-photo" href="<?= e($href) ?>">
+    <img src="<?= e($image) ?>" alt="<?= e($product['name']) ?> seedling tray" width="800" height="600" decoding="async"<?= $eager ? '' : ' loading="lazy"' ?>>
+    <?php if ($onSale): ?><span class="sale-badge">Sale</span><?php endif; ?>
   </a>
   <div class="card-body">
-    <?php if (!empty($product['is_new'])): ?><p class="badge">New</p><?php endif; ?>
     <h3><a href="<?= e($href) ?>"><?= e($product['name']) ?></a></h3>
-    <p class="muted"><?= e((string) ($product['variety'] ?? $product['scientific_name'])) ?></p>
-    <p class="price"><?= inr($price) ?> <span class="muted">per tray</span><?php if ($onSale): ?><span class="compare"><?= inr((int) $product['price_inr']) ?></span><?php endif; ?></p>
-    <p class="muted"><?= $out ? (($product['availability'] ?? '') === 'not_in_season' ? 'Not in season' : 'Out of stock') : ($stock <= 5 ? 'Only ' . $stock . ' trays left' : $stock . ' trays available') ?></p>
+    <p class="muted"><?= e($variety) ?></p>
+    <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ tray</span><?php if ($onSale): ?><span class="compare"><?= inr((int) $product['compare_at_inr']) ?></span><?php endif; ?></p>
+    <?php if ($stock <= 0): ?>
+      <p class="stock-out">Out of stock</p>
+    <?php elseif ($stock <= 5): ?>
+      <p class="stock-low">Only <?= (int) $stock ?> left</p>
+    <?php else: ?>
+      <p class="muted"><?= (int) $stock ?> trays available</p>
+    <?php endif; ?>
+    <?php if ($stock > 0): ?>
+    <form class="card-add" method="post" action="/cart">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="add">
+      <input type="hidden" name="slug" value="<?= e((string) $product['slug']) ?>">
+      <input type="hidden" name="qty" value="1">
+      <button class="btn" type="submit">Add to cart</button>
+    </form>
+    <?php else: ?>
+    <p class="card-add"><a class="btn" href="<?= e($href) ?>">View</a></p>
+    <?php endif; ?>
   </div>
 </article>
 <?php
@@ -156,18 +217,17 @@ function connect_or_explain(): void
 {
     try {
         db();
-        maybe_cleanup();
     } catch (Throwable $err) {
         error_log($err::class . ' ' . $err->getMessage());
-        http_response_code(503);
-        header('Retry-After: 300');
-        $showSetup = !empty($GLOBALS['config']['debug']);
-        render_header('We will be back shortly | Precision Agritech');
+        $connection = $err instanceof PDOException || str_contains($err->getMessage(), 'not configured');
+        render_header($connection ? 'Database setup | Precision Agritech' : 'Unavailable | Precision Agritech');
         echo '<section class="section"><div class="wrap narrow">';
-        echo '<h1>We will be back shortly</h1>';
-        echo '<p>The shop cannot open just now. Call <a href="tel:+919011975959">9011975959</a> and the nursery will help.</p>';
-        if ($showSetup) {
-            echo '<p>Import database/schema.sql into an empty database, or database/upgrade.sql if this database already exists. Fill config.local.php from config.example.php.</p>';
+        if ($connection) {
+            echo '<h1>Connect the database</h1>';
+            echo '<p>Import <code>database/schema.sql</code> into an empty database. If this database already exists, import <code>database/upgrade.sql</code> once. Then fill <code>config/config.local.php</code> from <code>config/config.example.php</code>.</p>';
+        } else {
+            echo '<h1>The shop could not be opened</h1>';
+            echo '<p>The nursery has the details. Nothing on this page is a database password or a file path.</p>';
         }
         echo '</div></section>';
         render_footer();

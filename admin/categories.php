@@ -30,9 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 admin_open('Categories');
 if ($error) echo '<p class="flash">' . e($error) . '</p>';
 $rows = db()->query('SELECT * FROM categories ORDER BY sort_order')->fetchAll();
-echo '<table>';
+echo '<div class="table-wrap"><table>';
 foreach ($rows as $row) {
-    echo '<tr><td colspan="3"><form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $row['id'] . '"><input name="name" value="' . e($row['name']) . '"> <input name="slug" value="' . e($row['slug']) . '"> <input name="sort_order" type="number" value="' . (int) $row['sort_order'] . '"> <button class="btn">Save</button></form></td></tr>';
+    echo '<tr><td colspan="3"><form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $row['id'] . '"><input name="name" value="' . e($row['name']) . '" aria-label="Category name"> <input name="slug" value="' . e($row['slug']) . '" aria-label="Slug"> <input name="sort_order" type="number" value="' . (int) $row['sort_order'] . '" aria-label="Sort order"> <button class="btn" type="submit">Save</button></form></td></tr>';
 }
-echo '</table><h2>Add</h2><form method="post" class="narrow">' . csrf_field() . '<label>Name <input name="name" required></label><label>Slug <input name="slug" required></label><label>Order <input name="sort_order" type="number" value="10"></label><button class="btn">Add category</button></form>';
+echo '</table></div><h2>Add</h2><form method="post" class="narrow">' . csrf_field() . '<label>Name <input name="name" required></label><label>Slug <input name="slug" required></label><label>Order <input name="sort_order" type="number" value="10"></label><button class="btn" type="submit">Add category</button></form>';
 admin_close();

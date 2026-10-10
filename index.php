@@ -7,14 +7,7 @@ $base = 'SELECT p.*, c.name AS category_name FROM products p
      JOIN categories c ON c.id = p.category_id
      WHERE p.active = 1 AND p.stock_qty > p.reserved_qty';
 $bestsellers = db()->query($base . ' AND p.bestseller = 1 ORDER BY p.name LIMIT 8')->fetchAll();
-$offers = db()->query($base . ' AND p.on_offer = 1 AND p.sale_price_inr IS NOT NULL AND p.sale_price_inr < p.price_inr AND (p.offer_starts_at IS NULL OR p.offer_starts_at <= NOW()) AND (p.offer_ends_at IS NULL OR p.offer_ends_at >= NOW()) ORDER BY p.name LIMIT 8')->fetchAll();
-$categories = db()->query(
-    'SELECT c.*, (
-        SELECT image_url FROM products p
-        WHERE p.category_id = c.id AND p.active = 1
-        ORDER BY p.bestseller DESC, p.name LIMIT 1
-     ) AS image_url FROM categories c ORDER BY c.sort_order'
-)->fetchAll();
+$offers = db()->query($base . ' AND (p.on_offer = 1 OR (p.compare_at_inr IS NOT NULL AND p.compare_at_inr > p.price_inr)) AND (p.offer_starts_at IS NULL OR p.offer_starts_at <= NOW()) AND (p.offer_ends_at IS NULL OR p.offer_ends_at >= NOW()) ORDER BY p.name LIMIT 8')->fetchAll();
 $reviews = db()->query(
     "SELECT r.author_name, r.rating, r.body, p.name AS product_name
      FROM reviews r JOIN products p ON p.id = r.product_id
@@ -24,7 +17,7 @@ $reviews = db()->query(
 render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Order flower seedling trays from Precision Agritech, Theur. Sold by the tray.');
 ?>
 <section class="hero">
-  <img src="/brand/greenhouse-hero.webp" alt="Precision Agritech greenhouse at Theur" width="1600" height="900" fetchpriority="high" decoding="async">
+  <img src="/brand/greenhouse-hero.webp" alt="Precision Agritech greenhouse at Theur" width="1600" height="1067" decoding="async" fetchpriority="high">
   <div class="hero-shade"></div>
   <div class="hero-panel">
     <p class="kicker">Precision Agritech · Theur, Pune</p>
@@ -48,70 +41,38 @@ render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Or
       <h2>Best sellers</h2>
       <a href="/shop">Shop all seedlings</a>
     </div>
-    <div class="rail">
-      <?php foreach ($bestsellers as $product) { product_card($product); } ?>
-    </div>
-  </div>
-</section>
-<section class="section section-tight">
-  <div class="wrap">
-    <div class="head">
-      <h2>Shop by category</h2>
-      <a href="/shop">Shop all seedlings</a>
-    </div>
-    <div class="mosaic mosaic-<?= count($categories) >= 5 ? 'lead' : 'even' ?>">
-      <?php foreach ($categories as $index => $category): ?>
-      <a class="tile<?= count($categories) >= 5 && $index === 0 ? ' lead' : '' ?>" href="/shop?category=<?= e($category['slug']) ?>">
-        <img src="<?= e((string) ($category['image_url'] ?: '/brand/seedling.webp')) ?>" alt="" width="800" height="600">
-        <span><?= e($category['name']) ?></span>
-      </a>
-      <?php endforeach; ?>
+    <div class="rail-wrap">
+      <button class="rail-btn rail-prev" type="button" aria-label="Previous">&#8249;</button>
+      <div class="rail" tabindex="0">
+        <?php foreach ($bestsellers as $product) { product_card($product); } ?>
+      </div>
+      <button class="rail-btn rail-next" type="button" aria-label="Next">&#8250;</button>
     </div>
   </div>
 </section>
 <?php if ($offers): ?>
 <section class="section">
   <div class="wrap">
-    <h2>Offers</h2>
-    <div class="rail">
-      <?php foreach ($offers as $product) { product_card($product); } ?>
+    <div class="head">
+      <h2>Offers</h2>
+      <a href="/shop">Shop all seedlings</a>
+    </div>
+    <div class="rail-wrap">
+      <button class="rail-btn rail-prev" type="button" aria-label="Previous">&#8249;</button>
+      <div class="rail" tabindex="0">
+        <?php foreach ($offers as $product) { product_card($product); } ?>
+      </div>
+      <button class="rail-btn rail-next" type="button" aria-label="Next">&#8250;</button>
     </div>
   </div>
 </section>
 <?php endif; ?>
-<section class="section section-paper">
-  <div class="wrap split">
-    <img src="/brand/workbench.webp" alt="Seedling trays on a bench at the Theur nursery" width="1600" height="1067" loading="lazy" decoding="async">
-    <div>
-      <h2>Shop by use</h2>
-      <ul class="use-list">
-        <li><a href="/shop?use=beds"><strong>Flower beds</strong><span class="muted">Colour for open beds</span></a></li>
-        <li><a href="/shop?use=pots"><strong>Pots</strong><span class="muted">Trays for containers</span></a></li>
-        <li><a href="/shop?use=landscaping"><strong>Landscaping</strong><span class="muted">Runs of one variety</span></a></li>
-        <li><a href="/shop?use=garlands"><strong>Garlands</strong><span class="muted">Marigold and seasonal colour</span></a></li>
-        <li><a href="/shop?use=borders"><strong>Borders</strong><span class="muted">Front-of-bed plants</span></a></li>
-      </ul>
-    </div>
-  </div>
-</section>
-<section class="section">
-  <div class="wrap nursery">
-    <img class="nursery-photo" src="/brand/nursery-fields.webp" alt="Fields beside the Precision Agritech nursery at Theur" width="1600" height="900" loading="lazy" decoding="async">
-    <div>
-      <p class="kicker kicker-muted">Theur, Pune</p>
-      <h2>Grown in our nursery</h2>
-      <p class="muted">Precision Agritech grows flower seedlings at Survey No. 44/2, Theur Naygaon Road. These photographs are from the nursery. Trays are hardened before a booking leaves.</p>
-      <img class="photo-gap" src="/brand/seedling.webp" alt="A young plant at the Precision Agritech nursery" width="1408" height="1408" loading="lazy" decoding="async">
-      <p><a class="btn" href="/nursery">Explore our nursery</a></p>
-    </div>
-  </div>
-</section>
-<section class="section section-rule">
+<section class="section why-section">
   <div class="wrap why">
     <h2>Why Precision Agritech</h2>
-    <p><strong>Named varieties</strong><br><span class="muted">Each tray is a listed flower line, with colour, season and a plant count.</span></p>
-    <p><strong>Held, then sold</strong><br><span class="muted">An order reserves trays. The nursery confirms payment before it becomes a sale.</span></p>
-    <p><strong>Local, and by the tray</strong><br><span class="muted">The nursery is in Theur. Large lots are confirmed on 9011975959.</span></p>
+    <p><strong>Named varieties</strong><span class="muted">Each tray is a listed flower line, with colour, season and a plant count.</span></p>
+    <p><strong>Held, then sold</strong><span class="muted">An order reserves trays. The nursery confirms payment before it becomes a sale.</span></p>
+    <p><strong>Local, and by the tray</strong><span class="muted">The nursery is in Theur. Large lots are confirmed on 9011975959.</span></p>
   </div>
 </section>
 <section class="section band">
@@ -120,7 +81,7 @@ render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Or
       <h2>Growing at scale?</h2>
       <p>For landscapers, growers and commercial projects. A form does not reserve trays.</p>
     </div>
-    <p><a class="btn light" href="/wholesale">Request a bulk quote</a></p>
+    <p class="band-action"><a class="btn light" href="/wholesale">Request a bulk quote</a></p>
   </div>
 </section>
 <?php if ($reviews): ?>
@@ -133,7 +94,7 @@ render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Or
   </div>
 </section>
 <?php endif; ?>
-<section class="section section-line">
+<section class="section">
   <div class="wrap head">
     <div>
       <h2>Ready to grow?</h2>

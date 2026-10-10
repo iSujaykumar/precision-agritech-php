@@ -1,16 +1,23 @@
-Precision Agritech on Hostinger. PHP 8.1 or newer. Do not upload this note into public_html if you can avoid it. The site also blocks .txt files.
+Hostinger
+1. Create an empty MySQL database and a database user in hPanel. Do not use a superuser account and do not leave the password empty.
+2. Import database/schema.sql in phpMyAdmin.
+3. If the database was created earlier, import database/upgrade.sql once instead of starting over.
+4. Copy config/config.example.php to config/config.local.php on the server.
+5. Fill the database host, name, user and password that hPanel shows. Set site_url to https://precisionagritech.in.
+6. Leave the Twilio lines empty until a real Verify service exists. The site will not pretend an SMS was sent.
+7. Upload the site files into public_html. Do not upload a config.local.php that already contains a password into a public place.
+8. Open /setup once to create the staff account. After that, /setup stays closed.
+9. On the live site set show_otp_on_screen to false and debug to false.
 
-1. Create an empty MySQL database and a normal database user in hPanel. Do not use a superuser account. Do not leave the password empty.
-2. New database: import database/schema.sql. Existing database: import database/upgrade.sql once. It is safe to run again.
-3. Copy config/config.example.php to config.local.php. Prefer putting that file one level above public_html. The site also looks in config/config.local.php.
-4. Fill the database host, name, user and password from hPanel. Set site_url to https://precisionagritech.in.
-5. Set setup_token to a long random string. Open /setup, type that string, create the staff account, then delete setup.php from the server.
-6. In the nursery desk, fill the bank account before you want bank transfer to appear at checkout.
-7. Mail: fill smtp_host, smtp_port, smtp_user, smtp_pass if you want Hostinger mailbox mail. If those are empty, the site uses PHP mail() and logs a failure without cancelling the order.
-8. Leave Twilio empty until SMS is ready. Password sign-in works without it. Mobile-code sign-in stays hidden.
-9. Optional: turnstile keys, cron_token, and a daily call to /cron.php?token=YOUR_TOKEN so unpaid reservations expire even when nobody visits checkout.
-10. trust_proxy should stay false unless Hostinger tells you the site sits behind a proxy that sets X-Forwarded-Proto.
-11. debug must stay false on the live site.
-12. Confirm the legal pages with a lawyer before you treat them as policy.
+OTP delivery
+Customers sign in with a mobile number and a 6-digit code. There is no customer password.
+- If twilio_sid, twilio_token and twilio_verify are set, the code is sent by Twilio Verify SMS.
+- If Twilio is not set, the code is emailed with PHP mail() to the address already on that account, and it is stored only as a salted hash.
+- show_otp_on_screen may be true on a private local machine so the code is printed on the sign-in page. It must be false on https://precisionagritech.in.
+- A brand-new number has no email yet, so creating an account needs either Twilio SMS or show_otp_on_screen for that local test. If neither Twilio nor email delivery can send the code, sign-in shows an error instead of failing quietly.
+- Do not log the code.
 
-Local computer: use an http site_url such as http://localhost:8081. That does not force https. Comment out the two precisionagritech.in redirect blocks in .htaccess only if you are not on the live host. Import upgrade.sql before opening the new code against an old database.
+Local computer
+Use the same files. In config.local.php set the local database name, the local database account, and site_url to the address you actually open, including the port. An http site URL does not force https, so local browsing keeps working.
+
+Ordinary pages do not alter the database. Schema changes belong in schema.sql and upgrade.sql.

@@ -3,7 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/includes/bootstrap.php';
 connect_or_explain();
 $count = (int) db()->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
-if ($count > 0 || (string) ($config['setup_token'] ?? '') === '') {
+if ($count > 0) {
     http_response_code(404);
     exit('Not found');
 }
@@ -11,16 +11,6 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
-        global $config;
-        $expected = (string) ($config['setup_token'] ?? '');
-        $given = (string) ($_POST['setup_token'] ?? '');
-        if ($expected === '' || !hash_equals($expected, $given)) {
-            note_login_failure('setup');
-            throw new RuntimeException('The setup code is not right.');
-        }
-        if (too_many_attempts('setup')) {
-            throw new RuntimeException('Too many attempts. Wait and try again.');
-        }
         $name = trim((string) ($_POST['name'] ?? ''));
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
@@ -53,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = safe_error($err, 'The staff account could not be created.');
     }
 }
-render_header('Create the staff account');
+render_header('Create the staff account', '', 'staff');
 ?>
 <section class="section"><div class="wrap narrow">
   <h1>Create the staff account</h1>
@@ -61,7 +51,6 @@ render_header('Create the staff account');
   <?php if ($error): ?><p class="flash"><?= e($error) ?></p><?php endif; ?>
   <form method="post">
     <?= csrf_field() ?>
-    <label>Setup code <input name="setup_token" required autocomplete="off"></label>
     <label>Name <input name="name" required></label>
     <label>Email <input name="email" type="email" required></label>
     <label>Mobile <input name="phone" type="tel" inputmode="tel" required placeholder="10-digit mobile"></label>
