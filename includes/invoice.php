@@ -42,7 +42,8 @@ function issue_invoice(PDO $pdo, int $orderId): ?int
         'seasonal' => (int) ($row['seasonal_discount_inr'] ?? 0),
         'shipping' => (int) $row['shipping_inr'],
         'total' => (int) $row['total_inr'],
-        'words' => amount_in_words((int) $row['total_inr']),
+        'total_paise' => isset($row['total_paise']) ? (int) $row['total_paise'] : (int) $row['total_inr'] * 100,
+        'words' => amount_paise_words(isset($row['total_paise']) ? (int) $row['total_paise'] : (int) $row['total_inr'] * 100),
         'terms' => setting('invoice_terms', ''),
     ];
     $pdo->prepare('INSERT INTO invoices (order_id, invoice_number, fy, total_inr, snapshot_json, created_at) VALUES (?, ?, ?, ?, ?, NOW())')
@@ -101,9 +102,10 @@ function invoice_lines_text(array $snapshot, string $number, string $when): arra
         $tray = (int) ($line['tray_size'] ?? 0);
         $paise = $line['seedling_paise'] ?? null;
         $rate = $paise !== null ? number_format(((int) $paise) / 100, 2, '.', '') : '';
+        $money = isset($line['line_paise']) && $line['line_paise'] !== null ? inr_paise((int) $line['line_paise']) : ('Rs ' . (int) $line['line_total_inr']);
         $lines[] = (int) $line['quantity'] . ' x ' . $line['product_name']
             . ($tray > 0 ? ' (' . $tray . ' seedlings/tray' . ($rate !== '' ? ', Rs ' . $rate . ' each' : '') . ')' : '')
-            . '  Rs ' . (int) $line['line_total_inr'];
+            . '  ' . $money;
     }
     $lines[] = 'Subtotal Rs ' . (int) ($snapshot['subtotal'] ?? 0);
     if ((int) ($snapshot['discount'] ?? 0) > 0) {

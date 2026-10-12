@@ -41,6 +41,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
         $action = (string) ($_POST['action'] ?? '');
+        if ($action === 'load-sheets') {
+            require_desk($admin, 'owner');
+            $pdo = db();
+            $pdo->beginTransaction();
+            $loaded = load_supplied_lists($pdo);
+            load_business_settings($pdo);
+            $pdo->commit();
+            $text = "Matched existing parents: {$loaded['matched_parents']}\nNew parent cards created this run: {$loaded['new_parents']}\nPlant groups: {$loaded['groups']}\nFarmer variety rows: {$loaded['farmer_rows']}\nPtilotus was not on the sheet and was left unchanged.\nThe PDF and the photo were not in the workspace. The CSVs were used.\nThe 50 paise elepot footnote is not shown.\n\n";
+            foreach ($loaded['rows'] as $row) {
+                $text .= $row['list'] . "\t" . $row['action'] . "\t" . $row['plant'] . "\t" . $row['variety'] . "\told " . (string) ($row['old_inr'] ?? '') . "\tnew " . $row['new_inr'] . "\tpaise " . $row['tray_paise'] . "\t" . $row['sku'] . "\n";
+            }
+            file_put_contents(dirname(__DIR__) . '/IMPORT_REPORT.txt', $text);
+            audit_log((int) $admin['id'], 'price_import', 'price_list', 0, null, 'sheets ' . count($loaded['rows']));
+            flash_set('Price lists loaded. ' . count($loaded['rows']) . ' rows.');
+            header('Location: /admin/price-lists');
+            exit;
+        }
         if ($action === 'save_list') {
             $id = (int) ($_POST['id'] ?? 0);
             $from = trim((string) ($_POST['effective_from'] ?? ''));
@@ -106,6 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 admin_open('Price lists', 'products');
+echo '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="load-sheets"><button class="btn" type="submit">Load the supplied 2026-27 and farmer sheets</button></form>';
+echo '<p class="muted">Running this again updates rates and does not create a second copy of a variety. Existing photos, stock and descriptions of the current plants stay. Ptilotus is not changed.</p>';
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

@@ -38,6 +38,12 @@ $dispatch = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status IN ('con
 $low = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND stock_qty - reserved_qty <= ' . $lowLimit)->fetchColumn();
 $messages = (int) db()->query("SELECT COUNT(*) FROM contact_messages WHERE status = 'new'")->fetchColumn();
 $wholesale = (int) db()->query("SELECT COUNT(*) FROM wholesale_requests WHERE status = 'new'")->fetchColumn();
+$needsCopy = 0;
+try {
+    $needsCopy = (int) db()->query('SELECT COUNT(*) FROM products WHERE needs_copy = 1 AND active = 1')->fetchColumn();
+} catch (Throwable $err) {
+    $needsCopy = 0;
+}
 $pendingReviews = (int) db()->query("SELECT COUNT(*) FROM reviews WHERE status = 'pending'")->fetchColumn();
 $lowRows = db()->query('SELECT id, name, stock_qty, reserved_qty FROM products WHERE active = 1 AND stock_qty - reserved_qty <= ' . $lowLimit . ' ORDER BY (stock_qty - reserved_qty), name LIMIT 8')->fetchAll();
 $recent = db()->query('SELECT id, order_number, customer_name, total_inr, status FROM orders ORDER BY id DESC LIMIT 5')->fetchAll();
@@ -57,6 +63,7 @@ $recent = db()->query('SELECT id, order_number, customer_name, total_inr, status
   <a class="card card-body" href="/admin/inventory"><strong><?= $low ?></strong><br><span class="muted">Low stock</span></a>
   <a class="card card-body" href="/admin/messages"><strong><?= $messages ?></strong><br><span class="muted">New messages</span></a>
   <a class="card card-body" href="/admin/wholesale"><strong><?= $wholesale ?></strong><br><span class="muted">New wholesale requests</span></a>
+  <a class="card card-body" href="/admin/products"><strong><?= $needsCopy ?></strong><br><span class="muted">Needs photo and description</span></a>
   <a class="card card-body" href="/admin/reviews?status=pending"><strong><?= $pendingReviews ?></strong><br><span class="muted">Pending reviews</span></a>
 </div>
 <p class="btn-row">

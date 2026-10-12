@@ -51,3 +51,9 @@ After go-live
 - Open /admin/health.
 - Place one small real order and confirm the reservation, the payment instruction, and the customer email or the on-screen order link.
 - Confirm /tests/ and /database/schema.sql do not open.
+
+Database update for the 2026-27 lists
+- XAMPP or Hostinger: import database/upgrade.sql in phpMyAdmin. If it stops on a procedure, use Desk → Database update instead. Run it twice. It only adds missing columns and tables.
+- If the homepage says "We are updating the shop", the new columns are not there yet. Staff who are signed in see a link to the database update. The public page does not show the SQL error.
+- After the update, open Desk → Price lists and press "Load the supplied 2026-27 and farmer sheets". Pressing it again does not duplicate varieties.
+- Do not replace the live address or email. The PDF wording is only recorded in IMPORT_REPORT.txt.

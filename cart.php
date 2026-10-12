@@ -80,7 +80,7 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
       <p><a class="btn" href="/shop">Shop seedlings</a></p>
     </div>
     <?php
-    $picks = db()->query('SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id WHERE ' . catalog_public_sql() . ' AND p.stock_qty > p.reserved_qty AND p.bestseller = 1 ORDER BY p.name, p.id LIMIT 4')->fetchAll();
+    $picks = db()->query('SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id WHERE ' . catalog_card_sql() . ' AND p.stock_qty > p.reserved_qty AND p.bestseller = 1 ORDER BY p.name, p.id LIMIT 4')->fetchAll();
     if ($picks): ?>
       <div class="grid"><?php foreach ($picks as $pick) { product_card($pick); } ?></div>
     <?php endif; ?>
@@ -99,7 +99,7 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
         <div class="cart-info">
           <strong><a href="/product/<?= e((string) $product['slug']) ?>"><?= e((string) $product['name']) ?></a></strong>
           <p class="muted"><?= e((string) ($product['variety'] ?? '')) ?></p>
-          <p><?= inr((int) ($line['unit'] ?? $product['price_inr'])) ?> / tray<?php if ((int) ($product['is_overgrown'] ?? 0) === 1): ?> · Overgrown / as-is<?php endif; ?><?php if (setting('show_seedling_count', '0') === '1'): ?> · <?= (int) (($line['sell']['tray'] ?? seedlings_per_tray($product))) ?> seedlings<?php else: ?> (104 plants)<?php endif; ?></p>
+          <p><?= e(price_pair_text($line['sell'] ?? selling_price($product))) ?></p>
           <?php if ($free > 0 && $free <= 5 && empty($line['warning'])): ?><p class="stock-note">Only <?= $free ?> left</p><?php endif; ?>
           <?php if (!empty($line['warning'])): ?><p class="flash bad" role="alert"><?= e((string) $line['warning']) ?></p><?php endif; ?>
         </div>
@@ -112,13 +112,13 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
           <button class="text-link" name="action" value="remove" type="submit">Remove</button>
           <noscript><button class="btn" type="submit">Update</button></noscript>
         </div>
-        <strong class="line-total"><?= inr((int) $line['line']) ?></strong>
+        <strong class="line-total"><?= inr_paise((int) ($line['line_paise'] ?? ((int) $line['line'] * 100))) ?></strong>
       </form>
       <?php endforeach; ?>
     </div>
     <aside class="card summary">
       <h2>Order summary</h2>
-      <p><span>Subtotal</span><span><?= inr((int) $quote['subtotal']) ?></span></p>
+      <p><span>Subtotal</span><span><?= inr_paise((int) ($quote['subtotal_paise'] ?? ((int) $quote['subtotal'] * 100))) ?></span></p>
       <?php if ($quote['discount']): ?>
         <p><span>Discount (<?= e((string) ($quote['coupon']['code'] ?? $coupon)) ?>)</span><span>−<?= inr((int) $quote['discount']) ?></span></p>
       <?php endif; ?>
@@ -128,12 +128,12 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
         <p class="muted">Add <?= inr((int) $quote['seasonal']['short']) ?> more in plants to get <?= (int) ($quote['seasonal']['percent'] ?? 10) ?>% off the plants. Delivery is not discounted.</p>
       <?php endif; ?>
       <p><span>Shipping</span><span><?= (int) $quote['shipping'] === 0 ? 'Free' : inr((int) $quote['shipping']) ?></span></p>
-      <p class="summary-total"><span>Total</span><span><?= inr((int) $quote['total']) ?></span></p>
+      <p class="summary-total"><span>Total</span><span><?= inr_paise((int) ($quote['total_paise'] ?? ((int) $quote['total'] * 100))) ?></span></p>
       <div class="ship-bar" role="img" aria-label="<?= $after >= $freeOver ? 'You have free shipping' : 'Add ' . inr($freeOver - $after) . ' more for free shipping' ?>">
         <span style="width:<?= $progress ?>%"></span>
       </div>
       <p class="muted"><?= $after >= $freeOver ? 'You have free shipping' : 'Add ' . inr(max(0, $freeOver - $after)) . ' more for free shipping' ?></p>
-      <?php $priceNote = trim(setting('prices_dispatch_note', '')); if ($priceNote !== ''): ?><p class="muted"><?= e($priceNote) ?></p><?php endif; ?>
+      <?php $terms = invoice_term_lines(); if ($terms): ?><ol class="muted"><?php foreach ($terms as $term): ?><li><?= e($term) ?></li><?php endforeach; ?></ol><?php endif; ?>
       <?php if ($coupon !== '' && $quote['discount']): ?>
         <p class="chip"><?= e($coupon) ?>
           <button class="text-link" form="drop-coupon" type="submit">Remove</button>

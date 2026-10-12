@@ -18,7 +18,7 @@ Use SMTP on the live site. Set smtp_host, smtp_port, smtp_secure, smtp_user and 
 The folder uploads/products must be writable by PHP. The GD extension is required to resize photos to WebP. The limit is 5 MB, so upload_max_filesize and post_max_size on the server must be at least 8M. JPEG, PNG and WebP only, at least 600 by 450. Uploaded files are renamed. Files under /products and /brand are never deleted by the desk.
 
 6. WhatsApp number
-Settings > Shop stores whatsapp_number as digits with the country code, for example 919011975959. The public button uses https://wa.me/ that number. Leave it empty to hide the button. Confirm the number with the nursery before going live.
+Phones are edited under Desk > Phones. The public numbers are 8080370152, 8421577787 and 8421577725. WhatsApp uses one of the numbers marked for WhatsApp. The choice stays the same for a visitor's session when the mode is Random. Leave every WhatsApp box off to hide the button.
 
 7. First staff account
 Open /setup once while no staff account exists. After that the page stays closed. To reset the only staff password in an emergency, set a new password_hash in the users table from SQL with PHP's password_hash, and set must_change_password to 1.

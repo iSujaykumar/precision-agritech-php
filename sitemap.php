@@ -9,7 +9,10 @@ $paths = ['/', '/shop', '/reviews', '/about', '/nursery', '/faq', '/shipping', '
 foreach (public_product_slugs() as $slug) {
     $paths[] = '/product/' . $slug;
 }
-$overgrown = (int) db()->query('SELECT COUNT(*) FROM products p JOIN categories c ON c.id = p.category_id WHERE ' . catalog_public_sql() . ' AND p.is_overgrown = 1')->fetchColumn();
+if (setting('seasonal_list_public', '1') === '1') {
+    $paths[] = '/price-list';
+}
+$overgrown = (int) db()->query('SELECT COUNT(*) FROM products p JOIN categories c ON c.id = p.category_id WHERE ' . catalog_card_sql() . ' AND p.is_overgrown = 1')->fetchColumn();
 if ($overgrown > 0) {
     $paths[] = '/overgrown';
 }

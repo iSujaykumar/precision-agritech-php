@@ -16,6 +16,35 @@ function upi_id_ok(string $pa): bool
     return (bool) preg_match('/^[A-Za-z0-9.\-_]{2,40}@[A-Za-z]{2,20}$/', $pa);
 }
 
+function upi_amount_text(int $paise): string
+{
+    if ($paise < 1) {
+        return '0';
+    }
+    $rupees = intdiv($paise, 100);
+    $rest = $paise % 100;
+    if ($rest === 0) {
+        return (string) $rupees;
+    }
+    return $rupees . '.' . str_pad((string) $rest, 2, '0', STR_PAD_LEFT);
+}
+
+function upi_pay_link_paise(string $pa, string $pn, string $orderNumber, int $paise): string
+{
+    $pa = trim($pa);
+    $note = preg_replace('/[^A-Za-z0-9\-]/', '', $orderNumber) ?? '';
+    if (!upi_id_ok($pa) || $paise < 1 || $note === '') {
+        return '';
+    }
+    if ($pn === '') {
+        $pn = 'Precision Agritech';
+    }
+    return 'upi://pay?pa=' . rawurlencode($pa)
+        . '&pn=' . rawurlencode(trim($pn))
+        . '&am=' . rawurlencode(upi_amount_text($paise))
+        . '&cu=INR&tn=' . rawurlencode($note);
+}
+
 function upi_pay_link(string $pa, string $pn, string $orderNumber, int $amount): string
 {
     $pa = trim($pa);
@@ -99,4 +128,19 @@ function upi_qr_block(string $pa, string $pn, string $orderNumber, int $amount, 
         return '<p class="flash bad" role="alert">UPI is not configured. Please choose another method or contact us.</p>';
     }
     return qr_svg($link, 'UPI QR for ' . $orderNumber . ', ' . $amount . ' rupees');
+}
+
+function upi_qr_block_paise(string $pa, string $pn, string $orderNumber, int $paise, string $mode, string $uploaded): string
+{
+    $shown = upi_amount_text($paise);
+    $link = upi_pay_link_paise($pa, $pn, $orderNumber, $paise);
+    if ($mode === 'upload' && $uploaded !== '') {
+        $safe = htmlspecialchars($uploaded, ENT_QUOTES, 'UTF-8');
+        return '<img class="upi-qr" src="' . $safe . '" alt="Uploaded UPI QR code" width="220" height="220">'
+            . '<p>This is the nursery\'s own QR image. It may not include the amount. Pay <strong>Rs ' . htmlspecialchars($shown, ENT_QUOTES, 'UTF-8') . '</strong> and use ' . htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8') . ' as the note.</p>';
+    }
+    if ($link === '') {
+        return '<p class="flash bad" role="alert">UPI is not configured. Please choose another method or contact us.</p>';
+    }
+    return qr_svg($link, 'UPI QR for ' . $orderNumber . ', Rs ' . $shown);
 }

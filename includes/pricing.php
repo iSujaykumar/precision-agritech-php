@@ -120,7 +120,29 @@ function selling_price(array $product): array
 {
     $retail = (int) ($product['price_inr'] ?? 0);
     $tray = seedlings_per_tray($product);
-    $base = ['rupees' => $retail, 'list' => 'Seasonal (2026-27)', 'paise' => null, 'tray' => $tray, 'marathi' => '', 'blocked' => false];
+    $seed = null;
+    if (array_key_exists('price_per_seedling_paise', $product) && $product['price_per_seedling_paise'] !== null && $product['price_per_seedling_paise'] !== '') {
+        $seed = (int) $product['price_per_seedling_paise'];
+    }
+    if (!empty($product['tray_paise'])) {
+        $trayPaise = (int) $product['tray_paise'];
+    } elseif ($seed !== null && $seed > 0) {
+        $trayPaise = exact_tray_paise($seed, $tray);
+    } else {
+        $trayPaise = $retail * 100;
+    }
+    $base = [
+        'rupees' => intdiv($trayPaise + 50, 100),
+        'tray_paise' => $trayPaise,
+        'list' => 'Seasonal (2026-27)',
+        'paise' => $seed,
+        'tray' => $tray,
+        'marathi' => (string) ($product['marathi_name'] ?? ''),
+        'blocked' => false,
+    ];
+    if (!customer_is_farmer() && (int) ($product['farmer_only'] ?? 0) !== 1) {
+        return $base;
+    }
     if (!customer_is_farmer()) {
         return $base;
     }
@@ -133,6 +155,7 @@ function selling_price(array $product): array
             return $base;
         }
         $base['rupees'] = 0;
+        $base['tray_paise'] = 0;
         $base['blocked'] = true;
         $base['list'] = 'Farmer';
         return $base;
@@ -142,12 +165,14 @@ function selling_price(array $product): array
     if ($size < 1) {
         $size = $tray;
     }
+    $exact = exact_tray_paise($paise, $size);
     return [
-        'rupees' => tray_rupees($paise, $size),
+        'rupees' => intdiv($exact + 50, 100),
+        'tray_paise' => $exact,
         'list' => 'Farmer',
         'paise' => $paise,
         'tray' => $size,
-        'marathi' => (string) ($hit['row']['marathi_name'] ?? ''),
+        'marathi' => (string) ($hit['row']['marathi_name'] ?? $base['marathi']),
         'blocked' => false,
     ];
 }

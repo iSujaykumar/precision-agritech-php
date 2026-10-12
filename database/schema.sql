@@ -74,10 +74,15 @@ CREATE TABLE products (
   price_per_seedling_paise INT NULL,
   farmer_only TINYINT(1) NOT NULL DEFAULT 0,
   is_overgrown TINYINT(1) NOT NULL DEFAULT 0,
+  parent_product_id INT UNSIGNED NULL,
+  tray_paise INT NULL,
+  marathi_name VARCHAR(160) NOT NULL DEFAULT '',
+  needs_copy TINYINT(1) NOT NULL DEFAULT 0,
   active TINYINT(1) NOT NULL DEFAULT 1,
   UNIQUE KEY products_slug (slug),
   UNIQUE KEY products_sku (sku),
   KEY products_active_category (active, category_id),
+  KEY products_parent (parent_product_id),
   CONSTRAINT products_category_fk FOREIGN KEY (category_id) REFERENCES categories(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE orders (
@@ -122,6 +127,12 @@ CREATE TABLE orders (
   cancel_reason VARCHAR(255) NULL,
   seasonal_discount_inr INT NOT NULL DEFAULT 0,
   price_list_name VARCHAR(80) NULL,
+  subtotal_paise INT NULL,
+  discount_paise INT NULL,
+  shipping_paise INT NULL,
+  total_paise INT NULL,
+  seasonal_discount_paise INT NULL,
+  transport_paise INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY orders_number (order_number),
   UNIQUE KEY orders_token (lookup_token),
@@ -147,6 +158,8 @@ CREATE TABLE order_items (
   tray_size INT NULL,
   price_list_name VARCHAR(80) NULL,
   marathi_name VARCHAR(160) NULL,
+  unit_paise INT NULL,
+  line_paise INT NULL,
   KEY order_items_order (order_id),
   CONSTRAINT order_items_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   CONSTRAINT order_items_product_fk FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
@@ -399,8 +412,8 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('free_shipping_over_inr','4000'),
 ('min_order_inr','0'),
 ('tax_percent','0'),
-('shop_phone','9011975959'),
-('whatsapp_number','919011975959'),
+('shop_phone','8080370152'),
+('whatsapp_number','918080370152'),
 ('shop_email','info@precisionagritech.in'),
 ('mail_from','info@precisionagritech.in'),
 ('shop_address','Survey No. 44/2, Theur Naygaon Road, Gaikwadvasti, Pune 412110'),
@@ -495,8 +508,8 @@ CREATE TABLE price_lists (
   source_ref VARCHAR(160) NOT NULL DEFAULT '',
   UNIQUE KEY price_lists_slug (slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-INSERT INTO price_lists (slug, name, audience, notes, source_ref, active)
-SELECT 'seasonal-2026-27', 'Seasonal (2026-27)', 'seasonal', 'Standard rates for the 2026-27 season.', 'DOC-20260923-WA0002_.pdf', 1
+INSERT INTO price_lists (slug, name, audience, effective_from, effective_to, notes, source_ref, active)
+SELECT 'seasonal-2026-27', 'Seasonal (2026-27)', 'seasonal', '2026-04-01', '2027-03-31', 'Standard rates for the 2026-27 season.', 'DOC-20260923-WA0002_.pdf', 1
 WHERE NOT EXISTS (SELECT 1 FROM price_lists WHERE slug = 'seasonal-2026-27');
 INSERT INTO price_lists (slug, name, audience, effective_from, notes, source_ref, active)
 SELECT 'farmer', 'Farmer', 'farmer', '2026-01-01', 'Farmer rates. Marathi names stay as printed.', 'IMG20261012141209.jpg', 1
@@ -546,3 +559,44 @@ CREATE TABLE credit_notes (
   UNIQUE KEY credit_notes_number (credit_number),
   KEY credit_notes_order (order_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE phone_numbers (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  digits VARCHAR(10) NOT NULL,
+  label VARCHAR(40) NOT NULL DEFAULT '',
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled TINYINT(1) NOT NULL DEFAULT 1,
+  show_public TINYINT(1) NOT NULL DEFAULT 1,
+  whatsapp_enabled TINYINT(1) NOT NULL DEFAULT 1,
+  UNIQUE KEY phone_numbers_digits (digits)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
+SELECT '8080370152', 'Nursery', 1, 1, 1, 1 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8080370152');
+INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
+SELECT '8421577787', 'Office', 2, 1, 1, 1 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8421577787');
+INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
+SELECT '8421577725', 'Desk', 3, 1, 1, 1 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8421577725');
+CREATE TABLE bank_accounts (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  bank VARCHAR(80) NOT NULL,
+  branch VARCHAR(80) NOT NULL DEFAULT '',
+  account_name VARCHAR(120) NOT NULL,
+  account_no VARCHAR(30) NOT NULL,
+  ifsc VARCHAR(20) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  verified TINYINT(1) NOT NULL DEFAULT 0,
+  show_public TINYINT(1) NOT NULL DEFAULT 0,
+  UNIQUE KEY bank_accounts_no (account_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO settings (`key`, `value`) VALUES
+('whatsapp_mode','random'),
+('whatsapp_fixed_id','0'),
+('whatsapp_rr','0'),
+('seasonal_list_public','1'),
+('show_marathi_names','1'),
+('shop_tagline','Premium Flower & Ornamental Seedling Price List 2026-27'),
+('footer_line','Thank you for your trust in Precision Agritech - Growing Quality, Nurturing Nature.')
+ON DUPLICATE KEY UPDATE `key` = `key`;
+

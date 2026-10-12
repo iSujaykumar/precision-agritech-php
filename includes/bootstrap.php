@@ -157,7 +157,7 @@ function db(): PDO
     global $config;
     if (($config['db_user'] ?? '') === '' || ($config['db_name'] ?? '') === '') {
         error_log('Database is not configured.');
-        throw new RuntimeException('The shop is not ready yet. Please call 9011975959.');
+        throw new RuntimeException('The shop is not ready yet. Please call 8080370152.');
     }
     $dsn = sprintf(
         'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
@@ -467,7 +467,7 @@ function home_products(string $section): array
     }
     $base = 'SELECT p.*, c.name AS category_name FROM products p
         JOIN categories c ON c.id = p.category_id
-        WHERE ' . catalog_public_sql() . ' AND p.stock_qty > p.reserved_qty';
+        WHERE ' . catalog_card_sql() . ' AND p.stock_qty > p.reserved_qty';
     if ($section === 'bestsellers') {
         $sql = $base . ' AND p.bestseller = 1 ORDER BY p.name, p.id LIMIT ' . $limit;
     } elseif ($section === 'new') {
@@ -484,7 +484,7 @@ function public_product_slugs(): array
     return db()->query(
         'SELECT p.slug FROM products p
          JOIN categories c ON c.id = p.category_id
-         WHERE ' . catalog_public_sql() . '
+         WHERE ' . catalog_card_sql() . '
          ORDER BY p.slug'
     )->fetchAll(PDO::FETCH_COLUMN);
 }
@@ -496,7 +496,7 @@ function lock_listed_product(PDO $pdo, int $id): ?array
          WHERE p.id = ? AND p.active = 1 AND c.active = 1 AND (p.farmer_only = 0 OR ? = 1)
          FOR UPDATE'
     );
-    $stmt->execute([$id, customer_is_farmer() ? 1 : 0]);
+    $stmt->execute([$id, can_see_farmer() ? 1 : 0]);
     $row = $stmt->fetch();
     return $row ?: null;
 }
@@ -505,9 +505,9 @@ function product_by_slug(string $slug): ?array
     $stmt = db()->prepare(
         'SELECT p.*, c.name AS category_name, c.slug AS category_slug
          FROM products p JOIN categories c ON c.id = p.category_id
-         WHERE p.slug = ? AND ' . catalog_public_sql()
+         WHERE p.slug = ? AND p.active = 1 AND c.active = 1 AND (p.farmer_only = 0 OR ? = 1)'
     );
-    $stmt->execute([$slug]);
+    $stmt->execute([$slug, can_see_farmer() ? 1 : 0]);
     $row = $stmt->fetch();
     return $row ?: null;
 }
@@ -543,17 +543,20 @@ function quote_cart(string $couponCode = ''): array
         }
         $sell = selling_price($product);
         $price = (int) $sell['rupees'];
-        if ($warning === null && (!empty($sell['blocked']) || ((int) ($product['farmer_only'] ?? 0) === 1 && !customer_is_farmer()))) {
+        $unitPaise = (int) ($sell['tray_paise'] ?? ($price * 100));
+        if ($warning === null && (!empty($sell['blocked']) || ((int) ($product['farmer_only'] ?? 0) === 1 && !can_see_farmer()))) {
             $warning = 'Price not available, please contact us.';
             $price = 0;
+            $unitPaise = 0;
         }
-        $line = $warning ? 0 : $price * $qty;
+        $linePaise = $warning ? 0 : $unitPaise * $qty;
+        $line = $warning ? 0 : intdiv($linePaise + 50, 100);
         if ($warning) {
             $blocked = true;
         } else {
             $subtotal += $line;
         }
-        $lines[] = ['product' => $product, 'qty' => $qty, 'line' => $line, 'unit' => $price, 'warning' => $warning, 'ok' => $warning === null, 'free' => $free, 'sell' => $sell];
+        $lines[] = ['product' => $product, 'qty' => $qty, 'line' => $line, 'line_paise' => $linePaise, 'unit' => $price, 'unit_paise' => $unitPaise, 'warning' => $warning, 'ok' => $warning === null, 'free' => $free, 'sell' => $sell];
     }
     $discount = 0;
     $coupon = null;
@@ -597,6 +600,24 @@ function quote_cart(string $couponCode = ''): array
     }
     $after = max(0, $subtotal - $discount - (int) $seasonal['amount']);
     $shipping = ($after >= $freeOver || $after === 0) ? 0 : $shipFlat;
+    $subtotalPaise = 0;
+    foreach ($lines as $ln) {
+        if (!empty($ln['ok'])) {
+            $subtotalPaise += (int) ($ln['line_paise'] ?? 0);
+        }
+    }
+    if ($coupon && ($coupon['kind'] ?? '') === 'percent' && $discount > 0) {
+        $discountPaise = round_half_up_percent($subtotalPaise, (int) $coupon['amount']);
+    } else {
+        $discountPaise = $discount * 100;
+    }
+    $discountPaise = max(0, min($discountPaise, $subtotalPaise));
+    $seasonalPaise = ((int) $seasonal['amount']) * 100;
+    if ($seasonalPaise > $subtotalPaise - $discountPaise) {
+        $seasonalPaise = max(0, $subtotalPaise - $discountPaise);
+    }
+    $shippingPaise = $shipping * 100;
+    $totalPaise = max(0, $subtotalPaise - $discountPaise - $seasonalPaise) + $shippingPaise;
     return [
         'lines' => $lines,
         'subtotal' => $subtotal,
@@ -604,6 +625,11 @@ function quote_cart(string $couponCode = ''): array
         'seasonal' => $seasonal,
         'shipping' => $shipping,
         'total' => $after + $shipping,
+        'subtotal_paise' => $subtotalPaise,
+        'discount_paise' => $discountPaise,
+        'seasonal_paise' => $seasonalPaise,
+        'shipping_paise' => $shippingPaise,
+        'total_paise' => $totalPaise,
         'coupon' => $coupon,
         'blocked' => $blocked,
     ];
@@ -759,3 +785,5 @@ require dirname(__DIR__) . '/includes/qr.php';
 require dirname(__DIR__) . '/includes/commerce.php';
 require dirname(__DIR__) . '/includes/signin.php';
 require dirname(__DIR__) . '/includes/layout.php';
+require dirname(__DIR__) . '/includes/lists.php';
+schema_guard();

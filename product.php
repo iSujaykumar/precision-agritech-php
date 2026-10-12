@@ -137,12 +137,13 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
       <p class="badge-row"><?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?><?php if ((int) ($product['is_overgrown'] ?? 0) === 1): ?><span class="new-badge">Overgrown / as-is</span><?php endif; ?><?php if ($isNew): ?><span class="new-badge">New</span><?php endif; ?></p>
       <?php endif; ?>
       <p class="muted"><?= e($product['scientific_name']) ?> · <?= e($product['variety']) ?><?php if (($sell['marathi'] ?? '') !== ''): ?> · <?= e((string) $sell['marathi']) ?><?php endif; ?></p>
-      <p class="price"><?= $sell['blocked'] ? 'Price on request' : inr((int) $sell['rupees']) ?> <span class="muted">/ <?= e((string) $product['unit_label']) ?></span><?php if ($badge === 'Sale' && !$sell['blocked']): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
-      <?php if (setting('show_seedling_count', '0') === '1'): ?><p class="muted">1 tray = <?= (int) $sell['tray'] ?> seedlings<?php if ($sell['paise']): ?> · Rs <?= e(number_format(((int) $sell['paise']) / 100, 2, '.', '')) ?> each<?php endif; ?></p><?php endif; ?>
+      <p class="price"><?= $sell['blocked'] ? 'Price on request' : e(price_pair_text($sell)) ?></p>
       <p>Grown at Theur, Pune · <?= (int) available_trays($product) ?> trays ready · Delivery in 2–4 days after payment is confirmed.</p>
       <?php if ($rating): ?><p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?> reviews</span></p><?php endif; ?>
       <p><?= e($product['description']) ?></p>
-      <?php if ($stock <= 0): ?>
+      <?php if ($stock <= 0 && (string) ($product['availability'] ?? '') === 'on_request'): ?>
+        <p class="stock-out">On request. Ask us for availability.</p>
+      <?php elseif ($stock <= 0): ?>
         <p class="stock-out">Out of stock</p>
       <?php elseif ($stock <= 5): ?>
         <p class="stock-low">Only <?= (int) $stock ?> left</p>
@@ -157,6 +158,40 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
         <button class="btn" type="submit" <?= ($stock < 1 || !empty($sell['blocked'])) ? 'disabled' : '' ?>>Add to cart</button>
       </form>
       <?php if ($waTray !== ''): ?><p><a class="btn" href="<?= e($waTray) ?>" target="_blank" rel="noopener">Ask about this tray on WhatsApp</a></p><?php endif; ?>
+      <?php $family = variety_family($product); if (count($family) > 1): ?>
+      <h2>Choose a variety</h2>
+      <div class="table-wrap"><table>
+        <tr><th>Variety</th><th>Rate</th><th>Ready</th><th></th></tr>
+        <?php foreach ($family as $choice):
+          $choiceSell = selling_price($choice);
+          $choiceStock = available_trays($choice);
+          $choiceName = (string) $choice['variety'];
+          if (setting('show_marathi_names', '1') === '1' && trim((string) ($choice['marathi_name'] ?? '')) !== '') {
+              $choiceName = (string) $choice['marathi_name'] . ' (' . $choiceName . ')';
+          }
+        ?>
+        <tr>
+          <td><?= e($choiceName !== '' ? $choiceName : (string) $choice['name']) ?></td>
+          <td><?= e(price_pair_text($choiceSell)) ?></td>
+          <td><?= $choiceStock > 0 ? (int) $choiceStock . ' trays' : 'Ask us' ?></td>
+          <td>
+            <?php if ($choiceStock > 0 && empty($choiceSell['blocked'])): ?>
+            <form method="post" action="/cart">
+              <?= csrf_field() ?>
+              <input type="hidden" name="action" value="add">
+              <input type="hidden" name="slug" value="<?= e((string) $choice['slug']) ?>">
+              <input name="qty" type="number" min="1" max="50" value="1" aria-label="Trays of <?= e((string) $choice['variety']) ?>">
+              <button class="btn" type="submit">Add</button>
+            </form>
+            <?php else: ?>
+            <?php $ask = wa_href('Hello Precision Agritech, is ' . $choice['name'] . ' ' . $choice['variety'] . ' available? I need trays.'); ?>
+            <?php if ($ask !== ''): ?><a href="<?= e($ask) ?>">Ask</a><?php endif; ?>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+      </table></div>
+      <?php endif; ?>
       <h2>Planting</h2><p><?= e($product['planting_info']) ?></p>
       <h2>Care</h2><p><?= e($product['care_info']) ?></p>
       <h2>Flowering</h2><p><?= e($product['flowering_info']) ?></p>

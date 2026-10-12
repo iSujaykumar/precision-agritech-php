@@ -15,7 +15,7 @@ $GLOBALS['json_ld'] = json_encode([
     '@context' => 'https://schema.org',
     '@type' => 'LocalBusiness',
     'name' => 'Precision Agritech',
-    'telephone' => shop_phone_digits(),
+    'telephone' => array_map(static fn ($row) => '+91' . $row['digits'], public_phone_rows()) ?: shop_phone_digits(),
     'email' => shop_setting('shop_email', 'info@precisionagritech.in'),
     'address' => shop_setting('shop_address', 'Survey No. 44/2, Theur Naygaon Road, Gaikwadvasti, Pune 412110'),
     'image' => '/brand/greenhouse-hero.webp',

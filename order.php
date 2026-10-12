@@ -207,7 +207,7 @@ $showPay = in_array($order['payment_method'], ['upi', 'bank_transfer'], true) &&
     ?>
     <div class="upi-panel">
       <div class="upi-code">
-        <?= upi_qr_block($upiId, $payee, (string) $order['order_number'], (int) $order['total_inr'], setting('upi_qr_mode', 'auto'), trim(setting('upi_qr_image', ''))) ?>
+        <?= upi_qr_block_paise($upiId, $payee, (string) $order['order_number'], (int) ($order['total_paise'] ?? ((int) $order['total_inr'] * 100)), setting('upi_qr_mode', 'auto'), trim(setting('upi_qr_image', ''))) ?>
       </div>
       <div class="upi-copy">
         <p>Payee <strong><?= e($payee) ?></strong></p>

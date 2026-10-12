@@ -71,3 +71,26 @@ Bank lines from the PDF were not readable here. Paste the account name and numbe
 Rollback
 database/upgrade.sql only adds columns and tables. It does not delete orders. To roll back, restore the database backup you took before running it. Do not drop the new tables if invoices have already been issued.
 
+
+Phone numbers and WhatsApp
+1. Desk → Phones. The three numbers are 8080370152, 8421577787 and 8421577725.
+2. Each number can be turned off, hidden from the site, or removed from WhatsApp.
+3. WhatsApp mode: Random keeps one number for that visitor's visit. Round robin moves to the next number for the next visitor. Fixed uses the id you type.
+4. If no number is marked for WhatsApp, the WhatsApp buttons disappear.
+
+Rates, varieties and farmer prices
+1. Desk → Price lists → Load the supplied sheets. Existing plants keep their photos, stock and descriptions. Their tray price becomes the sheet rate times 150 seedlings.
+2. A plant with more than one price is one shop card. The other prices are varieties on that card, not extra cards.
+3. New plants start with no stock and a placeholder picture. The dashboard card "Needs photo and description" counts them.
+4. Ptilotus is not on the sheet. Leave it as it is.
+5. A customer sees farmer varieties only after you open their account and tick Farmer rates.
+6. Farmer rates are hidden from the normal shop, search and Google. Approved farmers and staff open Farmer rates.
+
+Bank accounts
+1. Desk → Banks. The three accounts from the PDF are loaded as drafts.
+2. Check every digit with the bank or a cheque, then tick "I verified these bank details".
+3. Tick Show only after that. Until then customers do not see the account number.
+4. UPI is unchanged.
+
+Seasonal price list
+Desk → Phones has the switch for the public seasonal price list page.

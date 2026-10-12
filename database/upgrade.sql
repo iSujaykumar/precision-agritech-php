@@ -504,3 +504,104 @@ ON DUPLICATE KEY UPDATE `key` = `key`;
 
 
 
+
+-- 2026-10-12 lists, phones, banks. Portable: procedure calls are applied by includes/migrate.php.
+DROP PROCEDURE IF EXISTS pa_add_column;
+DELIMITER $$
+CREATE PROCEDURE pa_add_column(IN tbl VARCHAR(64), IN col VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND COLUMN_NAME = col
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+CALL pa_add_column('products', 'parent_product_id', 'ALTER TABLE products ADD COLUMN parent_product_id INT UNSIGNED NULL');
+CALL pa_add_column('products', 'tray_paise', 'ALTER TABLE products ADD COLUMN tray_paise INT NULL');
+CALL pa_add_column('products', 'marathi_name', 'ALTER TABLE products ADD COLUMN marathi_name VARCHAR(160) NOT NULL DEFAULT ''''');
+CALL pa_add_column('products', 'needs_copy', 'ALTER TABLE products ADD COLUMN needs_copy TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('orders', 'subtotal_paise', 'ALTER TABLE orders ADD COLUMN subtotal_paise INT NULL');
+CALL pa_add_column('orders', 'discount_paise', 'ALTER TABLE orders ADD COLUMN discount_paise INT NULL');
+CALL pa_add_column('orders', 'shipping_paise', 'ALTER TABLE orders ADD COLUMN shipping_paise INT NULL');
+CALL pa_add_column('orders', 'total_paise', 'ALTER TABLE orders ADD COLUMN total_paise INT NULL');
+CALL pa_add_column('orders', 'seasonal_discount_paise', 'ALTER TABLE orders ADD COLUMN seasonal_discount_paise INT NULL');
+CALL pa_add_column('orders', 'transport_paise', 'ALTER TABLE orders ADD COLUMN transport_paise INT NOT NULL DEFAULT 0');
+CALL pa_add_column('order_items', 'unit_paise', 'ALTER TABLE order_items ADD COLUMN unit_paise INT NULL');
+CALL pa_add_column('order_items', 'line_paise', 'ALTER TABLE order_items ADD COLUMN line_paise INT NULL');
+DROP PROCEDURE IF EXISTS pa_add_column;
+DROP PROCEDURE IF EXISTS pa_add_index;
+DELIMITER $$
+CREATE PROCEDURE pa_add_index(IN tbl VARCHAR(64), IN idx VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND INDEX_NAME = idx
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+CALL pa_add_index('products', 'products_parent', 'ALTER TABLE products ADD KEY products_parent (parent_product_id)');
+DROP PROCEDURE IF EXISTS pa_add_index;
+CREATE TABLE IF NOT EXISTS phone_numbers (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  digits VARCHAR(10) NOT NULL,
+  label VARCHAR(40) NOT NULL DEFAULT '',
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled TINYINT(1) NOT NULL DEFAULT 1,
+  show_public TINYINT(1) NOT NULL DEFAULT 1,
+  whatsapp_enabled TINYINT(1) NOT NULL DEFAULT 1,
+  UNIQUE KEY phone_numbers_digits (digits)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
+SELECT '8080370152', 'Nursery', 1, 1, 1, 1 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8080370152');
+INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
+SELECT '8421577787', 'Office', 2, 1, 1, 1 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8421577787');
+INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
+SELECT '8421577725', 'Desk', 3, 1, 1, 1 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8421577725');
+CREATE TABLE IF NOT EXISTS bank_accounts (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  bank VARCHAR(80) NOT NULL,
+  branch VARCHAR(80) NOT NULL DEFAULT '',
+  account_name VARCHAR(120) NOT NULL,
+  account_no VARCHAR(30) NOT NULL,
+  ifsc VARCHAR(20) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  verified TINYINT(1) NOT NULL DEFAULT 0,
+  show_public TINYINT(1) NOT NULL DEFAULT 0,
+  UNIQUE KEY bank_accounts_no (account_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO bank_accounts (bank, branch, account_name, account_no, ifsc, sort_order, verified, show_public)
+SELECT 'AXIS BANK LTD', 'Hadapsar Branch', 'Precision Agritech Pvt. Ltd.', '913020018359580', 'UTIB0003185', 1, 0, 0 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM bank_accounts WHERE account_no = '913020018359580');
+INSERT INTO bank_accounts (bank, branch, account_name, account_no, ifsc, sort_order, verified, show_public)
+SELECT 'BANK OF INDIA', 'Theur Branch', 'Precision Agritech Pvt. Ltd.', '060720110000151', 'BKID0000607', 2, 0, 0 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM bank_accounts WHERE account_no = '060720110000151');
+INSERT INTO bank_accounts (bank, branch, account_name, account_no, ifsc, sort_order, verified, show_public)
+SELECT 'FEDERAL BANK', 'Pune Branch', 'Precision Agritech Pvt. Ltd.', '13480200009958', 'FDRL0001348', 3, 0, 0 FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM bank_accounts WHERE account_no = '13480200009958');
+UPDATE settings SET `value` = '8080370152' WHERE `key` = 'shop_phone' AND `value` IN ('9011975959', '919011975959');
+UPDATE settings SET `value` = '918080370152' WHERE `key` = 'whatsapp_number' AND `value` IN ('9011975959', '919011975959');
+UPDATE settings SET `value` = '8080370152' WHERE `key` = 'grievance_officer_phone' AND `value` IN ('9011975959', '919011975959');
+INSERT INTO settings (`key`, `value`) VALUES
+('whatsapp_mode','random'),
+('whatsapp_fixed_id','0'),
+('whatsapp_rr','0'),
+('seasonal_list_public','1'),
+('show_marathi_names','1'),
+('shop_tagline','Premium Flower & Ornamental Seedling Price List 2026-27'),
+('footer_line','Thank you for your trust in Precision Agritech - Growing Quality, Nurturing Nature.')
+ON DUPLICATE KEY UPDATE `key` = `key`;
+UPDATE price_lists SET effective_from = '2026-04-01', effective_to = '2027-03-31' WHERE slug = 'seasonal-2026-27' AND effective_from IS NULL;
+UPDATE price_lists SET effective_from = '2026-01-01' WHERE slug = 'farmer' AND effective_from IS NULL;

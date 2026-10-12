@@ -124,10 +124,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $qty = (int) $line['qty'];
             $sell = selling_price($product);
-            if (!empty($sell['blocked']) || ((int) ($product['farmer_only'] ?? 0) === 1 && !customer_is_farmer())) {
+            if (!empty($sell['blocked']) || ((int) ($product['farmer_only'] ?? 0) === 1 && !can_see_farmer())) {
                 throw new RuntimeException('Price not available, please contact us.');
             }
             $price = (int) $sell['rupees'];
+            $unitPaise = (int) ($sell['tray_paise'] ?? ($price * 100));
             if ($qty < (int) $product['min_order'] || $qty > 50 || $qty > available_trays($product)) {
                 throw new RuntimeException($product['name'] . ' no longer has that many trays.');
             }
@@ -136,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($upd->rowCount() !== 1) {
                 throw new RuntimeException('Those trays were just reserved by another order.');
             }
-            $locked[] = ['product' => $product, 'qty' => $qty, 'price' => $price, 'line' => $price * $qty, 'sell' => $sell];
+            $locked[] = ['product' => $product, 'qty' => $qty, 'price' => $price, 'line' => intdiv($unitPaise * $qty + 50, 100), 'unit_paise' => $unitPaise, 'line_paise' => $unitPaise * $qty, 'sell' => $sell];
         }
         $subtotal = 0;
         foreach ($locked as $line) {
@@ -159,6 +160,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $after = max(0, $subtotal - $discount - $seasonalAmt);
         $shipping = zone_shipping($after, $postal);
         $total = $after + $shipping;
+        $subtotalPaise = 0;
+        foreach ($locked as $line) {
+            $subtotalPaise += (int) $line['line_paise'];
+        }
+        $discountPaise = $discount * 100;
+        $seasonalPaise = $seasonalAmt * 100;
+        $shippingPaise = $shipping * 100;
+        $totalPaise = max(0, $subtotalPaise - $discountPaise - $seasonalPaise) + $shippingPaise;
         if ($method === 'cod') {
             $minCod = (int) setting('cod_min_inr', '0');
             $maxCod = (int) setting('cod_max_inr', '0');
@@ -176,8 +185,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ins = $pdo->prepare('INSERT INTO orders (
             order_number, lookup_token, user_id, customer_name, customer_phone, customer_email,
             status, payment_status, payment_method, inventory_state, subtotal_inr, discount_inr,
-            shipping_inr, total_inr, seasonal_discount_inr, price_list_name, address_line, city, state_name, postal_code, reserved_until
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            shipping_inr, total_inr, seasonal_discount_inr, price_list_name, address_line, city, state_name, postal_code, reserved_until,
+            subtotal_paise, discount_paise, shipping_paise, total_paise, seasonal_discount_paise
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $orderId = 0;
         $number = '';
         for ($try = 0; $try < 3; $try++) {
@@ -188,6 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $number, $token, $user ? (int) $user['id'] : null, $name, $phone, $email !== '' ? $email : null,
                     $status, $payment, $method, 'reserved', $subtotal, $discount,
                     $shipping, $total, $seasonalAmt, customer_is_farmer() ? 'Farmer' : 'Seasonal (2026-27)', $address, $city, $state, $postal, $when,
+                    $subtotalPaise, $discountPaise, $shippingPaise, $totalPaise, $seasonalPaise,
                 ]);
                 $orderId = (int) $pdo->lastInsertId();
                 break;
@@ -198,13 +209,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-        $item = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, sku, unit_label, unit_price_inr, quantity, line_total_inr, seedling_paise, tray_size, price_list_name, marathi_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $item = $pdo->prepare('INSERT INTO order_items (order_id, product_id, product_name, sku, unit_label, unit_price_inr, quantity, line_total_inr, seedling_paise, tray_size, price_list_name, marathi_name, unit_paise, line_paise) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($locked as $line) {
             $sell = $line['sell'];
+            $label = (string) $line['product']['name'];
+            $variety = trim((string) ($line['product']['variety'] ?? ''));
+            if ($variety !== '' && !str_contains($label, $variety)) {
+                $label .= ' — ' . $variety;
+            }
+            $marathi = (string) ($sell['marathi'] ?? '');
+            if ($marathi === '') {
+                $marathi = (string) ($line['product']['marathi_name'] ?? '');
+            }
             $item->execute([
-                $orderId, (int) $line['product']['id'], $line['product']['name'], $line['product']['sku'],
+                $orderId, (int) $line['product']['id'], $label, $line['product']['sku'],
                 $line['product']['unit_label'], $line['price'], $line['qty'], $line['line'],
-                $sell['paise'], (int) $sell['tray'], (string) $sell['list'], $sell['marathi'] !== '' ? $sell['marathi'] : null,
+                $sell['paise'], (int) $sell['tray'], (string) $sell['list'], $marathi !== '' ? $marathi : null,
+                (int) $line['unit_paise'], (int) $line['line_paise'],
             ]);
         }
         $pdo->prepare('INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)')

@@ -5,12 +5,12 @@ function twilio_call(string $path, array $fields): array
 {
     global $config;
     if (!twilio_configured()) {
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
     $url = 'https://verify.twilio.com/v2/Services/' . rawurlencode((string) $config['twilio_verify']) . '/' . $path;
     $ch = curl_init($url);
     if ($ch === false) {
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
@@ -25,7 +25,7 @@ function twilio_call(string $path, array $fields): array
     $data = json_decode((string) $raw, true);
     if (!is_array($data) || $status >= 400) {
         error_log('Twilio Verify HTTP ' . $status);
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
     return $data;
 }
@@ -55,11 +55,11 @@ function msg91_send(string $phone): void
     $auth = (string) ($config['msg91_authkey'] ?? '');
     $template = (string) ($config['msg91_template_id'] ?? '');
     if ($auth === '' || $template === '') {
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
     $ch = curl_init('https://control.msg91.com/api/v5/otp');
     if ($ch === false) {
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
@@ -74,7 +74,7 @@ function msg91_send(string $phone): void
     $data = json_decode((string) $raw, true);
     if ($status >= 400 || !is_array($data) || (($data['type'] ?? '') !== 'success')) {
         error_log('MSG91 OTP HTTP ' . $status);
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
 }
 
@@ -120,7 +120,7 @@ function start_mobile_code(string $phone, string $purpose, ?int $userId): void
     } elseif (!empty($config['show_otp_on_screen'])) {
         $sid = otp_local_issue($phone, $userId);
     } else {
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
     db()->prepare('INSERT INTO mobile_verifications (phone, purpose, provider_sid, status, expires_at, ip, user_id) VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), ?, ?)')
         ->execute([$phone, $purpose, $sid, 'pending', client_ip(), $userId]);
@@ -207,7 +207,7 @@ function otp_local_issue(string $phone, ?int $userId): string
         $delivered = true;
     }
     if (!$delivered) {
-        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call 9011975959.');
+        throw new RuntimeException('We could not send the code right now. Please try again in a minute or call ' . shop_phone_digits() . '.');
     }
     return 'l:' . $salt . ':' . hash('sha256', $salt . $phone . $code);
 }

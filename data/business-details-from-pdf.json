@@ -1,0 +1,30 @@
+{
+  "_note": "Transcribed by Claude from DOC-20260923-WA0002_.pdf. VERIFY EVERY DIGIT against the PDF and with the bank before enabling bank display. Do not enable until the owner confirms in admin.",
+  "company": "Precision Agritech Pvt. Ltd.",
+  "tagline": "Premium Flower & Ornamental Seedling Price List 2026-27",
+  "address": "442, Theur, Navlakha Farm, Gaikwad Vasti, Haveli, Pune - 412110, Maharashtra",
+  "phones": ["8080370152", "8421577787", "8421577725"],
+  "website_or_email_printed": "precisionagritech.in",
+  "banks": [
+    {"bank": "AXIS BANK LTD", "branch": "Hadapsar Branch", "account_name": "Precision Agritech Pvt. Ltd.", "account_no": "913020018359580", "ifsc": "UTIB0003185"},
+    {"bank": "BANK OF INDIA", "branch": "Theur Branch", "account_name": "Precision Agritech Pvt. Ltd.", "account_no": "060720110000151", "ifsc": "BKID0000607"},
+    {"bank": "FEDERAL BANK", "branch": "Pune Branch", "account_name": "Precision Agritech Pvt. Ltd.", "account_no": "13480200009958", "ifsc": "FDRL0001348"}
+  ],
+  "terms": [
+    "Order confirmation should be made in writing or over phone with immediate advance payment of minimum 50%.",
+    "Advance payment covers box packing, transportation, and freight expenses.",
+    "Discount is not applicable on packaging and transportation charges.",
+    "Prices applicable at the time of dispatch will be final.",
+    "Varieties may be withdrawn without prior notice and replaced with suitable alternatives.",
+    "Packaging, transportation (road/rail/air) charges will be extra at actual cost.",
+    "Prices are subject to change without prior notice.",
+    "Any dispute will be under Pune jurisdiction only."
+  ],
+  "footer": "Thank you for your trust in Precision Agritech - Growing Quality, Nurturing Nature.",
+  "farmer_poster": {
+    "title_mr": "दि ०१.०१.२०२६ पासून झेंडू आणि शेवंतीचे नवीन दरपत्रक",
+    "title_en": "New rate sheet for marigold and chrysanthemum from 01.01.2026",
+    "footnote_mr": "एलेपॉट मधील प्रत्येक रोपांसाठी ५० पैसे जास्तीचा लागेल.",
+    "footnote_en_literal": "50 paise extra will be charged for each plant in the 'elepot'. (Meaning of 'elepot' to be confirmed by owner.)"
+  }
+}

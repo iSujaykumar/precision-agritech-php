@@ -210,7 +210,7 @@ function admin_tabs(string $group): void
     $sets = [
         'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory', 'Offers' => '/admin/offers', 'Price lists' => '/admin/price-lists', 'Reviews' => '/admin/reviews'],
         'enquiries' => ['Messages' => '/admin/messages', 'Wholesale' => '/admin/wholesale'],
-        'settings' => ['Shop' => '/admin/settings', 'Homepage' => '/admin/homepage', 'Pages' => '/admin/pages', 'Payments' => '/admin/payments', 'Invoices' => '/admin/invoices', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
+        'settings' => ['Shop' => '/admin/settings', 'Phones' => '/admin/phones', 'Banks' => '/admin/banks', 'Homepage' => '/admin/homepage', 'Pages' => '/admin/pages', 'Payments' => '/admin/payments', 'Invoices' => '/admin/invoices', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
     ];
     if (!isset($sets[$group])) {
         return;
@@ -254,7 +254,7 @@ $cin = trim(shop_setting('cin', ''));
       <strong><?= e($legal) ?></strong>
       <?php if ($address !== ''): ?><p><?= e($address) ?></p><?php endif; ?>
       <?php if ($hours !== ''): ?><p><?= e($hours) ?></p><?php endif; ?>
-      <?php if ($phone !== ''): ?><p><a href="tel:+<?= e($tel) ?>"><?= e($phone) ?></a></p><?php endif; ?>
+      <?php if ($phone !== ''): ?><p><?= shop_phone_links() ?></p><?php endif; ?>
       <?php if ($wa !== ''): ?><p><a href="<?= e($wa) ?>" target="_blank" rel="noopener">Chat on WhatsApp</a></p><?php endif; ?>
       <?php if ($email !== ''): ?><p><a href="mailto:<?= e($email) ?>"><?= e($email) ?></a></p><?php endif; ?>
       <?php if ($gstin !== ''): ?><p>GSTIN <?= e($gstin) ?></p><?php endif; ?>
@@ -269,6 +269,8 @@ $cin = trim(shop_setting('cin', ''));
       <a href="/cancellation">Cancellation</a>
       <a href="/faq">FAQ</a>
       <?php if (shop_setting('overgrown_nav', '0') === '1'): ?><a href="/overgrown">Overgrown seedlings</a><?php endif; ?>
+      <?php if (shop_setting('seasonal_list_public', '1') === '1'): ?><a href="/price-list">Seasonal price list</a><?php endif; ?>
+      <?php if (can_see_farmer()): ?><a href="/farmer-prices">Farmer rates</a><?php endif; ?>
       <a href="/contact">Contact</a>
       <a href="/reviews">Reviews</a>
     </div>
@@ -349,7 +351,7 @@ function product_card(array $product, bool $eager = false): void
   <div class="card-body">
     <h3><a href="<?= e($href) ?>"><?= e($product['name']) ?></a></h3>
     <p class="muted"><?= e($variety) ?></p>
-    <p class="price"><?= $shown['blocked'] ? 'Price on request' : inr((int) $shown['rupees']) ?> <span class="muted">/ tray</span><?php if ($badge === 'Sale' && !$shown['blocked']): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
+    <p class="price"><?= $shown['blocked'] ? 'Price on request' : e(price_pair_text($shown)) ?></p>
     <?php $rating = product_rating((int) ($product['id'] ?? 0)); if ($rating): ?>
       <p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?></span></p>
     <?php endif; ?>
@@ -386,7 +388,7 @@ function connect_or_explain(): void
         render_header('The shop is unavailable | Precision Agritech');
         echo '<section class="section"><div class="wrap narrow">';
         echo '<h1>The shop is not ready yet</h1>';
-        echo '<p>Please call 9011975959 and we will help.</p>';
+        echo '<p>Please call 8080370152, 8421577787 or 8421577725 and we will help.</p>';
         echo '</div></section>';
         render_footer();
         exit;

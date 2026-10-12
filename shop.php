@@ -17,7 +17,7 @@ if (!in_array($flag, ['', 'new', 'offer'], true)) {
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 12;
 // Shop lists active trays in active categories, including out-of-stock cards.
-$where = ' WHERE ' . catalog_public_sql();
+$where = ' WHERE ' . catalog_card_sql();
 $params = [];
 if ($q !== '') {
     $where .= ' AND (p.name LIKE ? OR p.scientific_name LIKE ? OR p.variety LIKE ? OR p.uses LIKE ?)';

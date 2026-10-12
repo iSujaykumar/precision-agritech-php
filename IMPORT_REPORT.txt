@@ -1,0 +1,108 @@
+Matched existing parents: 19
+New parent cards created this run: 26
+Plant groups: 45
+Farmer variety rows: 33
+Ptilotus was not on the sheet and was left unchanged.
+The PDF and the photo were not in the workspace. The supplied CSVs were used as the source.
+Elepot 50 paise footnote is not shown.
+
+seasonal	created-parent	Alyssum	Fields Mix	old 	new 600	tray_paise 60000	S26-alyssum
+seasonal	matched-parent	Antirrhinum	Chimes Mix	old 270	new 600	tray_paise 60000	PA-ANT-104
+seasonal	created-parent	Aster	New Double Mix	old 	new 600	tray_paise 60000	S26-aster
+seasonal	matched-parent	Begonia	Bada Boom/Bing Mix	old 320	new 750	tray_paise 75000	PA-BEG-104
+seasonal	created-child	Begonia	Non Stop / Mocca Mix	old 	new 1500	tray_paise 150000	S26-begonia-05-1
+seasonal	created-parent	Flowering Cabbage	Ornamental Kale	old 	new 675	tray_paise 67500	S26-flowering-cabbage
+seasonal	created-parent	Calendula	Calypso Orange/Yellow	old 	new 600	tray_paise 60000	S26-calendula
+seasonal	matched-parent	Celosia	Kimono Mix	old 230	new 600	tray_paise 60000	PA-CEL-104
+seasonal	created-child	Celosia	Amigo Mix	old 	new 600	tray_paise 60000	S26-celosia-09-1
+seasonal	matched-parent	Chrysanthemum	Deconova Grandiflora	old 380	new 750	tray_paise 75000	PA-CHR-104
+seasonal	created-child	Chrysanthemum	Deconova Multiflora	old 	new 1125	tray_paise 112500	S26-chrysanthemum-10-1
+seasonal	matched-parent	Cineraria	Silver Dust	old 300	new 600	tray_paise 60000	PA-CIN-104
+seasonal	created-child	Cineraria	Early Perfection Mix	old 	new 1350	tray_paise 135000	S26-cineraria-13-1
+seasonal	created-parent	Coleus	Wizard/Fareway Mix	old 	new 600	tray_paise 60000	S26-coleus
+seasonal	created-child	Coleus	Kong / Jumbo	old 	new 1200	tray_paise 120000	S26-coleus-15-1
+seasonal	created-parent	Cosmos	Kosmix / Ladybird Mix	old 	new 600	tray_paise 60000	S26-cosmos
+seasonal	created-parent	Carnation	Liliput Mix	old 	new 1800	tray_paise 180000	S26-carnation
+seasonal	created-parent	Dahlia	Big Flowers Mix	old 	new 1200	tray_paise 120000	S26-dahlia
+seasonal	created-child	Dahlia	Fresco Mix	old 	new 788	tray_paise 78750	S26-dahlia-19-1
+seasonal	matched-parent	Dianthus	Ideal Mix	old 255	new 750	tray_paise 75000	PA-DIA-104
+seasonal	created-child	Dianthus	Super Parfait Series	old 	new 825	tray_paise 82500	S26-dianthus-20-1
+seasonal	created-parent	Gomphrena	Buddy Purple	old 	new 563	tray_paise 56250	S26-gomphrena
+seasonal	created-parent	Gloxinia	Dble Brocade Mix	old 	new 1350	tray_paise 135000	S26-gloxinia
+seasonal	matched-parent	Gazania	Day Break/Kiss Mix	old 275	new 750	tray_paise 75000	PA-GAZ-104
+seasonal	created-parent	Gerbera	Mega Revolution	old 	new 4200	tray_paise 420000	S26-gerbera
+seasonal	created-parent	Gaillardia	Seedling	old 	new 713	tray_paise 71250	S26-gaillardia
+seasonal	matched-parent	Geranium	Ringo 2000/Bulls Eye Mix	old 360	new 1950	tray_paise 195000	PA-GER-104
+seasonal	created-child	Geranium	Super	old 	new 3000	tray_paise 300000	S26-geranium-28-1
+seasonal	created-parent	Hypoestes	Splash Mix	old 	new 675	tray_paise 67500	S26-hypoestes
+seasonal	matched-parent	Impatiens	Imara XDR Mix	old 280	new 750	tray_paise 75000	PA-IMP-104
+seasonal	created-child	Impatiens	New Guinea	old 	new 1500	tray_paise 150000	S26-impatiens-31-1
+seasonal	created-parent	Kochia	Burning Blush	old 	new 563	tray_paise 56250	S26-kochia
+seasonal	matched-parent	Lobelia	Crystal	old 245	new 750	tray_paise 75000	PA-LOB-104
+seasonal	created-parent	Melampodium	Lemon Delight	old 	new 900	tray_paise 90000	S26-melampodium
+seasonal	created-parent	Osteospermum	Mix	old 	new 825	tray_paise 82500	S26-osteospermum
+seasonal	created-parent	Ornamental Chilli	Dwarf Mix	old 	new 675	tray_paise 67500	S26-ornamental-chilli
+seasonal	matched-parent	Petunia	Bravo/Supersascade Formula Mix	old 260	new 600	tray_paise 60000	PA-PET-104
+seasonal	created-child	Petunia	Double Duo Series	old 	new 1050	tray_paise 105000	S26-petunia-37-1
+seasonal	created-child	Petunia	Ultra Star Mix	old 	new 600	tray_paise 60000	S26-petunia-39-2
+seasonal	created-child	Petunia	Frost/Picotee Mix	old 	new 600	tray_paise 60000	S26-petunia-40-3
+seasonal	created-child	Petunia	Colourwise	old 	new 600	tray_paise 60000	S26-petunia-41-4
+seasonal	created-child	Petunia	Easy Wave / Ramblin	old 	new 3000	tray_paise 300000	S26-petunia-42-5
+seasonal	matched-parent	Pentas	Butterfly / Starla	old 290	new 1425	tray_paise 142500	PA-PEN-104
+seasonal	created-parent	Phlox	Twinkle/Promise Mix	old 	new 675	tray_paise 67500	S26-phlox
+seasonal	matched-parent	Platycodon	Pop Star Mix	old 420	new 1200	tray_paise 120000	PA-PLA-104
+seasonal	created-parent	Portulaca	Happy Hour	old 	new 563	tray_paise 56250	S26-portulaca
+seasonal	matched-parent	Pansy	Super Majestic Giants 2	old 250	new 825	tray_paise 82500	PA-PAN-104
+seasonal	created-parent	Rudbeckia	Rustic / Toto	old 	new 750	tray_paise 75000	S26-rudbeckia
+seasonal	matched-parent	Salvia	Flamex 2000 / Vista Red / Sahara Red	old 265	new 638	tray_paise 63750	PA-SAL-104
+seasonal	created-child	Salvia	Salsa / Vista Mix	old 	new 638	tray_paise 63750	S26-salvia-50-1
+seasonal	created-parent	Strawberry	Sweet Charlie / Winter Down	old 	new 1650	tray_paise 165000	S26-strawberry
+seasonal	created-parent	Stock	Mime / Hot Cakes Mix	old 	new 713	tray_paise 71250	S26-stock
+seasonal	matched-parent	Sunflower	Teddy Bear	old 340	new 750	tray_paise 75000	PA-SUN-104
+seasonal	matched-parent	Marigold	Inca - Orange / Yellow / Gold	old 220	new 638	tray_paise 63750	PA-MAR-104
+seasonal	created-child	Marigold	Vanilla (White)	old 	new 1200	tray_paise 120000	S26-marigold-55-1
+seasonal	created-child	Marigold	Hot Pack Mix	old 	new 563	tray_paise 56250	S26-marigold-56-2
+seasonal	created-parent	Torenia	Little Kiss Mix / Kauai Mix	old 	new 750	tray_paise 75000	S26-torenia
+seasonal	created-parent	Verbena	Quartz Mix / Obsession	old 	new 863	tray_paise 86250	S26-verbena
+seasonal	matched-parent	Vinca	Pacifica Mix	old 240	new 563	tray_paise 56250	PA-VIN-104
+seasonal	created-child	Vinca	Pacifica Red	old 	new 563	tray_paise 56250	S26-vinca-60-1
+seasonal	created-child	Vinca	Cora XDR Mix / Tattoo Series	old 	new 1050	tray_paise 105000	S26-vinca-61-2
+seasonal	created-child	Vinca	Veliant Mix	old 	new 1050	tray_paise 105000	S26-vinca-62-3
+seasonal	matched-parent	Zinnia	Zahara / Zydeco / Profusion Double	old 210	new 900	tray_paise 90000	PA-ZIN-104
+seasonal	created-child	Zinnia	Dreamland Mix	old 	new 1200	tray_paise 120000	S26-zinnia-64-1
+seasonal	created-child	Zinnia	New Preciosa Mix	old 	new 1500	tray_paise 150000	S26-zinnia-65-2
+seasonal	created-parent	Papaya	Red Lady 786 Taiwan	old 	new 2400	tray_paise 240000	S26-papaya
+seasonal	created-parent	Herbs	Lettuce, Mint, Broccoli, etc.	old 	new 750	tray_paise 75000	S26-herbs
+farmer	created-farmer	Marigold	Mahavishnu Yellow	old 	new 450	tray_paise 45000	F26-marigold-01
+farmer	created-farmer	Marigold	Super Shree Yellow	old 	new 450	tray_paise 45000	F26-marigold-02
+farmer	created-farmer	Marigold	Amber Yellow	old 	new 450	tray_paise 45000	F26-marigold-03
+farmer	created-farmer	Marigold	Sai Super Yellow	old 	new 450	tray_paise 45000	F26-marigold-04
+farmer	created-farmer	Marigold	Mahavishnu Orange	old 	new 450	tray_paise 45000	F26-marigold-05
+farmer	created-farmer	Marigold	Super Shree Orange	old 	new 450	tray_paise 45000	F26-marigold-06
+farmer	created-farmer	Marigold	Sai Super Orange	old 	new 450	tray_paise 45000	F26-marigold-07
+farmer	created-farmer	Chrysanthemum	Bhagyashree White	old 	new 450	tray_paise 45000	F26-chrysant-01
+farmer	created-farmer	Chrysanthemum	Bhagyashree White Plus	old 	new 465	tray_paise 46500	F26-chrysant-02
+farmer	created-farmer	Chrysanthemum	Kabutar White	old 	new 450	tray_paise 45000	F26-chrysant-03
+farmer	created-farmer	Chrysanthemum	Shanka White	old 	new 450	tray_paise 45000	F26-chrysant-04
+farmer	created-farmer	Chrysanthemum	Kalpataru White	old 	new 450	tray_paise 45000	F26-chrysant-05
+farmer	created-farmer	Chrysanthemum	Aishwarya Yellow	old 	new 450	tray_paise 45000	F26-chrysant-06
+farmer	created-farmer	Chrysanthemum	Pramila Yellow	old 	new 450	tray_paise 45000	F26-chrysant-07
+farmer	created-farmer	Chrysanthemum	Sharvari Purple	old 	new 450	tray_paise 45000	F26-chrysant-08
+farmer	created-farmer	Chrysanthemum	Meghana Orange	old 	new 450	tray_paise 45000	F26-chrysant-09
+farmer	created-farmer	Chrysanthemum	Mansi Bronze	old 	new 450	tray_paise 45000	F26-chrysant-10
+farmer	created-farmer	Chrysanthemum	Suvarna Yellow	old 	new 450	tray_paise 45000	F26-chrysant-11
+farmer	created-farmer	Chrysanthemum	Aditi Yellow	old 	new 525	tray_paise 52500	F26-chrysant-12
+farmer	created-farmer	Chrysanthemum	Aditi Red	old 	new 525	tray_paise 52500	F26-chrysant-13
+farmer	created-farmer	Chrysanthemum	Aditi White	old 	new 525	tray_paise 52500	F26-chrysant-14
+farmer	created-farmer	Chrysanthemum	Aditi Pink	old 	new 525	tray_paise 52500	F26-chrysant-15
+farmer	created-farmer	Chrysanthemum	Aditi Purple	old 	new 525	tray_paise 52500	F26-chrysant-16
+farmer	created-farmer	Chrysanthemum	Bhagyashree Yellow	old 	new 525	tray_paise 52500	F26-chrysant-17
+farmer	created-farmer	Chrysanthemum	Bhagyashree Pink	old 	new 488	tray_paise 48750	F26-chrysant-18
+farmer	created-farmer	Chrysanthemum	Bhagyashree Red	old 	new 488	tray_paise 48750	F26-chrysant-19
+farmer	created-farmer	Chrysanthemum	Jayashree Bronze Red	old 	new 450	tray_paise 45000	F26-chrysant-20
+farmer	created-farmer	Chrysanthemum	Pramila Bronze	old 	new 450	tray_paise 45000	F26-chrysant-21
+farmer	created-farmer	Chrysanthemum	Madhuri Yellow	old 	new 525	tray_paise 52500	F26-chrysant-22
+farmer	created-farmer	Chrysanthemum	Scent White	old 	new 375	tray_paise 37500	F26-chrysant-23
+farmer	created-farmer	Chrysanthemum	Scent Yellow	old 	new 375	tray_paise 37500	F26-chrysant-24
+farmer	created-farmer	Chrysanthemum	Pournima White	old 	new 375	tray_paise 37500	F26-chrysant-25
+farmer	created-farmer	Chrysanthemum	Pournima Yellow	old 	new 375	tray_paise 37500	F26-chrysant-26

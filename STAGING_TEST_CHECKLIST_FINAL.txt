@@ -1,0 +1,12 @@
+Staging checklist — lists and phones
+
+1. Import database/upgrade.sql, or use Desk → Database update. Run it a second time. It should finish both times.
+2. Open the homepage before that update on a copy if you can. It should say the shop is updating, not show a database error.
+3. Desk → Price lists → Load the supplied sheets. Open the shop. You should see new plants such as Alyssum, and you should not see a separate card for every variety.
+4. Open Marigold. It should say ₹4.25 per seedling and ₹637.50 per tray (150 seedlings). The variety table should include Vanilla and Hot Pack at their own prices.
+5. Ptilotus should still be ₹450.
+6. Sign out. Open /farmer-prices. It should say page not found.
+7. Mark one customer as Farmer, sign in as them, and open Farmer rates. Marathi and English names should both show. The 50 paise note should not.
+8. Footer and contact should show three phone numbers, not 9011975959. WhatsApp should stay on the same number while you browse.
+9. Desk → Banks. Accounts should be listed and not visible on checkout until you tick verified and show.
+10. Place a small order only after you are happy with the new tray prices. Old prices were replaced for the 19 plants that are on the sheet.
