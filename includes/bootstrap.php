@@ -355,12 +355,149 @@ function available_trays(array $product): int
 {
     return max(0, (int) $product['stock_qty'] - (int) $product['reserved_qty']);
 }
+function shop_timezone(): DateTimeZone
+{
+    return new DateTimeZone('Asia/Kolkata');
+}
+function offer_moment(?string $value): ?DateTimeImmutable
+{
+    $value = trim(str_replace('T', ' ', (string) $value));
+    if ($value === '') {
+        return null;
+    }
+    if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $value)) {
+        $value .= ':00';
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value)) {
+        return null;
+    }
+    $parsed = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value, shop_timezone());
+    $errors = DateTimeImmutable::getLastErrors() ?: ['warning_count' => 0, 'error_count' => 0];
+    if (!$parsed || ($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0) {
+        return null;
+    }
+    if ($parsed->format('Y-m-d H:i:s') !== $value) {
+        return null;
+    }
+    return $parsed;
+}
+function offer_input_datetime(string $raw): ?string
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        return null;
+    }
+    $parsed = offer_moment($raw);
+    if ($parsed === null) {
+        throw new RuntimeException('Offer dates must be a real date and time, or left blank.');
+    }
+    return $parsed->format('Y-m-d H:i:s');
+}
+function offer_window_open(array $product, ?DateTimeImmutable $now = null): bool
+{
+    $now = $now ?? new DateTimeImmutable('now', shop_timezone());
+    foreach (['offer_starts_at' => false, 'offer_ends_at' => true] as $key => $isEnd) {
+        $raw = trim((string) ($product[$key] ?? ''));
+        if ($raw === '') {
+            continue;
+        }
+        $at = offer_moment($raw);
+        if ($at === null) {
+            return false;
+        }
+        if (!$isEnd && $now < $at) {
+            return false;
+        }
+        if ($isEnd && $now > $at) {
+            return false;
+        }
+    }
+    return true;
+}
+function offer_compare_price(array $product): ?int
+{
+    if (!array_key_exists('compare_at_inr', $product) || $product['compare_at_inr'] === null || $product['compare_at_inr'] === '') {
+        return null;
+    }
+    $compare = (int) $product['compare_at_inr'];
+    if ($compare > (int) ($product['price_inr'] ?? 0)) {
+        return $compare;
+    }
+    return null;
+}
+function offer_is_listed(array $product, ?DateTimeImmutable $now = null): bool
+{
+    if (!offer_window_open($product, $now)) {
+        return false;
+    }
+    return (int) ($product['on_offer'] ?? 0) === 1 || offer_compare_price($product) !== null;
+}
+function offer_badge(array $product, ?DateTimeImmutable $now = null): string
+{
+    if (!offer_is_listed($product, $now)) {
+        return '';
+    }
+    return offer_compare_price($product) !== null ? 'Sale' : 'Offer';
+}
+function product_is_new(array $product): bool
+{
+    return (int) ($product['active'] ?? 0) === 1 && (int) ($product['is_new'] ?? 0) === 1;
+}
+function catalog_public_sql(): string
+{
+    return 'p.active = 1 AND c.active = 1';
+}
+function offer_active_sql(): string
+{
+    return '(p.on_offer = 1 OR (p.compare_at_inr IS NOT NULL AND p.compare_at_inr > p.price_inr))'
+        . ' AND (p.offer_starts_at IS NULL OR p.offer_starts_at <= NOW())'
+        . ' AND (p.offer_ends_at IS NULL OR p.offer_ends_at >= NOW())';
+}
+function home_products(string $section): array
+{
+    // Homepage rails: active product, active category, and free stock.
+    // The shop still lists an out-of-stock tray so the card can say so.
+    $base = 'SELECT p.*, c.name AS category_name FROM products p
+        JOIN categories c ON c.id = p.category_id
+        WHERE ' . catalog_public_sql() . ' AND p.stock_qty > p.reserved_qty';
+    if ($section === 'bestsellers') {
+        $sql = $base . ' AND p.bestseller = 1 ORDER BY p.name, p.id LIMIT 8';
+    } elseif ($section === 'new') {
+        $sql = $base . ' AND p.is_new = 1 ORDER BY p.name, p.id LIMIT 8';
+    } elseif ($section === 'offers') {
+        $sql = $base . ' AND ' . offer_active_sql() . ' ORDER BY p.name, p.id LIMIT 8';
+    } else {
+        throw new InvalidArgumentException('Unknown home section.');
+    }
+    return db()->query($sql)->fetchAll();
+}
+function public_product_slugs(): array
+{
+    return db()->query(
+        'SELECT p.slug FROM products p
+         JOIN categories c ON c.id = p.category_id
+         WHERE ' . catalog_public_sql() . '
+         ORDER BY p.slug'
+    )->fetchAll(PDO::FETCH_COLUMN);
+}
+function lock_listed_product(PDO $pdo, int $id): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT p.* FROM products p
+         JOIN categories c ON c.id = p.category_id
+         WHERE p.id = ? AND p.active = 1 AND c.active = 1
+         FOR UPDATE'
+    );
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
 function product_by_slug(string $slug): ?array
 {
     $stmt = db()->prepare(
         'SELECT p.*, c.name AS category_name, c.slug AS category_slug
          FROM products p JOIN categories c ON c.id = p.category_id
-         WHERE p.slug = ? AND p.active = 1'
+         WHERE p.slug = ? AND p.active = 1 AND c.active = 1'
     );
     $stmt->execute([$slug]);
     $row = $stmt->fetch();
@@ -373,7 +510,7 @@ function quote_cart(string $couponCode = ''): array
     $blocked = false;
     foreach (cart() as $slug => $qty) {
         $qty = (int) $qty;
-        $stmt = db()->prepare('SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id WHERE p.slug = ?');
+        $stmt = db()->prepare('SELECT p.*, c.name AS category_name, c.active AS category_active FROM products p JOIN categories c ON c.id = p.category_id WHERE p.slug = ?');
         $stmt->execute([(string) $slug]);
         $product = $stmt->fetch() ?: null;
         if (!$product || $qty < 1) {
@@ -389,7 +526,7 @@ function quote_cart(string $couponCode = ''): array
         }
         $free = available_trays($product);
         $warning = null;
-        if ((int) $product['active'] !== 1 || $free < 1) {
+        if ((int) $product['active'] !== 1 || (int) ($product['category_active'] ?? 0) !== 1 || $free < 1) {
             $warning = 'No longer available. Remove it from the cart.';
         } elseif ($qty > $free) {
             $warning = 'Only ' . $free . ' left';

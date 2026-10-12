@@ -107,9 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         $locked = [];
         foreach ($quote['lines'] as $line) {
-            $stmt = $pdo->prepare('SELECT * FROM products WHERE id = ? AND active = 1 FOR UPDATE');
-            $stmt->execute([(int) $line['product']['id']]);
-            $product = $stmt->fetch();
+            $product = lock_listed_product($pdo, (int) $line['product']['id']);
             if (!$product) {
                 throw new RuntimeException('A tray in this cart is no longer listed.');
             }

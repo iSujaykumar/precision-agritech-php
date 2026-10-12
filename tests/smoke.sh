@@ -37,6 +37,45 @@ check notes "$BASE/SETUP-NOTES.txt" "403|404"
 check private "$BASE/uploads/private/x.webp" "403|404"
 check cron "$BASE/cron.php" "403|404"
 check setup "$BASE/setup" "200|403|404"
+
+body() {
+  curl -fsS --max-time 20 "$1" || true
+}
+home=$(body "$BASE/")
+contains() {
+  name="$1"
+  needle="$2"
+  haystack="$3"
+  if printf '%s' "$haystack" | grep -q "$needle"; then
+    echo "PASS $name"
+  else
+    echo "FAIL $name missing $needle"
+    fail=1
+  fi
+}
+contains best-sellers 'id="best-sellers"' "$home"
+contains new-arrivals 'id="new-arrivals"' "$home"
+contains offers 'id="offers"' "$home"
+contains offers-honest 'No current offers' "$home"
+contains new-cineraria 'Cineraria' "$home"
+contains new-pentas '>Pentas<' "$home"
+contains new-platycodon 'Platycodon' "$home"
+contains new-ptilotus 'Ptilotus' "$home"
+contains new-badge 'new-badge' "$home"
+shop=$(body "$BASE/shop?q=marigold&category=bedding&sort=price&page=1")
+contains shop-search '>Marigold<' "$shop"
+contains shop-page2 'href="/shop?' "$shop"
+product=$(body "$BASE/product/cineraria")
+contains product-new 'new-badge' "$product"
+contains product-price '₹300' "$product"
+if printf '%s' "$product" | grep -q 'class="compare"'; then
+  echo "FAIL product-no-fake-sale cineraria shows a comparison price"
+  fail=1
+else
+  echo "PASS product-no-fake-sale"
+fi
+sitemap=$(body "$BASE/sitemap.xml")
+contains sitemap-cineraria '/product/cineraria' "$sitemap"
 if [ "$fail" = 0 ]; then
   echo "PASS smoke"
   exit 0

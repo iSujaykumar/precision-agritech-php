@@ -3,11 +3,9 @@ declare(strict_types=1);
 require __DIR__ . '/includes/bootstrap.php';
 connect_or_explain();
 
-$base = 'SELECT p.*, c.name AS category_name FROM products p
-     JOIN categories c ON c.id = p.category_id
-     WHERE p.active = 1 AND p.stock_qty > p.reserved_qty';
-$bestsellers = db()->query($base . ' AND p.bestseller = 1 ORDER BY p.name LIMIT 8')->fetchAll();
-$offers = db()->query($base . ' AND (p.on_offer = 1 OR (p.compare_at_inr IS NOT NULL AND p.compare_at_inr > p.price_inr)) AND (p.offer_starts_at IS NULL OR p.offer_starts_at <= NOW()) AND (p.offer_ends_at IS NULL OR p.offer_ends_at >= NOW()) ORDER BY p.name LIMIT 8')->fetchAll();
+$bestsellers = home_products('bestsellers');
+$arrivals = home_products('new');
+$offers = home_products('offers');
 $reviews = db()->query(
     "SELECT r.author_name, r.rating, r.body, r.created_at, p.name AS product_name
      FROM reviews r LEFT JOIN products p ON p.id = r.product_id
@@ -46,38 +44,11 @@ render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Or
   <p><strong>Sold by the tray</strong><br><span class="muted">The plant count is on each variety.</span></p>
   <p><strong>Bulk by phone</strong><br><a href="tel:+<?= e($tel) ?>"><?= e($phone) ?></a></p>
 </section>
-<section class="section">
-  <div class="wrap">
-    <div class="head">
-      <h2>Best sellers</h2>
-      <a href="/shop">Shop all seedlings</a>
-    </div>
-    <div class="rail-wrap">
-      <button class="rail-btn rail-prev" type="button" aria-label="Previous">&#8249;</button>
-      <div class="rail" tabindex="0">
-        <?php foreach ($bestsellers as $product) { product_card($product); } ?>
-      </div>
-      <button class="rail-btn rail-next" type="button" aria-label="Next">&#8250;</button>
-    </div>
-  </div>
-</section>
-<?php if ($offers): ?>
-<section class="section">
-  <div class="wrap">
-    <div class="head">
-      <h2>Offers</h2>
-      <a href="/shop">Shop all seedlings</a>
-    </div>
-    <div class="rail-wrap">
-      <button class="rail-btn rail-prev" type="button" aria-label="Previous">&#8249;</button>
-      <div class="rail" tabindex="0">
-        <?php foreach ($offers as $product) { product_card($product); } ?>
-      </div>
-      <button class="rail-btn rail-next" type="button" aria-label="Next">&#8250;</button>
-    </div>
-  </div>
-</section>
-<?php endif; ?>
+<?php
+render_product_rail('best-sellers', 'Best sellers', $bestsellers, 'No best sellers are ready to ship right now.');
+render_product_rail('new-arrivals', 'New arrivals', $arrivals, 'No new trays are ready to ship right now.');
+render_product_rail('offers', 'Offers', $offers, 'No current offers.');
+?>
 <section class="section why-section">
   <div class="wrap why">
     <h2>Why Precision Agritech</h2>

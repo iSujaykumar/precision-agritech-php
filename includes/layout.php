@@ -290,24 +290,52 @@ $cin = trim(shop_setting('cin', ''));
 <?php
 }
 
+function render_product_rail(string $id, string $heading, array $products, string $empty): void
+{
+    ?>
+<section class="section" id="<?= e($id) ?>">
+  <div class="wrap">
+    <div class="head">
+      <h2><?= e($heading) ?></h2>
+      <a href="/shop">Shop all seedlings</a>
+    </div>
+    <?php if (!$products): ?>
+      <p class="rail-empty"><?= e($empty) ?></p>
+      <p><a class="btn" href="/shop">Shop seedlings</a></p>
+    <?php else: ?>
+    <div class="rail-wrap">
+      <button class="rail-btn rail-prev" type="button" aria-label="Previous">&#8249;</button>
+      <div class="rail" tabindex="0">
+        <?php foreach ($products as $product) { product_card($product); } ?>
+      </div>
+      <button class="rail-btn rail-next" type="button" aria-label="Next">&#8250;</button>
+    </div>
+    <?php endif; ?>
+  </div>
+</section>
+    <?php
+}
+
 function product_card(array $product, bool $eager = false): void
 {
     $stock = available_trays($product);
     $href = '/product/' . rawurlencode((string) $product['slug']);
     $image = product_image((string) ($product['image_url'] ?? ''));
     $srcset = image_srcset($image);
-    $onSale = $product['compare_at_inr'] !== null && (int) $product['compare_at_inr'] > (int) $product['price_inr'];
+    $badge = offer_badge($product);
+    $isNew = product_is_new($product);
     $variety = (string) ($product['variety'] ?? $product['scientific_name'] ?? '');
     ?>
 <article class="card">
   <a class="card-photo" href="<?= e($href) ?>">
     <img src="<?= e($image) ?>"<?php if ($srcset !== ''): ?> srcset="<?= e($srcset) ?>" sizes="(max-width:640px) 50vw, 25vw"<?php endif; ?> alt="<?= e($product['name']) ?> seedling tray" width="800" height="600" decoding="async"<?= $eager ? '' : ' loading="lazy"' ?>>
-    <?php if ($onSale): ?><span class="sale-badge">Sale</span><?php endif; ?>
+    <?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?>
+    <?php if ($isNew): ?><span class="new-badge">New</span><?php endif; ?>
   </a>
   <div class="card-body">
     <h3><a href="<?= e($href) ?>"><?= e($product['name']) ?></a></h3>
     <p class="muted"><?= e($variety) ?></p>
-    <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ tray</span><?php if ($onSale): ?><span class="compare"><?= inr((int) $product['compare_at_inr']) ?></span><?php endif; ?></p>
+    <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ tray</span><?php if ($badge === 'Sale'): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
     <?php $rating = product_rating((int) ($product['id'] ?? 0)); if ($rating): ?>
       <p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?></span></p>
     <?php endif; ?>

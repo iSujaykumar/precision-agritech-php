@@ -165,13 +165,32 @@ ALTER TABLE users MODIFY email VARCHAR(160) NULL;
 ALTER TABLE users MODIFY phone VARCHAR(20) NULL;
 ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL;
 ALTER TABLE orders MODIFY customer_email VARCHAR(160) NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS users_google ON users (google_id);
-CREATE INDEX IF NOT EXISTS orders_status_created ON orders (status, created_at);
-CREATE INDEX IF NOT EXISTS orders_phone ON orders (customer_phone);
-CREATE INDEX IF NOT EXISTS orders_reserved ON orders (reserved_until);
-CREATE INDEX IF NOT EXISTS order_items_order ON order_items (order_id);
-CREATE INDEX IF NOT EXISTS reviews_product_status ON reviews (product_id, status);
-CREATE INDEX IF NOT EXISTS products_active_category ON products (active, category_id);
+
+-- Index helper. CREATE INDEX IF NOT EXISTS is MariaDB-only.
+-- This checks information_schema and works on MariaDB, MySQL 5.7 and MySQL 8.
+DROP PROCEDURE IF EXISTS pa_add_index;
+DELIMITER $$
+CREATE PROCEDURE pa_add_index(IN tbl VARCHAR(64), IN idx VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND INDEX_NAME = idx
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+
+CALL pa_add_index('users', 'users_google', 'ALTER TABLE users ADD UNIQUE KEY users_google (google_id)');
+CALL pa_add_index('orders', 'orders_status_created', 'ALTER TABLE orders ADD KEY orders_status_created (status, created_at)');
+CALL pa_add_index('orders', 'orders_phone', 'ALTER TABLE orders ADD KEY orders_phone (customer_phone)');
+CALL pa_add_index('orders', 'orders_reserved', 'ALTER TABLE orders ADD KEY orders_reserved (reserved_until)');
+CALL pa_add_index('order_items', 'order_items_order', 'ALTER TABLE order_items ADD KEY order_items_order (order_id)');
+CALL pa_add_index('reviews', 'reviews_product_status', 'ALTER TABLE reviews ADD KEY reviews_product_status (product_id, status)');
+CALL pa_add_index('products', 'products_active_category', 'ALTER TABLE products ADD KEY products_active_category (active, category_id)');
 
 CREATE TABLE IF NOT EXISTS drivers (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

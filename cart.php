@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($action === 'remove') {
                 unset($_SESSION['cart'][$slug]);
             } else {
-                $stmt = db()->prepare('SELECT * FROM products WHERE slug = ?');
+                $stmt = db()->prepare('SELECT p.id FROM products p JOIN categories c ON c.id = p.category_id WHERE p.slug = ? AND p.active = 1 AND c.active = 1');
                 $stmt->execute([$slug]);
                 $product = $stmt->fetch();
                 if (!$product) {
@@ -79,7 +79,7 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
       <p><a class="btn" href="/shop">Shop seedlings</a></p>
     </div>
     <?php
-    $picks = db()->query('SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id WHERE p.active = 1 AND p.bestseller = 1 ORDER BY p.name LIMIT 4')->fetchAll();
+    $picks = db()->query('SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id WHERE p.active = 1 AND c.active = 1 AND p.stock_qty > p.reserved_qty AND p.bestseller = 1 ORDER BY p.name, p.id LIMIT 4')->fetchAll();
     if ($picks): ?>
       <div class="grid"><?php foreach ($picks as $pick) { product_card($pick); } ?></div>
     <?php endif; ?>

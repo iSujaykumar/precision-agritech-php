@@ -22,6 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sku = strtoupper(trim((string) ($_POST['sku'] ?? '')));
         $price = (int) ($_POST['price_inr'] ?? 0);
         $compareRaw = trim((string) ($_POST['compare_at_inr'] ?? ''));
+        if ($compareRaw !== '' && !preg_match('/^[1-9][0-9]*$/', $compareRaw)) {
+            throw new RuntimeException('The old price must be a whole number of rupees, or left blank.');
+        }
         $compare = $compareRaw === '' ? null : (int) $compareRaw;
         $stock = (int) ($_POST['stock_qty'] ?? ($product['stock_qty'] ?? 0));
         $minOrder = (int) ($_POST['min_order'] ?? 1);
@@ -42,6 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($minOrder < 1) {
             throw new RuntimeException('Minimum order must be at least 1.');
+        }
+        $starts = offer_input_datetime((string) ($_POST['offer_starts_at'] ?? ''));
+        $ends = offer_input_datetime((string) ($_POST['offer_ends_at'] ?? ''));
+        if ($starts !== null && $ends !== null && $ends < $starts) {
+            throw new RuntimeException('The offer end cannot be before the start.');
+        }
+        $categoryId = (int) ($_POST['category_id'] ?? 0);
+        $categoryOk = db()->prepare('SELECT id FROM categories WHERE id = ?');
+        $categoryOk->execute([$categoryId]);
+        if (!$categoryOk->fetch()) {
+            throw new RuntimeException('Choose a category that exists.');
         }
         $slugTaken = db()->prepare('SELECT id FROM products WHERE slug = ? AND id <> ?');
         $slugTaken->execute([$slug, $id]);
@@ -65,17 +79,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $image = $saved;
         }
-        $starts = trim((string) ($_POST['offer_starts_at'] ?? ''));
-        $ends = trim((string) ($_POST['offer_ends_at'] ?? ''));
         $fields = [
             $slug, $sku, $name, trim((string) $_POST['scientific_name']), trim((string) $_POST['variety']),
-            (int) $_POST['category_id'], trim((string) $_POST['short_description']), trim((string) $_POST['description']),
+            $categoryId, trim((string) $_POST['short_description']), trim((string) $_POST['description']),
             trim((string) $_POST['planting_info']), trim((string) $_POST['care_info']), trim((string) $_POST['flowering_info']),
             trim((string) $_POST['colour']), trim((string) $_POST['uses']), $image, trim((string) $_POST['unit_label']),
             $price, $compare, $minOrder, trim((string) $_POST['availability']), trim((string) $_POST['season_label']),
             isset($_POST['bestseller']) ? 1 : 0, isset($_POST['is_new']) ? 1 : 0, isset($_POST['on_offer']) ? 1 : 0,
-            $starts === '' ? null : str_replace('T', ' ', $starts),
-            $ends === '' ? null : str_replace('T', ' ', $ends),
+            $starts,
+            $ends,
             isset($_POST['active']) ? 1 : 0,
         ];
         $pdo = db();

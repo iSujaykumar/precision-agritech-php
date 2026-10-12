@@ -63,7 +63,8 @@ $reviewRows = $reviews->fetchAll();
 $rating = product_rating((int) $product['id']);
 $stock = available_trays($product);
 $image = product_image((string) ($product['image_url'] ?? ''));
-$onSale = $product['compare_at_inr'] !== null && (int) $product['compare_at_inr'] > (int) $product['price_inr'];
+$badge = offer_badge($product);
+$isNew = product_is_new($product);
 $qtyMin = max(1, (int) $product['min_order']);
 $GLOBALS['og_image'] = $image;
 $schema = [
@@ -80,6 +81,12 @@ $schema = [
         'availability' => $stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
     ],
 ];
+if ($badge === 'Sale') {
+    $end = offer_moment((string) ($product['offer_ends_at'] ?? ''));
+    if ($end !== null) {
+        $schema['offers']['priceValidUntil'] = $end->format('Y-m-d');
+    }
+}
 if ($rating) {
     $schema['aggregateRating'] = [
         '@type' => 'AggregateRating',
@@ -99,8 +106,11 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
     <div>
       <p class="kicker"><?= e($product['category_name']) ?></p>
       <h1><?= e($product['name']) ?></h1>
+      <?php if ($badge !== '' || $isNew): ?>
+      <p class="badge-row"><?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?><?php if ($isNew): ?><span class="new-badge">New</span><?php endif; ?></p>
+      <?php endif; ?>
       <p class="muted"><?= e($product['scientific_name']) ?> · <?= e($product['variety']) ?></p>
-      <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ <?= e((string) $product['unit_label']) ?></span><?php if ($onSale): ?><span class="compare"><?= inr((int) $product['compare_at_inr']) ?></span><?php endif; ?></p>
+      <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ <?= e((string) $product['unit_label']) ?></span><?php if ($badge === 'Sale'): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
       <p>Grown at Theur, Pune · <?= (int) available_trays($product) ?> trays ready · Delivery in 2–4 days after payment is confirmed.</p>
       <?php if ($rating): ?><p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?> reviews</span></p><?php endif; ?>
       <p><?= e($product['description']) ?></p>

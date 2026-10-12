@@ -12,7 +12,8 @@ if (!in_array($sort, ['name', 'price'], true)) {
 }
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 12;
-$where = ' WHERE p.active = 1';
+// Shop lists active trays in active categories, including out-of-stock cards.
+$where = ' WHERE p.active = 1 AND c.active = 1';
 $params = [];
 if ($q !== '') {
     $where .= ' AND (p.name LIKE ? OR p.scientific_name LIKE ? OR p.variety LIKE ? OR p.uses LIKE ?)';
