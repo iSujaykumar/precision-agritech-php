@@ -60,6 +60,19 @@ if (!isset($pages[$key])) {
     $key = 'about';
     $pages['about'][0] = 'Page not found';
 }
+if (function_exists('setting')) {
+    try {
+        $stored = trim(setting('page_' . $key, ''));
+        if ($stored !== '') {
+            $lines = array_values(array_filter(array_map(static fn (string $line): string => trim(strip_tags($line)), explode("\n", $stored)), static fn (string $line): bool => $line !== ''));
+            if ($lines) {
+                $pages[$key][1] = $lines;
+            }
+        }
+    } catch (Throwable $err) {
+        // Keep the built-in wording if settings are unavailable.
+    }
+}
 $done = false;
 $error = null;
 if ($key === 'wholesale' && $_SERVER['REQUEST_METHOD'] === 'POST') {

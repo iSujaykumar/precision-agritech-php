@@ -25,15 +25,31 @@ $month = (int) db()->query("SELECT COALESCE(SUM(total_inr),0) FROM orders WHERE 
 $waiting = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status IN ('placed','payment_pending')")->fetchColumn();
 $unpaid = (int) db()->query("SELECT COUNT(*) FROM orders WHERE payment_status IN ('unpaid','pending') AND status <> 'cancelled'")->fetchColumn();
 $paid = (int) db()->query("SELECT COUNT(*) FROM orders WHERE payment_status = 'paid'")->fetchColumn();
-$low = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND stock_qty - reserved_qty <= 5')->fetchColumn();
+$lowLimit = (int) setting('low_stock_threshold', '5');
+if ($lowLimit < 0 || $lowLimit > 500) {
+    $lowLimit = 5;
+}
+$week = (int) db()->query("SELECT COUNT(*) FROM orders WHERE created_at >= (NOW() - INTERVAL 7 DAY)")->fetchColumn();
+$out = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND stock_qty - reserved_qty <= 0')->fetchColumn();
+$offerCount = (int) db()->query('SELECT COUNT(*) FROM products p JOIN categories c ON c.id = p.category_id WHERE p.active = 1 AND c.active = 1 AND ' . offer_active_sql())->fetchColumn();
+$newCustomers = (int) db()->query("SELECT COUNT(*) FROM users WHERE role = 'customer' AND created_at >= CURDATE()")->fetchColumn();
+$openClaims = (int) db()->query("SELECT COUNT(*) FROM claims WHERE status = 'new'")->fetchColumn();
+$dispatch = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status IN ('confirmed','preparing','packed')")->fetchColumn();
+$low = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND stock_qty - reserved_qty <= ' . $lowLimit)->fetchColumn();
 $messages = (int) db()->query("SELECT COUNT(*) FROM contact_messages WHERE status = 'new'")->fetchColumn();
 $wholesale = (int) db()->query("SELECT COUNT(*) FROM wholesale_requests WHERE status = 'new'")->fetchColumn();
 $pendingReviews = (int) db()->query("SELECT COUNT(*) FROM reviews WHERE status = 'pending'")->fetchColumn();
-$lowRows = db()->query('SELECT id, name, stock_qty, reserved_qty FROM products WHERE active = 1 AND stock_qty - reserved_qty <= 5 ORDER BY (stock_qty - reserved_qty), name LIMIT 8')->fetchAll();
+$lowRows = db()->query('SELECT id, name, stock_qty, reserved_qty FROM products WHERE active = 1 AND stock_qty - reserved_qty <= ' . $lowLimit . ' ORDER BY (stock_qty - reserved_qty), name LIMIT 8')->fetchAll();
 $recent = db()->query('SELECT id, order_number, customer_name, total_inr, status FROM orders ORDER BY id DESC LIMIT 5')->fetchAll();
 ?>
 <div class="desk-cards">
   <a class="card card-body" href="/admin/orders"><strong><?= $today ?></strong><br><span class="muted">Today's orders</span></a>
+  <a class="card card-body" href="/admin/orders"><strong><?= $week ?></strong><br><span class="muted">Orders this week</span></a>
+  <a class="card card-body" href="/admin/orders?status=confirmed"><strong><?= $dispatch ?></strong><br><span class="muted">Ready to dispatch</span></a>
+  <a class="card card-body" href="/admin/offers"><strong><?= $offerCount ?></strong><br><span class="muted">Active offers</span></a>
+  <a class="card card-body" href="/admin/customers"><strong><?= $newCustomers ?></strong><br><span class="muted">New customers today</span></a>
+  <a class="card card-body" href="/admin/claims"><strong><?= $openClaims ?></strong><br><span class="muted">Open claims</span></a>
+  <a class="card card-body" href="/admin/inventory"><strong><?= $out ?></strong><br><span class="muted">Out of stock</span></a>
   <a class="card card-body" href="/admin/orders?pay=paid"><strong><?= inr($month) ?></strong><br><span class="muted">This month's paid sales</span></a>
   <a class="card card-body" href="/admin/orders?status=placed"><strong><?= $waiting ?></strong><br><span class="muted">Orders waiting</span></a>
   <a class="card card-body" href="/admin/orders?pay=unpaid"><strong><?= $unpaid ?></strong><br><span class="muted">Unpaid or pending</span></a>
@@ -43,8 +59,14 @@ $recent = db()->query('SELECT id, order_number, customer_name, total_inr, status
   <a class="card card-body" href="/admin/wholesale"><strong><?= $wholesale ?></strong><br><span class="muted">New wholesale requests</span></a>
   <a class="card card-body" href="/admin/reviews?status=pending"><strong><?= $pendingReviews ?></strong><br><span class="muted">Pending reviews</span></a>
 </div>
+<p class="btn-row">
+  <a class="btn" href="/admin/product-edit">Add product</a>
+  <a class="btn" href="/admin/orders?check=1">Pending payments</a>
+  <a class="btn" href="/admin/offers">Add offer</a>
+  <a class="btn" href="/admin/coupons">Add coupon</a>
+</p>
 <h2>Low stock</h2>
-<?php if (!$lowRows): ?><p class="muted">No trays are down to 5 or fewer.</p><?php endif; ?>
+<?php if (!$lowRows): ?><p class="muted">No trays are down to <?= (int) $lowLimit ?> or fewer.</p><?php endif; ?>
 <div class="table-wrap"><table>
 <?php foreach ($lowRows as $row): $free = (int) $row['stock_qty'] - (int) $row['reserved_qty']; ?>
   <tr><td><a href="/admin/inventory"><?= e($row['name']) ?></a></td><td><?= $free ?> free</td></tr>

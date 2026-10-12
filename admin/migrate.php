@@ -3,6 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/common.php';
 require dirname(__DIR__) . '/includes/migrate.php';
 $admin = admin_boot();
+require_desk($admin, 'owner');
 $error = null;
 $log = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

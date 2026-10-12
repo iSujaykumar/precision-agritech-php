@@ -193,7 +193,7 @@ function current_user(): ?array
     if (!$id) {
         return null;
     }
-    $stmt = db()->prepare('SELECT id, name, email, phone, role, phone_verified_at, email_verified_at, google_id, status, password_changed_at, must_change_password FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT id, name, email, phone, role, desk_role, phone_verified_at, email_verified_at, google_id, status, password_changed_at, must_change_password FROM users WHERE id = ?');
     $stmt->execute([(int) $id]);
     $user = $stmt->fetch();
     if (!$user || ($user['status'] ?? '') === 'disabled') {
@@ -457,15 +457,19 @@ function home_products(string $section): array
 {
     // Homepage rails: active product, active category, and free stock.
     // The shop still lists an out-of-stock tray so the card can say so.
+    $limit = (int) setting('rail_limit', '8');
+    if ($limit < 4 || $limit > 24) {
+        $limit = 8;
+    }
     $base = 'SELECT p.*, c.name AS category_name FROM products p
         JOIN categories c ON c.id = p.category_id
         WHERE ' . catalog_public_sql() . ' AND p.stock_qty > p.reserved_qty';
     if ($section === 'bestsellers') {
-        $sql = $base . ' AND p.bestseller = 1 ORDER BY p.name, p.id LIMIT 8';
+        $sql = $base . ' AND p.bestseller = 1 ORDER BY p.name, p.id LIMIT ' . $limit;
     } elseif ($section === 'new') {
-        $sql = $base . ' AND p.is_new = 1 ORDER BY p.name, p.id LIMIT 8';
+        $sql = $base . ' AND p.is_new = 1 ORDER BY p.name, p.id LIMIT ' . $limit;
     } elseif ($section === 'offers') {
-        $sql = $base . ' AND ' . offer_active_sql() . ' ORDER BY p.name, p.id LIMIT 8';
+        $sql = $base . ' AND ' . offer_active_sql() . ' ORDER BY p.name, p.id LIMIT ' . $limit;
     } else {
         throw new InvalidArgumentException('Unknown home section.');
     }
@@ -727,6 +731,7 @@ function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int
 require dirname(__DIR__) . '/includes/desk.php';
 require dirname(__DIR__) . '/includes/otp.php';
 require dirname(__DIR__) . '/includes/mail.php';
+require dirname(__DIR__) . '/includes/qr.php';
 require dirname(__DIR__) . '/includes/commerce.php';
 require dirname(__DIR__) . '/includes/signin.php';
 require dirname(__DIR__) . '/includes/layout.php';

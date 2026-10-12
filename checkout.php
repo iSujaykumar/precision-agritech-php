@@ -32,6 +32,11 @@ if ($posted['address'] === '' && $user) {
 }
 $requireEmail = setting('require_email', '1') === '1';
 $codOn = setting('cod_enabled', '1') === '1';
+$upiOn = setting('upi_enabled', '1') === '1' && upi_id_ok(setting('upi_id', 'precision9958@fbl'));
+$bankOn = setting('bank_enabled', '1') === '1';
+if (!in_array($posted['method'], array_filter([$upiOn ? 'upi' : '', $bankOn ? 'bank_transfer' : '', $codOn ? 'cod' : '']), true)) {
+    $posted['method'] = $upiOn ? 'upi' : ($bankOn ? 'bank_transfer' : 'cod');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -75,7 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!pin_is_served($postal)) {
             $errors['postal'] = 'We do not deliver to this PIN yet.';
         }
-        $allowedMethods = ['upi', 'bank_transfer'];
+        $allowedMethods = [];
+        if ($upiOn) {
+            $allowedMethods[] = 'upi';
+        }
+        if ($bankOn) {
+            $allowedMethods[] = 'bank_transfer';
+        }
         if ($codOn) {
             $allowedMethods[] = 'cod';
         }
@@ -276,8 +287,13 @@ render_header('Checkout | Precision Agritech');
       </fieldset>
       <fieldset>
         <legend><span class="step-no">3</span> Payment</legend>
-        <label class="pay-card"><input type="radio" name="method" value="upi" <?= $posted['method'] === 'upi' ? 'checked' : '' ?>><span><strong>Pay by UPI</strong><br><span class="hint">Scan the QR or use your UPI app</span></span></label>
-        <label class="pay-card"><input type="radio" name="method" value="bank_transfer" <?= $posted['method'] === 'bank_transfer' ? 'checked' : '' ?>><span><strong>Bank transfer</strong><br><span class="hint">NEFT or IMPS</span></span></label>
+        <label class="pay-card"><input type="radio" name="method" value="upi" <?= $posted['method'] === 'upi' ? 'checked' : '' ?> <?= $upiOn ? '' : 'disabled' ?>><span><strong>Pay by UPI</strong><br><span class="hint">Scan the QR or use your UPI app</span></span></label>
+        <?php if ($upiOn): ?>
+          <p class="hint">UPI ID <?= e(setting('upi_id', '')) ?> · <?= e(setting('upi_payee_name', 'Precision Agritech Private Limited')) ?>. The exact-amount QR appears on the order page after you place the order.</p>
+        <?php else: ?>
+          <p class="hint">UPI is not configured. Please choose another method or contact us.</p>
+        <?php endif; ?>
+        <?php if ($bankOn): ?><label class="pay-card"><input type="radio" name="method" value="bank_transfer" <?= $posted['method'] === 'bank_transfer' ? 'checked' : '' ?>><span><strong>Bank transfer</strong><br><span class="hint">NEFT or IMPS</span></span></label><?php endif; ?>
         <?php if ($codOn): ?><label class="pay-card"><input type="radio" name="method" value="cod" <?= $posted['method'] === 'cod' ? 'checked' : '' ?>><span><strong>Cash on delivery</strong><br><span class="hint">Pay the driver</span></span></label><?php endif; ?>
         <?php if (!empty($errors['method'])): ?><p class="field-error" role="alert"><?= e($errors['method']) ?></p><?php endif; ?>
       </fieldset>

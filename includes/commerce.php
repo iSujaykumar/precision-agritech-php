@@ -101,12 +101,12 @@ function reservation_until(string $method): string
 
 function upi_intent(string $orderNumber, int $amount): string
 {
-    $pa = setting('upi_id', 'precision9958@fbl');
-    $pn = setting('upi_payee_name', 'Precision Agritech Private Limited');
-    return 'upi://pay?pa=' . rawurlencode($pa)
-        . '&pn=' . rawurlencode($pn)
-        . '&am=' . rawurlencode((string) $amount)
-        . '&cu=INR&tn=' . rawurlencode($orderNumber);
+    return upi_pay_link(
+        setting('upi_id', 'precision9958@fbl'),
+        setting('upi_payee_name', 'Precision Agritech Private Limited'),
+        $orderNumber,
+        $amount
+    );
 }
 
 function release_order_hold(PDO $pdo, int $orderId): void

@@ -124,6 +124,9 @@ function render_header(string $title, string $description = '', string $chrome =
 <?php if (shop_setting('announcement_on', '0') === '1' && trim(shop_setting('announcement', '')) !== ''): ?>
 <p class="announce"><?= e(shop_setting('announcement', '')) ?></p>
 <?php endif; ?>
+<?php if (shop_paused()): ?>
+<p class="announce">Orders are paused. You can still look through the trays.</p>
+<?php endif; ?>
 <header class="nav">
   <a class="logo" href="/">Precision Agritech</a>
   <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
@@ -156,6 +159,7 @@ function admin_menu(): void
         'Desk' => ['/admin', 0],
         'Orders' => ['/admin/orders', $counts['orders']],
         'Products' => ['/admin/products', 0],
+        'Offers' => ['/admin/offers', 0],
         'Customers' => ['/admin/customers', 0],
         'Reviews' => ['/admin/reviews', $counts['reviews']],
         'Coupons' => ['/admin/coupons', 0],
@@ -178,6 +182,9 @@ function admin_menu(): void
         '/admin/deliveries' => '/admin/orders',
         '/admin/claims' => '/admin/orders',
         '/admin/health' => '/admin/settings',
+        '/admin/offers' => '/admin/products',
+        '/admin/homepage' => '/admin/settings',
+        '/admin/pages' => '/admin/settings',
         '/admin/migrate' => '/admin/settings',
         '/admin/mail-log' => '/admin/settings',
         '/admin/cod-block' => '/admin/settings',
@@ -198,9 +205,9 @@ function admin_menu(): void
 function admin_tabs(string $group): void
 {
     $sets = [
-        'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory'],
+        'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory', 'Offers' => '/admin/offers', 'Reviews' => '/admin/reviews'],
         'enquiries' => ['Messages' => '/admin/messages', 'Wholesale' => '/admin/wholesale'],
-        'settings' => ['Shop' => '/admin/settings', 'Payments' => '/admin/payments', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
+        'settings' => ['Shop' => '/admin/settings', 'Homepage' => '/admin/homepage', 'Pages' => '/admin/pages', 'Payments' => '/admin/payments', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
     ];
     if (!isset($sets[$group])) {
         return;

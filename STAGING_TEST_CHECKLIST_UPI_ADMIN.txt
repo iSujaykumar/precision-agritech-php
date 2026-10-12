@@ -1,0 +1,17 @@
+STAGING CHECKS — UPI QR AND ADMIN
+
+1. Import database/upgrade.sql in phpMyAdmin. Import it again. Both times should finish. If procedures are blocked, use Settings → Database update twice instead.
+2. Open Payments. Save the real UPI ID and payee name. QR source stays on auto-generate.
+3. The preview should show a square QR, the payee name and ₹1. Download the SVG and open it. It should be a picture, not an error.
+4. Place a small UPI order on a phone. On the order page, scan the QR with a real UPI app. Check the payee, the amount and the order number before you pay. Pay ₹1 only if you are willing to refund it.
+5. Enter the 12-character UTR. In the desk, mark that payment received. Stock should stay sold, not return to the shelf.
+6. Change the UPI ID to "not valid" and save. The shop must not show a broken QR. Put the real ID back.
+7. Switch QR source to the uploaded image, place another test order, and confirm the amount is still written in words. Switch back to auto-generate.
+8. Untick UPI and save. Checkout must not offer UPI. Tick it again.
+9. Create a staff login with role staff. That person must not open Payments or Staff. A manager must not open Staff. The owner still can.
+10. Homepage: change the headline, save, look at the home page, then put the old headline back.
+11. Offers: put one tray on an offer badge, confirm the shop shows Offer, then clear it.
+12. Shop paused: turn it on, confirm checkout will not place an order, then turn it off.
+13. On a 360px-wide phone, the order QR should fit and the Pay with UPI app button should be easy to tap.
+14. Download the 7-day payments CSV. A customer name that starts with = must not become a formula.
+15. Email and a real UPI app scan can only be confirmed by you on staging. This copy was not checked against a live bank.

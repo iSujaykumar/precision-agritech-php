@@ -306,6 +306,7 @@ CALL pa_add_column('orders', 'payment_alerted', 'ALTER TABLE orders ADD COLUMN p
 CALL pa_add_column('coupons', 'per_customer_limit', 'ALTER TABLE coupons ADD COLUMN per_customer_limit INT NOT NULL DEFAULT 1');
 CALL pa_add_column('coupon_redemptions', 'phone', 'ALTER TABLE coupon_redemptions ADD COLUMN phone VARCHAR(20) NULL');
 CALL pa_add_column('refunds', 'utr', 'ALTER TABLE refunds ADD COLUMN utr VARCHAR(80) NULL');
+CALL pa_add_column('users', 'desk_role', 'ALTER TABLE users ADD COLUMN desk_role VARCHAR(20) NOT NULL DEFAULT ''owner''');
 DROP PROCEDURE IF EXISTS pa_add_column;
 
 DROP PROCEDURE IF EXISTS pa_add_index;
@@ -364,5 +365,26 @@ ON DUPLICATE KEY UPDATE `key` = `key`;
 
 UPDATE settings SET `value` = '24' WHERE `key` = 'reservation_hours_bank' AND `value` = '48';
 UPDATE settings SET `value` = '5000' WHERE `key` = 'cod_max_inr' AND `value` = '0';
+
+INSERT INTO settings (`key`, `value`) VALUES
+('upi_qr_mode','auto'),
+('upi_enabled','1'),
+('bank_enabled','1'),
+('hero_kicker','Precision Agritech · Theur, Pune'),
+('hero_title','Healthy seedlings. Better blooms.'),
+('hero_text','Nursery-grown flower seedlings from Theur, Pune. Sold by the tray.'),
+('hero_primary_label','Shop seedlings'),
+('hero_primary_href','/shop'),
+('hero_secondary_label','Explore our nursery'),
+('hero_secondary_href','/nursery'),
+('rail_best_title','Best sellers'),
+('rail_new_title','New arrivals'),
+('rail_offers_title','Offers'),
+('rail_best_on','1'),
+('rail_new_on','1'),
+('rail_offers_on','1'),
+('rail_limit','8'),
+('low_stock_threshold','5')
+ON DUPLICATE KEY UPDATE `key` = `key`;
 
 

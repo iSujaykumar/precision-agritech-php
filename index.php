@@ -29,12 +29,12 @@ render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Or
   <img src="/brand/greenhouse-hero.webp" alt="Precision Agritech greenhouse at Theur" width="1600" height="1067" decoding="async" fetchpriority="high">
   <div class="hero-shade"></div>
   <div class="hero-panel">
-    <p class="kicker">Precision Agritech · Theur, Pune</p>
-    <h1>Healthy seedlings. Better blooms.</h1>
-    <p>Nursery-grown flower seedlings from Theur, Pune. Sold by the tray.</p>
+    <p class="kicker"><?= e(setting('hero_kicker', 'Precision Agritech · Theur, Pune')) ?></p>
+    <h1><?= e(setting('hero_title', 'Healthy seedlings. Better blooms.')) ?></h1>
+    <p><?= e(setting('hero_text', 'Nursery-grown flower seedlings from Theur, Pune. Sold by the tray.')) ?></p>
     <div class="btn-row">
-      <a class="btn light" href="/shop">Shop seedlings</a>
-      <a class="btn ghost" href="/nursery">Explore our nursery</a>
+      <a class="btn light" href="<?= e(safe_shop_href(setting('hero_primary_href', '/shop'), '/shop')) ?>"><?= e(setting('hero_primary_label', 'Shop seedlings')) ?></a>
+      <a class="btn ghost" href="<?= e(safe_shop_href(setting('hero_secondary_href', '/nursery'), '/nursery')) ?>"><?= e(setting('hero_secondary_label', 'Explore our nursery')) ?></a>
     </div>
   </div>
 </section>
@@ -45,9 +45,15 @@ render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Or
   <p><strong>Bulk by phone</strong><br><a href="tel:+<?= e($tel) ?>"><?= e($phone) ?></a></p>
 </section>
 <?php
-render_product_rail('best-sellers', 'Best sellers', $bestsellers, 'No best sellers are ready to ship right now.');
-render_product_rail('new-arrivals', 'New arrivals', $arrivals, 'No new trays are ready to ship right now.');
-render_product_rail('offers', 'Offers', $offers, 'No current offers.');
+if (setting('rail_best_on', '1') === '1') {
+    render_product_rail('best-sellers', setting('rail_best_title', 'Best sellers'), $bestsellers, 'No best sellers are ready to ship right now.');
+}
+if (setting('rail_new_on', '1') === '1') {
+    render_product_rail('new-arrivals', setting('rail_new_title', 'New arrivals'), $arrivals, 'No new trays are ready to ship right now.');
+}
+if (setting('rail_offers_on', '1') === '1') {
+    render_product_rail('offers', setting('rail_offers_title', 'Offers'), $offers, 'No current offers.');
+}
 ?>
 <section class="section why-section">
   <div class="wrap why">

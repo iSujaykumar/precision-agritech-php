@@ -38,9 +38,15 @@ $add('Debug is off', empty($config['debug']));
 $add('Codes are not shown on screen', empty($config['show_otp_on_screen']));
 $https = request_is_https() || str_starts_with((string) ($config['site_url'] ?? ''), 'https://');
 $add('HTTPS site address', $https, (string) ($config['site_url'] ?? ''));
-$add('UPI ID is set', setting('upi_id', '') !== '');
-$add('Bank account is set', setting('bank_account_number', '') !== '' && setting('bank_ifsc', '') !== '');
-$add('UPI QR is uploaded', setting('upi_qr_image', '') !== '');
+$add('UPI ID is valid', upi_id_ok(setting('upi_id', '')));
+$qrWorks = false;
+try {
+    $probe = upi_pay_link(setting('upi_id', ''), setting('upi_payee_name', 'Precision Agritech'), 'TEST', 1);
+    $qrWorks = $probe !== '' && str_contains(qr_svg($probe, 'health'), '<svg');
+} catch (Throwable $err) {
+    $qrWorks = false;
+}
+$add('UPI QR can be generated', $qrWorks || (setting('upi_qr_mode', 'auto') === 'upload' && setting('upi_qr_image', '') !== ''));
 admin_open('Health', 'settings');
 echo '<ul class="health">';
 foreach ($checks as [$label, $ok, $detail]) {

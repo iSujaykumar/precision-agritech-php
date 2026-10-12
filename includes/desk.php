@@ -140,6 +140,34 @@ function review_limit_hit(int $userId): bool
     return (int) $stmt->fetchColumn() >= 3;
 }
 
+function desk_allows(string $role, string $need): bool
+{
+    $rank = ['staff' => 1, 'manager' => 2, 'owner' => 3];
+    $have = $rank[$role] ?? 3;
+    return $have >= ($rank[$need] ?? 3);
+}
+
+function require_desk(array $admin, string $need): void
+{
+    $role = (string) ($admin['desk_role'] ?? 'owner');
+    if (desk_allows($role, $need)) {
+        return;
+    }
+    http_response_code(403);
+    admin_open('Not allowed');
+    echo '<p class="flash bad" role="alert">That page needs a higher desk role.</p>';
+    admin_close();
+    exit;
+}
+
+function csv_cell(string $value): string
+{
+    if ($value !== '' && preg_match('/^[=+\-@\t\r]/', $value)) {
+        return "'" . $value;
+    }
+    return $value;
+}
+
 function save_setting(string $key, string $value): void
 {
     db()->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)')->execute([$key, $value]);
@@ -246,8 +274,8 @@ function desk_warnings(): array
     if (!empty($config['show_otp_on_screen'])) {
         $warnings[] = 'Sign-in codes are shown on screen.';
     }
-    if (trim(setting('upi_id', '')) === '' && trim(setting('bank_account_number', '')) === '') {
-        $warnings[] = 'Payment settings are empty.';
+    if (trim(setting('upi_id', '')) === '' || !upi_id_ok(setting('upi_id', ''))) {
+        $warnings[] = 'The UPI ID is missing or not valid.';
     }
     if (trim(setting('delivery_pins', '')) === '') {
         $warnings[] = 'The delivery PIN list is empty.';
@@ -499,6 +527,13 @@ function mail_order_customer(array $order, string $intro): void
     $method = (string) ($order['payment_method'] ?? '');
     if (in_array($method, ['upi', 'bank_transfer'], true) && ($order['payment_status'] ?? '') !== 'paid') {
         $lines .= "\n" . bank_instructions((string) $order['order_number'], (int) $order['total_inr']) . "\n";
+        $token = (string) ($order['lookup_token'] ?? '');
+        global $config;
+        $base = rtrim((string) ($config['site_url'] ?? ''), '/');
+        if ($token !== '' && $base !== '') {
+            $lines .= "Order page: " . $base . "/order/" . $token . "\n";
+            $lines .= "The QR code is on that page. This email does not include a payment image.\n";
+        }
     }
     notify_mail($email, 'Order ' . ($order['order_number'] ?? '') . ' — Precision Agritech', $lines);
 }

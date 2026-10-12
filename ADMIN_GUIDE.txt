@@ -1,0 +1,36 @@
+ADMIN GUIDE — Precision Agritech
+
+UPI QR
+1. Open Nursery desk → Settings → Payments.
+2. Enter the UPI ID (like name@bank) and the payee name customers should see.
+3. Leave QR source on "Auto-generate from UPI ID".
+4. Save. The preview is a sample for ₹1 with the note TEST. It is not a real charge.
+5. Download SVG or PNG, or print it, if you want a copy for the counter.
+6. After a customer places a UPI order, their order page shows a QR for that exact total and that order number.
+7. They still send the 12-character UTR. You still mark the payment received yourself. The site does not check the bank.
+8. If you already have a printed QR image, switch QR source to "Use uploaded image" and upload it. The amount will be written next to the picture, because a static image cannot change per order.
+
+Turn a method off
+On Payments, untick UPI, bank transfer or cash on delivery. At least one must stay on. Customers only see the methods you leave on.
+
+Homepage
+Settings → Homepage. The boxes start with the current wording. Change a headline or hide a rail, then save. Button links must start with / and stay on this site.
+
+Offers
+Products → Offers. Tick trays, optionally set start and end, then choose "Offer badge only" or "Set old price". The old price must be higher than the selling price. Clear offer removes the badge and the old price.
+
+Pages
+Settings → Pages. One paragraph per line. Save an empty box to go back to the original page.
+
+Pause orders
+Settings → Shop → Shop paused. Customers can still browse. Checkout will not take a new order, and a short note appears at the top of the shop.
+
+Desk roles
+Staff → set a person to owner, manager or staff.
+- Owner: everything, including staff and the database update.
+- Manager: shop settings, payments, offers, coupons and pages. Not staff accounts.
+- Staff: orders, products, stock, messages. Not payments or settings.
+The first accounts stay owners. You cannot remove your own owner role.
+
+What this panel does not do
+It does not take UPI money automatically. It does not email a QR image. It does not replace your accountant, your GST decision, or the delivery PIN list.

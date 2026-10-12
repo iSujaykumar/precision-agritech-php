@@ -123,7 +123,6 @@ if (!empty($order['driver_id'])) {
     $driver = $d->fetch() ?: null;
 }
 $bank = bank_details();
-$qr = trim(setting('upi_qr_image', ''));
 $help = wa_href('Hello Precision Agritech, I need help with order ' . $order['order_number']);
 $showPay = in_array($order['payment_method'], ['upi', 'bank_transfer'], true) && $order['payment_status'] !== 'paid' && $order['status'] !== 'cancelled';
 ?>
@@ -157,10 +156,25 @@ $showPay = in_array($order['payment_method'], ['upi', 'bank_transfer'], true) &&
   <section class="card pay-box">
     <h2>Pay <?= inr((int) $order['total_inr']) ?></h2>
     <p>Use <?= e($order['order_number']) ?> as the payment reference.</p>
-    <?php if ($qr !== ''): ?><img class="qr" src="<?= e($qr) ?>" alt="UPI QR code for Precision Agritech" width="220" height="220"><?php endif; ?>
-    <p class="upi-row">UPI ID <strong id="upi-id"><?= e($bank['upi']) ?></strong>
-      <button class="btn" type="button" data-copy="<?= e($bank['upi']) ?>">Copy</button></p>
-    <p class="upi-app"><a class="btn" href="<?= e(upi_intent((string) $order['order_number'], (int) $order['total_inr'])) ?>">Pay with UPI app</a></p>
+    <?php
+      $payee = setting('upi_payee_name', 'Precision Agritech Private Limited');
+      $upiId = setting('upi_id', 'precision9958@fbl');
+      $upiLink = upi_intent((string) $order['order_number'], (int) $order['total_inr']);
+    ?>
+    <div class="upi-panel">
+      <div class="upi-code">
+        <?= upi_qr_block($upiId, $payee, (string) $order['order_number'], (int) $order['total_inr'], setting('upi_qr_mode', 'auto'), trim(setting('upi_qr_image', ''))) ?>
+      </div>
+      <div class="upi-copy">
+        <p>Payee <strong><?= e($payee) ?></strong></p>
+        <p>Amount <strong><?= inr((int) $order['total_inr']) ?></strong></p>
+        <?php if (upi_id_ok($upiId)): ?>
+          <p class="upi-row">UPI ID <strong id="upi-id"><?= e($upiId) ?></strong>
+            <button class="btn" type="button" data-copy="<?= e($upiId) ?>">Copy</button></p>
+        <?php endif; ?>
+        <?php if ($upiLink !== ''): ?><p class="upi-app"><a class="btn" href="<?= e($upiLink) ?>">Pay with UPI app</a></p><?php endif; ?>
+      </div>
+    </div>
     <?php if ($bank['number'] !== ''): ?>
       <h3>Bank transfer</h3>
       <p><?= e($bank['name']) ?><br><?= e($bank['bank']) ?><br><?= e($bank['number']) ?><br>IFSC <?= e($bank['ifsc']) ?></p>

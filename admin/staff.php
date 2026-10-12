@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
+require_desk($admin, 'owner');
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -15,8 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12) {
                 throw new RuntimeException('Use a name, email, mobile and a password of at least 12 characters.');
             }
-            db()->prepare('INSERT INTO users (name, email, phone, password_hash, role, status, must_change_password) VALUES (?, ?, ?, ?, ?, ?, 1)')
-                ->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT), 'admin', 'active']);
+            $deskRole = (string) ($_POST['desk_role'] ?? 'staff');
+            if (!in_array($deskRole, ['owner', 'manager', 'staff'], true)) {
+                $deskRole = 'staff';
+            }
+            db()->prepare('INSERT INTO users (name, email, phone, password_hash, role, desk_role, status, must_change_password) VALUES (?, ?, ?, ?, ?, ?, ?, 1)')
+                ->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT), 'admin', $deskRole, 'active']);
             $newId = (int) db()->lastInsertId();
             audit_log((int) $admin['id'], 'staff_add', 'user', $newId, null, $email);
             flash_set('Staff account created. They must change the password at first sign-in.');
@@ -51,6 +56,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([password_hash($password, PASSWORD_DEFAULT), $id]);
                 audit_log((int) $admin['id'], 'staff_reset', 'user', $id, null, 'reset');
                 flash_set('Password reset. Share the temporary password with them. They must change it at the next sign-in.');
+            } elseif ($action === 'role') {
+                $deskRole = (string) ($_POST['desk_role'] ?? '');
+                if (!in_array($deskRole, ['owner', 'manager', 'staff'], true)) {
+                    throw new RuntimeException('Choose owner, manager or staff.');
+                }
+                if ($id === (int) $admin['id'] && $deskRole !== 'owner') {
+                    throw new RuntimeException('You cannot remove your own owner role.');
+                }
+                $owners = (int) db()->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active' AND desk_role = 'owner' AND id <> " . $id)->fetchColumn();
+                if ($deskRole !== 'owner' && ($row['desk_role'] ?? 'owner') === 'owner' && $owners < 1) {
+                    throw new RuntimeException('The last owner cannot be changed.');
+                }
+                db()->prepare('UPDATE users SET desk_role = ? WHERE id = ?')->execute([$deskRole, $id]);
+                audit_log((int) $admin['id'], 'staff_role', 'user', $id, (string) ($row['desk_role'] ?? ''), $deskRole);
+                flash_set('Desk role saved');
             } else {
                 throw new RuntimeException('That action is not available.');
             }
@@ -61,15 +81,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = safe_error($err, 'That staff change could not be saved.');
     }
 }
-$rows = db()->query("SELECT id, name, email, phone, status, last_login_at FROM users WHERE role = 'admin' ORDER BY id")->fetchAll();
+$rows = db()->query("SELECT id, name, email, phone, status, desk_role, last_login_at FROM users WHERE role = 'admin' ORDER BY id")->fetchAll();
 admin_open('Staff', 'settings');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }
-echo '<div class="table-wrap"><table><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Status</th><th>Last sign-in</th><th></th></tr>';
+echo '<div class="table-wrap"><table><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr>';
 foreach ($rows as $row) {
     $id = (int) $row['id'];
-    echo '<tr><td>' . e($row['name']) . '</td><td>' . e($row['email']) . '</td><td>' . e((string) $row['phone']) . '</td><td>' . e((string) $row['status']) . '</td><td>' . e((string) ($row['last_login_at'] ?: '—')) . '</td><td>';
+    echo '<tr><td>' . e($row['name']) . '</td><td>' . e($row['email']) . '</td><td>' . e((string) $row['phone']) . '</td><td>' . e((string) ($row['desk_role'] ?? 'owner')) . '</td><td>' . e((string) $row['status']) . '</td><td>' . e((string) ($row['last_login_at'] ?: '—')) . '</td><td>';
+    echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="role"><input type="hidden" name="id" value="' . $id . '"><select name="desk_role">';
+    foreach (['owner', 'manager', 'staff'] as $roleName) {
+        echo '<option value="' . $roleName . '"' . (($row['desk_role'] ?? 'owner') === $roleName ? ' selected' : '') . '>' . $roleName . '</option>';
+    }
+    echo '</select><button class="linkish" type="submit">Save role</button></form> ';
     if ($id !== (int) $admin['id']) {
         $verb = $row['status'] === 'disabled' ? 'enable' : 'disable';
         echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="' . $verb . '"><input type="hidden" name="id" value="' . $id . '"><button class="linkish" type="submit" data-confirm="Change this staff account?">' . ucfirst($verb) . '</button></form>';
@@ -78,7 +103,7 @@ foreach ($rows as $row) {
 }
 echo '</table></div>';
 echo '<h2>Add staff</h2><form method="post" class="narrow">' . csrf_field() . '<input type="hidden" name="action" value="add">';
-echo '<label>Name <input name="name" required></label><label>Email <input name="email" type="email" required></label><label>Mobile <input name="phone" required></label><label>Temporary password <input name="password" type="password" minlength="12" required></label><button class="btn" type="submit">Add staff</button></form>';
+echo '<label>Name <input name="name" required></label><label>Email <input name="email" type="email" required></label><label>Mobile <input name="phone" required></label><label>Temporary password <input name="password" type="password" minlength="12" required></label><label>Desk role <select name="desk_role"><option value="staff">staff</option><option value="manager">manager</option><option value="owner">owner</option></select></label><button class="btn" type="submit">Add staff</button></form>';
 echo '<h2>Reset a password</h2><form method="post" class="narrow">' . csrf_field() . '<input type="hidden" name="action" value="reset">';
 echo '<label>Staff <select name="id">';
 foreach ($rows as $row) {
