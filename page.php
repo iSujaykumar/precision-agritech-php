@@ -4,7 +4,7 @@ require __DIR__ . '/includes/bootstrap.php';
 
 $pages = [
     'about' => ['About', [
-        'Precision Agritech Private Limited grows flower seedling trays at Theur, near Pune. The tray is the unit of sale. Each tray holds 104 plants.',
+        'Precision Agritech Private Limited grows flower seedling trays at Theur, near Pune. The tray is the unit of sale. Each tray holds 150 seedlings.',
         'Landscapers, farms and home gardeners order from this site. The nursery delivers with its own vehicles. There is no courier.',
         'Prices on the site are the prices charged. The total you see at checkout is the amount due.',
     ]],
@@ -14,7 +14,7 @@ $pages = [
         'Opening hours are on the contact page. Wholesale lots are booked with the office, not only through the cart.',
     ]],
     'faq' => ['FAQ', [
-        'A tray is 104 plants. We do not split a tray on this site.',
+        'A tray is 150 seedlings. We do not split a tray on this site.',
         'You can pay by UPI, bank transfer, or cash on delivery where that option is open. The nursery confirms UPI and bank payments before the trays leave.',
         'Delivery is by the nursery vehicle, usually 2 to 4 days after payment is confirmed. Cash orders are confirmed by phone first.',
         'If a tray arrives damaged, report it from the order page within the time shown there, with photos.',

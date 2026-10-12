@@ -82,10 +82,11 @@ try {
 }
 
 $new = array_column(home_products('new'), 'slug');
-foreach (['cineraria', 'pentas', 'platycodon', 'ptilotus'] as $slug) {
-    expect("new arrival $slug", in_array($slug, $new, true));
+$allowedNew = ['cosmos', 'aster', 'calendula', 'dahlia', 'verbena', 'portulaca', 'phlox', 'torenia', 'gerbera', 'alyssum'];
+foreach ($new as $slug) {
+    expect("new arrival $slug", in_array($slug, $allowedNew, true));
 }
-expect('new arrival limit', count($new) <= 8);
+expect('new arrival limit', count($new) === 8);
 $names = array_column(home_products('new'), 'name');
 $sorted = $names;
 sort($sorted, SORT_STRING);
@@ -137,10 +138,10 @@ try {
     $checks = [
         'seed-like' => [0, null, null, null, false],
         'flag' => [1, null, null, null, true],
-        'compare' => [0, 400, null, null, true],
-        'future' => [1, 400, $future, $later, false],
-        'window' => [1, 400, $past, $later, true],
-        'expired' => [1, 400, $past, $past, false],
+        'compare' => [0, 2000, null, null, true],
+        'future' => [1, 2000, $future, $later, false],
+        'window' => [1, 2000, $past, $later, true],
+        'expired' => [1, 2000, $past, $past, false],
     ];
     foreach ($checks as $label => [$flag, $compare, $start, $end, $want]) {
         $touch->execute([$flag, $compare, $start, $end, $id]);
@@ -148,7 +149,7 @@ try {
         expect("db offer $label", in_array('marigold', $slugs, true) === $want);
     }
     $row = $pdo->query('SELECT * FROM products WHERE id = ' . $id)->fetch();
-    $touch->execute([1, 400, $past, $later, $id]);
+    $touch->execute([1, 2000, $past, $later, $id]);
     $row = $pdo->query('SELECT * FROM products WHERE id = ' . $id)->fetch();
     expect('db sale badge', offer_badge($row) === 'Sale');
     $touch->execute([1, null, null, null, $id]);

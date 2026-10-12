@@ -14,19 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$row) {
             throw new RuntimeException('That tray was not found.');
         }
-        if ($action === 'delete') {
-            $orders = db()->prepare('SELECT COUNT(*) FROM order_items WHERE product_id = ?');
-            $orders->execute([$id]);
-            if ((int) $orders->fetchColumn() > 0) {
-                db()->prepare('UPDATE products SET active = 0 WHERE id = ?')->execute([$id]);
-                audit_log((int) $admin['id'], 'product_hide', 'product', $id, null, 'hidden');
-                flash_set('This tray is on an order, so it was hidden from the shop instead of deleted.');
-            } else {
-                remove_managed_image((string) $row['image_url']);
-                db()->prepare('DELETE FROM products WHERE id = ?')->execute([$id]);
-                audit_log((int) $admin['id'], 'product_delete', 'product', $id, $row['name'], 'deleted');
-                flash_set('Product deleted');
-            }
+        if ($action === 'delete' || $action === 'hide') {
+            db()->prepare('UPDATE products SET active = 0 WHERE id = ?')->execute([$id]);
+            audit_log((int) $admin['id'], 'product_hide', 'product', $id, 'shown', 'hidden');
+            flash_set('Hidden from the shop. Restore it from Recently hidden.');
+        } elseif ($action === 'restore') {
+            db()->prepare('UPDATE products SET active = 1 WHERE id = ?')->execute([$id]);
+            audit_log((int) $admin['id'], 'product_restore', 'product', $id, 'hidden', 'shown');
+            flash_set('Restored to the shop.');
         } elseif (in_array($action, ['active', 'bestseller', 'on_offer'], true)) {
             $value = (int) ($_POST['value'] ?? 0) === 1 ? 1 : 0;
             db()->prepare('UPDATE products SET ' . $action . ' = ? WHERE id = ?')->execute([$value, $id]);
@@ -50,6 +45,10 @@ if ($q !== '') {
     $like = '%' . str_replace(['%', '_'], '', $q) . '%';
     $params[] = $like;
     $params[] = $like;
+}
+$hiddenOnly = isset($_GET['hidden']);
+if ($hiddenOnly) {
+    $where .= ' AND p.active = 0 AND p.parent_product_id IS NULL';
 }
 if ($category > 0) {
     $where .= ' AND p.category_id = ?';
@@ -82,7 +81,7 @@ if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }
 echo '<p class="muted">Live offers: ' . ($liveOffers ? e(implode(', ', $liveOffers)) : 'none') . '. Scheduled: ' . ($scheduledOffers ? e(implode(', ', $scheduledOffers)) : 'none') . '. Expired: ' . ($expiredOffers ? e(implode(', ', $expiredOffers)) : 'none') . '.</p>';
-echo '<p><a class="btn" href="/admin/product-edit">Add product</a></p>';
+echo '<p><a class="btn" href="/admin/product-edit">Add product</a> <a class="btn" href="' . ($hiddenOnly ? '/admin/products' : '/admin/products?hidden=1') . '">' . ($hiddenOnly ? 'Back to live plants' : 'Recently hidden') . '</a></p>';
 echo '<form method="get" class="inline filters">';
 echo '<label>Search <input name="q" value="' . e($q) . '"></label>';
 echo '<label>Category <select name="category"><option value="0">All</option>';
@@ -105,7 +104,12 @@ foreach ($rows as $row) {
         echo '<td><form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="' . $field . '"><input type="hidden" name="id" value="' . $id . '"><input type="hidden" name="value" value="' . ($on ? '0' : '1') . '"><button class="linkish" type="submit">' . ($on ? 'On' : 'Off') . '</button></form></td>';
     }
     echo '<td><a href="/admin/product-edit?id=' . $id . '">Edit</a> ';
-    echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="' . $id . '"><button class="linkish" type="submit" data-confirm="Delete or hide this tray?">Delete</button></form></td></tr>';
+    if ((int) $row['active'] === 1) {
+        echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="hide"><input type="hidden" name="id" value="' . $id . '"><button class="linkish" type="submit" data-confirm="Hide this plant from the shop? You can restore it later.">Hide</button></form>';
+    } else {
+        echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="restore"><input type="hidden" name="id" value="' . $id . '"><button class="linkish" type="submit">Restore</button></form>';
+    }
+    echo '</td></tr>';
 }
 echo '</table></div>';
 admin_close();

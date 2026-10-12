@@ -509,3 +509,23 @@ tr.pay-wait { background: #fff4d6; }
 .desk-warn { background: #f8e4e4; border-radius: 8px; padding: .7rem 1rem; margin: 0 0 .6rem; }
 
 
+
+.mobile-bar { display: none; }
+.btn, .step, button.btn { min-height: 44px; }
+.calc { display: grid; gap: 0.75rem; }
+.calc input, .calc select, .search-label input { font-size: 1.05rem; min-height: 44px; }
+@media (max-width: 700px) {
+  .mobile-bar {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    gap: 8px;
+    padding: 8px;
+    background: #fff;
+    z-index: 30;
+    box-shadow: 0 -2px 10px rgba(0,0,0,.08);
+  }
+  .mobile-bar .btn { flex: 1; text-align: center; }
+  body.shop { padding-bottom: 76px; }
+  .grid { grid-template-columns: 1fr; }
+}

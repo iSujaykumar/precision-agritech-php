@@ -75,7 +75,7 @@ function render_header(string $title, string $description = '', string $chrome =
     }
     ?>
 <!doctype html>
-<html lang="en">
+<html lang="<?= e(shop_lang()) ?>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -131,20 +131,22 @@ function render_header(string $title, string $description = '', string $chrome =
   <a class="logo" href="/">Precision Agritech</a>
   <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
   <nav id="site-nav">
-    <a href="/shop"<?= nav_here('/shop') ?>>Shop</a>
+    <a href="/shop"<?= nav_here('/shop') ?>><?= e(ui_label('shop')) ?></a>
     <a href="/nursery"<?= nav_here('/nursery') ?>>Our nursery</a>
     <a href="/wholesale"<?= nav_here('/wholesale') ?>>Wholesale</a>
+    <a href="/price-list">Price list</a>
     <?php if ($user): ?>
-      <a href="/account"<?= nav_here('/account') ?>>Account</a>
+      <a href="/account"<?= nav_here('/account') ?>><?= e(ui_label('account')) ?></a>
       <form method="post" action="/logout">
         <?= csrf_field() ?>
         <input type="hidden" name="next" value="/">
-        <button class="linkish" type="submit">Sign out</button>
+        <button class="linkish" type="submit"><?= e(ui_label('sign_out')) ?></button>
       </form>
     <?php else: ?>
-      <a href="/login"<?= nav_here('/login') ?>>Sign in</a>
+      <a href="/login"<?= nav_here('/login') ?>><?= e(ui_label('sign_in')) ?></a>
     <?php endif; ?>
-    <a class="nav-cart" href="/cart"<?= nav_here('/cart') ?>>Cart (<?= (int) $count ?>)</a>
+    <a class="nav-cart" href="/cart"<?= nav_here('/cart') ?>><?= e(ui_label('cart')) ?> (<?= (int) $count ?>)</a>
+    <a href="/lang?set=<?= shop_lang() === 'mr' ? 'en' : 'mr' ?>"><?= e(ui_label('lang')) ?></a>
   </nav>
 </header>
 <?php endif; ?>
@@ -159,11 +161,11 @@ function admin_menu(): void
         'Desk' => ['/admin', 0],
         'Orders' => ['/admin/orders', $counts['orders']],
         'Products' => ['/admin/products', 0],
-        'Offers' => ['/admin/offers', 0],
+        'Stock' => ['/admin/stock', 0],
         'Customers' => ['/admin/customers', 0],
-        'Reviews' => ['/admin/reviews', $counts['reviews']],
-        'Coupons' => ['/admin/coupons', 0],
         'Enquiries' => ['/admin/messages', $counts['enquiries']],
+        'Update' => ['/admin/update', 0],
+        'Help' => ['/admin/help', 0],
         'Settings' => ['/admin/settings', 0],
     ];
     $path = rtrim((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), '/') ?: '/';
@@ -191,6 +193,16 @@ function admin_menu(): void
         '/admin/migrate' => '/admin/settings',
         '/admin/mail-log' => '/admin/settings',
         '/admin/cod-block' => '/admin/settings',
+        '/admin/stock' => '/admin/stock',
+        '/admin/prices' => '/admin/stock',
+        '/admin/photos' => '/admin/products',
+        '/admin/attention' => '/admin',
+        '/admin/update' => '/admin/update',
+        '/admin/help' => '/admin/help',
+        '/admin/finder' => '/admin/help',
+        '/admin/months' => '/admin/settings',
+        '/admin/labels' => '/admin/settings',
+        '/admin/restock' => '/admin',
     ];
     $here = $alias[$path] ?? $path;
     echo '<nav class="admin-nav" id="admin-nav" aria-label="Desk">';
@@ -296,6 +308,14 @@ $cin = trim(shop_setting('cin', ''));
 <script src="/assets/js/cart.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/cart.js') ?>"></script>
 <script src="/assets/js/pay.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/pay.js') ?>"></script>
 <script src="/assets/js/signin.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/signin.js') ?>"></script>
+<script src="/assets/js/calc.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/calc.js') ?>"></script>
+<?php
+$mobileWa = wa_href('Hello Precision Agritech. I want to ask about seedlings.');
+?>
+<nav class="mobile-bar" aria-label="Quick actions">
+  <a class="btn" href="/cart"><?= e(ui_label('cart')) ?> (<?= (int) $count ?>)</a>
+  <?php if ($mobileWa !== ''): ?><a class="btn" href="<?= e($mobileWa) ?>" target="_blank" rel="noopener"><?= e(ui_label('whatsapp')) ?></a><?php endif; ?>
+</nav>
 <?php elseif ($chrome === 'admin'): ?>
 <script src="/assets/js/admin.js"></script>
 <?php endif; ?>
@@ -304,14 +324,14 @@ $cin = trim(shop_setting('cin', ''));
 <?php
 }
 
-function render_product_rail(string $id, string $heading, array $products, string $empty): void
+function render_product_rail(string $id, string $heading, array $products, string $empty, string $more = '/shop'): void
 {
     ?>
 <section class="section" id="<?= e($id) ?>">
   <div class="wrap">
     <div class="head">
       <h2><?= e($heading) ?></h2>
-      <a href="/shop">Shop all seedlings</a>
+      <a href="<?= e($more) ?>"><?= $id === 'new-arrivals' ? 'View all new arrivals' : 'Shop all seedlings' ?></a>
     </div>
     <?php if (!$products): ?>
       <p class="rail-empty"><?= e($empty) ?></p>
@@ -338,8 +358,12 @@ function product_card(array $product, bool $eager = false): void
     $srcset = image_srcset($image);
     $badge = offer_badge($product);
     $isNew = product_is_new($product);
+    $best = (int) ($product['bestseller'] ?? 0) === 1;
     $variety = (string) ($product['variety'] ?? $product['scientific_name'] ?? '');
     $shown = selling_price($product);
+    $lowAt = low_stock_limit();
+    $banner = discount_banner_text();
+    $wa = wa_order_href($product, 1);
     ?>
 <article class="card">
   <a class="card-photo" href="<?= e($href) ?>">
@@ -347,18 +371,20 @@ function product_card(array $product, bool $eager = false): void
     <?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?>
     <?php if ((int) ($product['is_overgrown'] ?? 0) === 1): ?><span class="new-badge">Overgrown / as-is</span><?php endif; ?>
     <?php if ($isNew): ?><span class="new-badge">New</span><?php endif; ?>
+    <?php if ($best): ?><span class="new-badge">Best seller</span><?php endif; ?>
   </a>
   <div class="card-body">
     <h3><a href="<?= e($href) ?>"><?= e($product['name']) ?></a></h3>
     <p class="muted"><?= e($variety) ?></p>
     <p class="price"><?= $shown['blocked'] ? 'Price on request' : e(price_pair_text($shown)) ?></p>
+    <?php if ($banner !== ''): ?><p class="muted"><?= e($banner) ?></p><?php endif; ?>
     <?php $rating = product_rating((int) ($product['id'] ?? 0)); if ($rating): ?>
       <p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?></span></p>
     <?php endif; ?>
     <?php if ($stock <= 0): ?>
       <p class="stock-out">Out of stock</p>
-    <?php elseif ($stock <= 5): ?>
-      <p class="stock-low">Only <?= (int) $stock ?> left</p>
+    <?php elseif ($stock <= $lowAt): ?>
+      <p class="stock-low">Only <?= (int) $stock ?> trays left</p>
     <?php else: ?>
       <p class="muted"><?= (int) $stock ?> trays available</p>
     <?php endif; ?>
@@ -368,11 +394,12 @@ function product_card(array $product, bool $eager = false): void
       <input type="hidden" name="action" value="add">
       <input type="hidden" name="slug" value="<?= e((string) $product['slug']) ?>">
       <input type="hidden" name="qty" value="1">
-      <button class="btn" type="submit">Add to cart</button>
+      <button class="btn" type="submit"><?= e(ui_label('add')) ?></button>
     </form>
     <?php else: ?>
     <p class="card-add"><a class="btn" href="<?= e($href) ?>">View</a></p>
     <?php endif; ?>
+    <?php if ($wa !== ''): ?><p><a href="<?= e($wa) ?>" target="_blank" rel="noopener"><?= e(ui_label('whatsapp')) ?></a></p><?php endif; ?>
   </div>
 </article>
 <?php

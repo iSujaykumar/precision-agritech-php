@@ -177,9 +177,9 @@ function selling_price(array $product): array
     ];
 }
 
-function seasonal_offer(int $eligible, bool $farmer, bool $cod): array
+function seasonal_offer(int $eligible, bool $farmer, bool $cod, int $seedlings = 0): array
 {
-    $off = ['amount' => 0, 'label' => '', 'percent' => 0, 'short' => 0];
+    $off = ['amount' => 0, 'amount_paise' => 0, 'label' => '', 'percent' => 0, 'short' => 0, 'short_inr' => 0, 'short_seedlings' => 0, 'basis' => 'rupees'];
     if (setting('seasonal_discount_on', '0') !== '1') {
         return $off;
     }
@@ -189,28 +189,56 @@ function seasonal_offer(int $eligible, bool $farmer, bool $cod): array
     if ($cod && setting('seasonal_applies_cod', '1') !== '1') {
         return $off;
     }
-    $now = new DateTimeImmutable('now', shop_timezone());
-    $start = trim(setting('seasonal_discount_start', ''));
-    $end = trim(setting('seasonal_discount_end', ''));
-    if ($start !== '' && $now < new DateTimeImmutable($start, shop_timezone())) {
-        return $off;
-    }
-    if ($end !== '' && $now > new DateTimeImmutable($end . ' 23:59:59', shop_timezone())) {
+    try {
+        $now = new DateTimeImmutable('now', shop_timezone());
+        $start = trim(setting('seasonal_discount_start', ''));
+        $end = trim(setting('seasonal_discount_end', ''));
+        if ($start !== '' && $now < new DateTimeImmutable($start, shop_timezone())) {
+            return $off;
+        }
+        if ($end !== '' && $now > new DateTimeImmutable($end . ' 23:59:59', shop_timezone())) {
+            return $off;
+        }
+    } catch (Throwable $err) {
         return $off;
     }
     $min = (int) setting('seasonal_discount_min_inr', '5000');
+    $minSeed = (int) setting('discount_min_seedlings', '5000');
     $percent = (int) setting('seasonal_discount_percent', '10');
-    $label = setting('seasonal_discount_label', 'Seasonal discount');
-    if ($eligible < $min) {
-        $off['short'] = $min - $eligible;
-        $off['label'] = $label;
-        $off['percent'] = $percent;
-        return $off;
+    $label = setting('seasonal_discount_label', 'Bulk discount');
+    $basis = setting('discount_basis', 'rupees') === 'seedlings' ? 'seedlings' : 'rupees';
+    $shortInr = max(0, $min - $eligible);
+    $shortSeed = max(0, $minSeed - max(0, $seedlings));
+    $base = [
+        'amount' => 0,
+        'amount_paise' => 0,
+        'label' => $label,
+        'percent' => $percent,
+        'short' => $basis === 'seedlings' ? $shortSeed : $shortInr,
+        'short_inr' => $shortInr,
+        'short_seedlings' => $shortSeed,
+        'basis' => $basis,
+        'min_inr' => $min,
+        'min_seedlings' => $minSeed,
+    ];
+    $reached = $basis === 'seedlings' ? $seedlings >= $minSeed : $eligible >= $min;
+    if (!$reached || $percent < 1) {
+        return $base;
     }
-    return ['amount' => round_half_up_percent($eligible, $percent), 'label' => $label, 'percent' => $percent, 'short' => 0];
+    $base['amount'] = round_half_up_percent($eligible, $percent);
+    $base['amount_paise'] = $base['amount'] * 100;
+    $base['short'] = 0;
+    $base['short_inr'] = 0;
+    $base['short_seedlings'] = 0;
+    return $base;
 }
 
 function seasonal_base_amount(array $lines): int
+{
+    return intdiv(seasonal_base_paise($lines) + 50, 100);
+}
+
+function seasonal_base_paise(array $lines): int
 {
     $include = setting('seasonal_applies_overgrown', '0') === '1';
     $sum = 0;
@@ -222,9 +250,26 @@ function seasonal_base_amount(array $lines): int
         if (!$include && (int) ($product['is_overgrown'] ?? 0) === 1) {
             continue;
         }
-        $sum += (int) ($line['line'] ?? 0);
+        if (isset($line['line_paise'])) {
+            $sum += (int) $line['line_paise'];
+        } else {
+            $sum += (int) ($line['line'] ?? 0) * 100;
+        }
     }
     return $sum;
+}
+
+function cart_seedling_count(array $lines): int
+{
+    $n = 0;
+    foreach ($lines as $line) {
+        if (array_key_exists('ok', $line) && empty($line['ok'])) {
+            continue;
+        }
+        $product = $line['product'] ?? [];
+        $n += (int) ($line['qty'] ?? 0) * seedlings_per_tray($product);
+    }
+    return $n;
 }
 
 function price_rupees_to_paise(string $raw): int

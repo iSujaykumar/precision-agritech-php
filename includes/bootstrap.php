@@ -32,6 +32,23 @@ $debug = !empty($config['debug']);
 ini_set('display_errors', $debug ? '1' : '0');
 ini_set('log_errors', '1');
 error_reporting(E_ALL);
+if (PHP_SAPI !== 'cli') {
+    set_exception_handler(static function (Throwable $err): void {
+        $id = substr(bin2hex(random_bytes(4)), 0, 8);
+        error_log('PA ' . $id . ' ' . $err->getMessage() . ' in ' . $err->getFile() . ':' . $err->getLine());
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+        $staff = (($_SESSION['role'] ?? '') === 'admin');
+        if ($staff) {
+            echo '<h1>Something went wrong</h1><p>Error ' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '. The detail is in the private log.</p>';
+        } else {
+            echo '<h1>Something went wrong</h1><p>Please try again, or call 8080370152, 8421577787 or 8421577725.</p>';
+        }
+        exit;
+    });
+}
 if (session_status() !== PHP_SESSION_ACTIVE) {
     ini_set('session.gc_maxlifetime', '43200');
     ini_set('session.use_strict_mode', '1');
@@ -179,11 +196,12 @@ function db(): PDO
 function setting(string $key, string $fallback = ''): string
 {
     static $map = null;
-    if ($map === null) {
+    if ($map === null || !empty($GLOBALS['pa_settings_dirty'])) {
         $map = [];
         foreach (db()->query('SELECT `key`, `value` FROM settings') as $row) {
             $map[$row['key']] = (string) $row['value'];
         }
+        $GLOBALS['pa_settings_dirty'] = false;
     }
     return $map[$key] ?? $fallback;
 }
@@ -477,7 +495,11 @@ function home_products(string $section): array
     } else {
         throw new InvalidArgumentException('Unknown home section.');
     }
-    return db()->query($sql)->fetchAll();
+    $rows = db()->query($sql)->fetchAll();
+    if (!$rows && $section !== 'offers') {
+        $rows = db()->query($base . ' ORDER BY p.id DESC LIMIT ' . $limit)->fetchAll();
+    }
+    return $rows;
 }
 function public_product_slugs(): array
 {
@@ -587,7 +609,13 @@ function quote_cart(string $couponCode = ''): array
     }
     $shipFlat = (int) setting('shipping_flat_inr', '180');
     $freeOver = (int) setting('free_shipping_over_inr', '4000');
-    $seasonal = seasonal_offer(seasonal_base_amount($lines), customer_is_farmer(), false);
+    $basePaise = seasonal_base_paise($lines);
+    $seedlings = cart_seedling_count($lines);
+    $seasonal = seasonal_offer(intdiv($basePaise, 100), customer_is_farmer(), false, $seedlings);
+    if ((int) ($seasonal['amount'] ?? 0) > 0) {
+        $seasonal['amount_paise'] = round_half_up_percent($basePaise, (int) $seasonal['percent']);
+        $seasonal['amount'] = intdiv((int) $seasonal['amount_paise'] + 50, 100);
+    }
     if ($seasonal['amount'] > 0 && $discount > 0 && setting('seasonal_stacks_coupons', '0') !== '1') {
         if ($seasonal['amount'] > $discount) {
             $discount = 0;
@@ -612,7 +640,7 @@ function quote_cart(string $couponCode = ''): array
         $discountPaise = $discount * 100;
     }
     $discountPaise = max(0, min($discountPaise, $subtotalPaise));
-    $seasonalPaise = ((int) $seasonal['amount']) * 100;
+    $seasonalPaise = (int) ($seasonal['amount_paise'] ?? (((int) $seasonal['amount']) * 100));
     if ($seasonalPaise > $subtotalPaise - $discountPaise) {
         $seasonalPaise = max(0, $subtotalPaise - $discountPaise);
     }
@@ -785,5 +813,6 @@ require dirname(__DIR__) . '/includes/qr.php';
 require dirname(__DIR__) . '/includes/commerce.php';
 require dirname(__DIR__) . '/includes/signin.php';
 require dirname(__DIR__) . '/includes/layout.php';
+require dirname(__DIR__) . '/includes/final.php';
 require dirname(__DIR__) . '/includes/lists.php';
 schema_guard();

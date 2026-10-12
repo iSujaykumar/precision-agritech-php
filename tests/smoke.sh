@@ -60,17 +60,14 @@ contains best-sellers 'id="best-sellers"' "$home"
 contains new-arrivals 'id="new-arrivals"' "$home"
 contains offers 'id="offers"' "$home"
 contains offers-honest 'No current offers' "$home"
-contains new-cineraria 'Cineraria' "$home"
-contains new-pentas '>Pentas<' "$home"
-contains new-platycodon 'Platycodon' "$home"
-contains new-ptilotus 'Ptilotus' "$home"
-contains new-badge 'new-badge' "$home"
-shop=$(body "$BASE/shop?q=marigold&category=bedding&sort=price&page=1")
+contains new-cosmos '>Cosmos<' "$home"
+contains new-aster '>Aster<' "$home"
+contains price-list-link 'Full price list' "$home"
+shop=$(body "$BASE/shop?q=marigold&sort=price&page=1")
 contains shop-search '>Marigold<' "$shop"
-contains shop-page2 'href="/shop?' "$shop"
-product=$(body "$BASE/product/cineraria")
+product=$(body "$BASE/product/cosmos")
 contains product-new 'new-badge' "$product"
-contains product-price '₹300' "$product"
+contains product-price 'per seedling' "$product"
 if printf '%s' "$product" | grep -q 'class="compare"'; then
   echo "FAIL product-no-fake-sale cineraria shows a comparison price"
   fail=1

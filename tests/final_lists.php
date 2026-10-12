@@ -31,17 +31,16 @@ expect('half rupee words', amount_paise_words(63750) === 'Six hundred thirty sev
 
 $root = dirname(__DIR__);
 $oldHits = [];
+$banned = '9011' . '975959';
+$bannedWa = '91' . $banned;
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
 foreach ($iterator as $file) {
     $path = $file->getPathname();
-    if (!preg_match('/\.(php|js|sql|txt|html)$/', $path)) {
-        continue;
-    }
-    if (str_contains($path, '/database/upgrade.sql') || str_contains($path, '/includes/lists.php') || str_contains($path, '/includes/desk.php') || str_contains($path, '/tests/')) {
+    if (!preg_match('/\.(php|js|sql|txt|html|json)$/', $path)) {
         continue;
     }
     $text = file_get_contents($path);
-    if ($text !== false && (str_contains($text, '9011975959') || str_contains($text, '919011975959'))) {
+    if ($text !== false && (str_contains($text, $banned) || str_contains($text, $bannedWa))) {
         $oldHits[] = str_replace($root . '/', '', $path);
     }
 }
@@ -60,17 +59,16 @@ try {
     expect('67 seasonal rows', (int) $pdo->query("SELECT COUNT(*) FROM price_list_items i JOIN price_lists l ON l.id=i.price_list_id WHERE l.slug='seasonal-2026-27'")->fetchColumn() === 67);
     expect('33 farmer rows', (int) $pdo->query("SELECT COUNT(*) FROM price_list_items i JOIN price_lists l ON l.id=i.price_list_id WHERE l.slug='farmer'")->fetchColumn() === 33);
     expect('19 matched parents', $loaded['matched_parents'] === 19, (string) $loaded['matched_parents']);
-    expect('26 new groups this pass or already present', $loaded['groups'] === 45, (string) $loaded['groups']);
-    $cards = (int) $pdo->query('SELECT COUNT(*) FROM products WHERE active=1 AND farmer_only=0 AND parent_product_id IS NULL')->fetchColumn();
-    expect('public cards include ptilotus and new plants', $cards >= 46, (string) $cards);
+    expect('45 sheet groups', $loaded['groups'] === 45, (string) $loaded['groups']);
+    $cards = (int) $pdo->query('SELECT COUNT(*) FROM products WHERE active=1 AND farmer_only=0 AND list_only=0 AND parent_product_id IS NULL')->fetchColumn();
+    expect('30 shop cards', $cards === 30, (string) $cards);
     $ptilotus = (int) $pdo->query("SELECT price_inr FROM products WHERE slug='ptilotus'")->fetchColumn();
     expect('ptilotus price unchanged', $ptilotus === 450, (string) $ptilotus);
     $marigold = $pdo->query("SELECT price_per_seedling_paise, tray_paise, price_inr FROM products WHERE slug='marigold'")->fetch();
     expect('marigold seedling 425', (int) $marigold['price_per_seedling_paise'] === 425);
     expect('marigold tray paise 63750', (int) $marigold['tray_paise'] === 63750, (string) $marigold['tray_paise']);
-    $child = $pdo->query("SELECT slug FROM products WHERE parent_product_id IS NOT NULL AND farmer_only=0 LIMIT 1")->fetchColumn();
-    expect('child hidden from public slugs', $child && !in_array($child, public_product_slugs(), true));
-    expect('child reachable by slug', $child && product_by_slug((string) $child) !== null);
+    $activeChild = (int) $pdo->query('SELECT COUNT(*) FROM products WHERE parent_product_id IS NOT NULL AND farmer_only=0 AND active=1')->fetchColumn();
+    expect('variety stays on the parent card', $activeChild === 0, (string) $activeChild);
     $farmerSlug = (string) $pdo->query("SELECT slug FROM products WHERE farmer_only=1 AND parent_product_id IS NOT NULL LIMIT 1")->fetchColumn();
     expect('farmer hidden from guest url', product_by_slug($farmerSlug) === null);
     $marathi = (string) $pdo->query("SELECT marathi_name FROM products WHERE variety='Mahavishnu Yellow' AND farmer_only=1")->fetchColumn();

@@ -148,15 +148,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $GLOBALS['coupon_email'] = $email;
         $coupon = lock_coupon($pdo, $couponCode, $subtotal);
         $discount = (int) ($coupon['discount'] ?? 0);
-        $seasonal = seasonal_offer(seasonal_base_amount($locked), customer_is_farmer(), $method === 'cod');
+        $basePaise = seasonal_base_paise($locked);
+        $seasonal = seasonal_offer(intdiv($basePaise + 50, 100), customer_is_farmer(), $method === 'cod', cart_seedling_count($locked));
+        if ((int) ($seasonal['amount'] ?? 0) > 0) {
+            $seasonal['amount_paise'] = round_half_up_percent($basePaise, (int) $seasonal['percent']);
+            $seasonal['amount'] = intdiv((int) $seasonal['amount_paise'] + 50, 100);
+        }
         if ($seasonal['amount'] > 0 && $discount > 0 && setting('seasonal_stacks_coupons', '0') !== '1') {
             if ($seasonal['amount'] > $discount) {
                 $discount = 0;
             } else {
                 $seasonal['amount'] = 0;
+                $seasonal['amount_paise'] = 0;
             }
         }
         $seasonalAmt = (int) $seasonal['amount'];
+        $seasonalPaise = (int) ($seasonal['amount_paise'] ?? ($seasonalAmt * 100));
         $after = max(0, $subtotal - $discount - $seasonalAmt);
         $shipping = zone_shipping($after, $postal);
         $total = $after + $shipping;
@@ -165,7 +172,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $subtotalPaise += (int) $line['line_paise'];
         }
         $discountPaise = $discount * 100;
-        $seasonalPaise = $seasonalAmt * 100;
         $shippingPaise = $shipping * 100;
         $totalPaise = max(0, $subtotalPaise - $discountPaise - $seasonalPaise) + $shippingPaise;
         if ($method === 'cod') {
@@ -278,6 +284,7 @@ $outside = $posted['postal'] !== '' && preg_match('/^[0-9]{6}$/', $posted['posta
 render_header('Checkout | Precision Agritech');
 ?>
 <section class="section"><div class="wrap">
+  <p class="muted">1 Cart · 2 Details · 3 Pay · 4 Done</p>
   <h1>Checkout</h1>
   <?php if (!empty($errors['form'])): ?><p class="flash bad" role="alert"><?= e($errors['form']) ?></p><?php endif; ?>
   <?php if (shop_paused()): ?><p class="flash bad" role="alert">Orders are paused right now</p><?php endif; ?>
@@ -346,7 +353,8 @@ render_header('Checkout | Precision Agritech');
       <p><span><?= (int) $line['qty'] ?> × <?= e((string) $line['product']['name']) ?></span><span><?= inr((int) $line['line']) ?></span></p>
     <?php endforeach; ?>
     <p><span>Shipping</span><span><?= inr((int) $quote['shipping']) ?></span></p>
-    <?php if ($seasonalShown > 0): ?><p><span><?= e((string) ($quote['seasonal']['label'] ?? 'Seasonal discount')) ?></span><span>−<?= inr($seasonalShown) ?></span></p><?php endif; ?>
+    <?php if ($seasonalShown > 0): ?><p><span><?= e((string) ($quote['seasonal']['label'] ?? 'Bulk discount')) ?></span><span>−<?= inr($seasonalShown) ?></span></p><p class="muted">Packing and transport are not included in the discount.</p><?php endif; ?>
+    <?php $progress = discount_progress_text($quote['seasonal'] ?? []); if ($seasonalShown < 1 && $progress !== ''): ?><p class="muted"><?= e($progress) ?></p><?php endif; ?>
     <?php $priceNote = trim(setting('prices_dispatch_note', '')); if ($priceNote !== ''): ?><p class="muted"><?= e($priceNote) ?></p><?php endif; ?>
     <p class="summary-total"><span>Total</span><span><?= inr((int) $quote['total']) ?></span></p>
   </aside>

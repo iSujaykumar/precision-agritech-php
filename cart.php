@@ -100,6 +100,7 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
           <strong><a href="/product/<?= e((string) $product['slug']) ?>"><?= e((string) $product['name']) ?></a></strong>
           <p class="muted"><?= e((string) ($product['variety'] ?? '')) ?></p>
           <p><?= e(price_pair_text($line['sell'] ?? selling_price($product))) ?></p>
+          <p class="muted"><?= (int) $line['qty'] ?> trays · <?= (int) $line['qty'] * seedlings_per_tray($product) ?> seedlings</p>
           <?php if ($free > 0 && $free <= 5 && empty($line['warning'])): ?><p class="stock-note">Only <?= $free ?> left</p><?php endif; ?>
           <?php if (!empty($line['warning'])): ?><p class="flash bad" role="alert"><?= e((string) $line['warning']) ?></p><?php endif; ?>
         </div>
@@ -123,9 +124,10 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
         <p><span>Discount (<?= e((string) ($quote['coupon']['code'] ?? $coupon)) ?>)</span><span>−<?= inr((int) $quote['discount']) ?></span></p>
       <?php endif; ?>
       <?php if ($seasonalShown > 0): ?>
-        <p><span><?= e((string) ($quote['seasonal']['label'] ?? 'Seasonal discount')) ?></span><span>−<?= inr($seasonalShown) ?></span></p>
-      <?php elseif ((int) ($quote['seasonal']['short'] ?? 0) > 0 && setting('seasonal_discount_on', '0') === '1'): ?>
-        <p class="muted">Add <?= inr((int) $quote['seasonal']['short']) ?> more in plants to get <?= (int) ($quote['seasonal']['percent'] ?? 10) ?>% off the plants. Delivery is not discounted.</p>
+        <p><span><?= e((string) ($quote['seasonal']['label'] ?? 'Bulk discount')) ?></span><span>−<?= inr_paise((int) ($quote['seasonal_paise'] ?? ($seasonalShown * 100))) ?></span></p>
+        <p class="muted">This discount is on the plants only. Packing and transport are not discounted.</p>
+      <?php elseif (discount_progress_text($quote['seasonal'] ?? []) !== ''): ?>
+        <p class="muted"><?= e(discount_progress_text($quote['seasonal'] ?? [])) ?></p>
       <?php endif; ?>
       <p><span>Shipping</span><span><?= (int) $quote['shipping'] === 0 ? 'Free' : inr((int) $quote['shipping']) ?></span></p>
       <p class="summary-total"><span>Total</span><span><?= inr_paise((int) ($quote['total_paise'] ?? ((int) $quote['total'] * 100))) ?></span></p>

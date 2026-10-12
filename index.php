@@ -3,9 +3,21 @@ declare(strict_types=1);
 require __DIR__ . '/includes/bootstrap.php';
 connect_or_explain();
 
-$bestsellers = home_products('bestsellers');
-$arrivals = home_products('new');
-$offers = home_products('offers');
+$bundle = home_bundle();
+$bestsellers = $bundle['bestsellers'];
+$arrivals = $bundle['new'];
+$offers = $bundle['offers'];
+$cards = $bundle['cards'];
+$monthNo = (int) (new DateTimeImmutable('now', shop_timezone()))->format('n');
+$monthNames = array_map('trim', explode(',', month_plant_text($monthNo)));
+$monthPlants = [];
+foreach ($cards as $card) {
+    foreach ($monthNames as $wanted) {
+        if ($wanted !== '' && strcasecmp((string) $card['name'], $wanted) === 0) {
+            $monthPlants[] = $card;
+        }
+    }
+}
 $reviews = db()->query(
     "SELECT r.author_name, r.rating, r.body, r.created_at, p.name AS product_name
      FROM reviews r LEFT JOIN products p ON p.id = r.product_id
@@ -45,16 +57,79 @@ render_header('Precision Agritech | Flower seedling trays from Theur, Pune', 'Or
   <p><strong>Bulk by phone</strong><br><a href="tel:+<?= e($tel) ?>"><?= e($phone) ?></a></p>
 </section>
 <?php
+$banner = discount_banner_text();
+if ($banner !== '') {
+    echo '<p class="announce">' . e($banner) . '</p>';
+}
 if (setting('rail_best_on', '1') === '1') {
-    render_product_rail('best-sellers', setting('rail_best_title', 'Best sellers'), $bestsellers, 'No best sellers are ready to ship right now.');
+    render_product_rail('best-sellers', setting('rail_best_title', 'Best sellers'), $bestsellers, 'No best sellers are ready to ship right now.', '/shop?sort=popular');
 }
 if (setting('rail_new_on', '1') === '1') {
-    render_product_rail('new-arrivals', setting('rail_new_title', 'New arrivals'), $arrivals, 'No new trays are ready to ship right now.');
+    render_product_rail('new-arrivals', setting('rail_new_title', 'New arrivals'), $arrivals, 'No new trays are ready to ship right now.', '/shop?filter=new');
 }
 if (setting('rail_offers_on', '1') === '1') {
-    render_product_rail('offers', setting('rail_offers_title', 'Offers'), $offers, 'No current offers.');
+    render_product_rail('offers', setting('rail_offers_title', 'Offers'), $offers, 'No current offers.', '/shop?flag=offer');
 }
 ?>
+<section class="section" id="plant-this-month">
+  <div class="wrap">
+    <div class="head">
+      <h2>Plant this month</h2>
+      <a href="/shop">Browse all plants</a>
+    </div>
+    <p class="muted">Suited to this month around Pune.</p>
+    <div class="filters">
+      <?php foreach ($monthPlants as $plant): ?>
+        <a href="/product/<?= e((string) $plant['slug']) ?>"><?= e((string) $plant['name']) ?></a>
+      <?php endforeach; ?>
+      <?php if (!$monthPlants): ?><span class="muted">The nursery has not listed this month yet.</span><?php endif; ?>
+    </div>
+  </div>
+</section>
+<section class="section" id="order-calculator">
+  <div class="wrap narrow">
+    <h2>Order calculator</h2>
+    <p class="muted">Trays are sold whole. 150 seedlings is one tray. A part tray is rounded up.</p>
+    <form class="calc" data-calc data-min-inr="<?= (int) setting('seasonal_discount_min_inr', '5000') ?>" data-min-seed="<?= (int) setting('discount_min_seedlings', '5000') ?>" data-percent="<?= (int) setting('seasonal_discount_percent', '10') ?>" data-basis="<?= e(setting('discount_basis', 'rupees')) ?>" data-on="<?= setting('seasonal_discount_on', '0') === '1' ? '1' : '0' ?>">
+      <label>Plant
+        <select data-calc-plant>
+          <?php foreach ($cards as $plant):
+            $sell = selling_price($plant);
+            if (!empty($sell['blocked']) || (int) ($sell['paise'] ?? 0) < 1) { continue; }
+          ?>
+            <option value="<?= (int) $sell['paise'] ?>" data-tray="<?= (int) $sell['tray'] ?>"><?= e((string) $plant['name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+      <label>Number of seedlings <input data-calc-qty type="number" min="1" value="150"></label>
+      <p data-calc-out class="price"></p>
+    </form>
+  </div>
+</section>
+<section class="section" id="browse-all">
+  <div class="wrap">
+    <div class="head">
+      <h2>Browse all plants</h2>
+      <a href="/price-list">Full price list</a>
+    </div>
+    <?php
+    $lastCat = '';
+    foreach ($cards as $plant):
+      if ($plant['category_name'] !== $lastCat):
+        if ($lastCat !== '') { echo '</div>'; }
+        $lastCat = (string) $plant['category_name'];
+        echo '<h3>' . e($lastCat) . '</h3><div class="grid">';
+      endif;
+      product_card($plant);
+    endforeach;
+    if ($lastCat !== '') { echo '</div>'; }
+    if (!$cards): ?><p>The plant list will appear after the shop update.</p><?php endif; ?>
+  </div>
+</section>
+<p class="wrap btn-row">
+  <a class="btn" href="/price-list?pdf=en">Download price list PDF</a>
+  <a class="btn" href="/price-list?pdf=mr">Download Marathi PDF</a>
+</p>
 <section class="section why-section">
   <div class="wrap why">
     <h2>Why Precision Agritech</h2>

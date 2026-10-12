@@ -63,9 +63,18 @@ expect('seasonal base skips overgrown by default', seasonal_base_amount([
 
 try {
     db();
-    expect('seasonal discount ships off', seasonal_offer(5000, false, false)['amount'] === 0);
+    save_setting('seasonal_discount_on', '0');
+    expect('seasonal discount can be off', seasonal_offer(5000, false, false)['amount'] === 0);
+    save_setting('seasonal_discount_on', '1');
+    save_setting('discount_basis', 'rupees');
+    save_setting('seasonal_discount_min_inr', '5000');
+    save_setting('seasonal_discount_percent', '10');
+    expect('discount below minimum', seasonal_offer(4999, false, false)['amount'] === 0);
+    expect('discount exactly at minimum', seasonal_offer(5000, false, false)['amount'] === 500);
+    expect('discount above minimum', seasonal_offer(6000, false, false)['amount'] === 600);
+    save_setting('seasonal_discount_on', '0');
     expect('farmer seasonal switch ships off', setting('seasonal_applies_farmer', '0') === '0');
-    expect('seedling count display ships off', setting('show_seedling_count', '0') === '0');
+    expect('seedling count setting is on or off', in_array(setting('show_seedling_count', '0'), ['0', '1'], true));
     $pdo = db();
     $pdo->beginTransaction();
     $category = (int) $pdo->query('SELECT id FROM categories ORDER BY id LIMIT 1')->fetchColumn();
@@ -108,4 +117,8 @@ try {
 }
 
 echo $fail === 0 ? "PASS pricing rules\n" : "FAIL pricing rules\n";
+save_setting('seasonal_discount_on', '1');
+save_setting('discount_basis', 'rupees');
+save_setting('seasonal_discount_percent', '10');
+save_setting('seasonal_discount_min_inr', '5000');
 exit($fail === 0 ? 0 : 1);

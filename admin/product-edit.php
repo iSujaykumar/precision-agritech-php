@@ -21,6 +21,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $sku = strtoupper(trim((string) ($_POST['sku'] ?? '')));
         $price = (int) ($_POST['price_inr'] ?? 0);
+        $paiseRaw = trim((string) ($_POST['price_per_seedling_paise'] ?? ''));
+        $paise = null;
+        $trayPaise = null;
+        if ($paiseRaw !== '') {
+            if (!preg_match('/^\d+$/', $paiseRaw) || (int) $paiseRaw > 100000) {
+                throw new RuntimeException('Per-seedling price is whole paise, from 0 to 100000.');
+            }
+            $paise = (int) $paiseRaw;
+            if ($paise > 0) {
+                $trayPaise = exact_tray_paise($paise, 150);
+                $price = intdiv($trayPaise + 50, 100);
+            }
+        }
         $compareRaw = trim((string) ($_POST['compare_at_inr'] ?? ''));
         if ($compareRaw !== '' && !preg_match('/^[1-9][0-9]*$/', $compareRaw)) {
             throw new RuntimeException('The old price must be a whole number of rupees, or left blank.');
@@ -79,14 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $image = $saved;
         }
-        $paiseRaw = trim((string) ($_POST['price_per_seedling_paise'] ?? ''));
-        $paise = null;
-        if ($paiseRaw !== '') {
-            if (!preg_match('/^\d+$/', $paiseRaw) || (int) $paiseRaw > 100000) {
-                throw new RuntimeException('Per-seedling price is whole paise, from 0 to 100000.');
-            }
-            $paise = (int) $paiseRaw;
-        }
         $overrideRaw = trim((string) ($_POST['seedlings_override'] ?? ''));
         $override = null;
         if ($overrideRaw !== '') {
@@ -97,7 +102,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $farmerOnly = isset($_POST['farmer_only']) ? 1 : 0;
         $overgrown = isset($_POST['is_overgrown']) ? 1 : 0;
-        $extra = [$paise, $override, $farmerOnly, $overgrown];
+        $marathi = clean_text((string) ($_POST['marathi_name'] ?? ''), 160);
+        $picked = $_POST['purposes'] ?? [];
+        if (!is_array($picked)) {
+            $picked = [];
+        }
+        $picked = array_values(array_intersect(array_keys(purpose_choices()), array_map('strval', $picked)));
+        $purposes = implode(',', $picked);
+        $listOnly = isset($_POST['shop_card']) ? 0 : 1;
+        $placeholder = ($image === '' || $image === '/brand/seedling.webp') ? 1 : 0;
+        $extra = [$paise, $override, $farmerOnly, $overgrown, $marathi, $purposes, $listOnly, $trayPaise, $placeholder, 0];
         $fields = [
             $slug, $sku, $name, trim((string) $_POST['scientific_name']), trim((string) $_POST['variety']),
             $categoryId, trim((string) $_POST['short_description']), trim((string) $_POST['description']),
@@ -112,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo = db();
         $pdo->beginTransaction();
         if ($product) {
-            $pdo->prepare('UPDATE products SET slug=?, sku=?, name=?, scientific_name=?, variety=?, category_id=?, short_description=?, description=?, planting_info=?, care_info=?, flowering_info=?, colour=?, uses=?, image_url=?, unit_label=?, price_inr=?, compare_at_inr=?, min_order=?, availability=?, season_label=?, bestseller=?, is_new=?, on_offer=?, offer_starts_at=?, offer_ends_at=?, active=?, price_per_seedling_paise=?, seedlings_override=?, farmer_only=?, is_overgrown=? WHERE id=?')
+            $pdo->prepare('UPDATE products SET slug=?, sku=?, name=?, scientific_name=?, variety=?, category_id=?, short_description=?, description=?, planting_info=?, care_info=?, flowering_info=?, colour=?, uses=?, image_url=?, unit_label=?, price_inr=?, compare_at_inr=?, min_order=?, availability=?, season_label=?, bestseller=?, is_new=?, on_offer=?, offer_starts_at=?, offer_ends_at=?, active=?, price_per_seedling_paise=?, seedlings_override=?, farmer_only=?, is_overgrown=?, marathi_name=?, purposes=?, list_only=?, tray_paise=?, image_is_placeholder=?, needs_copy=? WHERE id=?')
                 ->execute([...$fields, ...$extra, $id]);
             $delta = $stock - (int) $product['stock_qty'];
             if ($delta !== 0) {
@@ -120,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             audit_log((int) $admin['id'], 'product_update', 'product', $id, (string) $product['price_inr'], (string) $price . ' paise ' . (string) ($paise ?? ''));
         } else {
-            $pdo->prepare('INSERT INTO products (slug, sku, name, scientific_name, variety, category_id, short_description, description, planting_info, care_info, flowering_info, colour, uses, image_url, unit_label, price_inr, compare_at_inr, stock_qty, min_order, availability, season_label, bestseller, is_new, on_offer, offer_starts_at, offer_ends_at, active, price_per_seedling_paise, seedlings_override, farmer_only, is_overgrown) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+            $pdo->prepare('INSERT INTO products (slug, sku, name, scientific_name, variety, category_id, short_description, description, planting_info, care_info, flowering_info, colour, uses, image_url, unit_label, price_inr, compare_at_inr, stock_qty, min_order, availability, season_label, bestseller, is_new, on_offer, offer_starts_at, offer_ends_at, active, price_per_seedling_paise, seedlings_override, farmer_only, is_overgrown, marathi_name, purposes, list_only, tray_paise, image_is_placeholder, needs_copy) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
                 ->execute([...$fields, ...$extra]);
             $id = (int) $pdo->lastInsertId();
             if ($stock > 0) {
@@ -147,6 +161,7 @@ $p = $product ?: [
     'stock_qty' => 0, 'min_order' => 1, 'availability' => 'in_stock', 'season_label' => '',
     'bestseller' => 0, 'is_new' => 0, 'on_offer' => 0, 'offer_starts_at' => '', 'offer_ends_at' => '', 'active' => 1,
     'price_per_seedling_paise' => '', 'seedlings_override' => '', 'farmer_only' => 0, 'is_overgrown' => 0,
+    'marathi_name' => '', 'purposes' => '', 'list_only' => 0, 'tray_paise' => '',
 ];
 admin_open($product ? 'Edit product' : 'Add product', 'products');
 if ($error) {
@@ -161,6 +176,7 @@ if ($error) {
   <label>SKU <input name="sku" required value="<?= e((string) $p['sku']) ?>"></label>
   <label>Category <select name="category_id"><?php foreach ($categories as $category): ?><option value="<?= (int) $category['id'] ?>" <?= (int) $p['category_id'] === (int) $category['id'] ? 'selected' : '' ?>><?= e($category['name']) ?></option><?php endforeach; ?></select></label>
   <label>Scientific name <input name="scientific_name" value="<?= e((string) $p['scientific_name']) ?>"></label>
+  <label>Marathi name <input name="marathi_name" value="<?= e((string) ($p['marathi_name'] ?? '')) ?>" placeholder="झेंडू"></label>
   <label>Variety <input name="variety" value="<?= e((string) $p['variety']) ?>"></label>
   <label>Short description <textarea name="short_description"><?= e((string) $p['short_description']) ?></textarea></label>
   <label>Description <textarea name="description"><?= e((string) $p['description']) ?></textarea></label>
@@ -176,7 +192,8 @@ if ($error) {
   <?php endif; ?>
   <label>Unit <input name="unit_label" value="<?= e((string) $p['unit_label']) ?>"></label>
   <label>Price INR <input name="price_inr" type="number" min="1" required value="<?= e((string) $p['price_inr']) ?>"></label>
-  <label>Per seedling paise <input name="price_per_seedling_paise" type="number" min="0" max="100000" value="<?= e((string) ($p['price_per_seedling_paise'] ?? '')) ?>" placeholder="425 means Rs 4.25"></label>
+  <label>Per seedling paise <input name="price_per_seedling_paise" type="number" min="0" max="100000" value="<?= e((string) ($p['price_per_seedling_paise'] ?? '')) ?>" placeholder="425 means Rs 4.25" data-seed-paise></label>
+  <p class="muted" data-tray-live>Price per tray (150 seedlings) updates as you type. Example: 425 paise is Rs 637.50 per tray.</p>
   <label>Seedlings per tray override <input name="seedlings_override" type="number" min="1" max="1000" value="<?= e((string) ($p['seedlings_override'] ?? '')) ?>" placeholder="Blank uses the shop setting"></label>
   <?php
     $shownPaise = (int) ($p['price_per_seedling_paise'] ?? 0);
@@ -195,6 +212,14 @@ if ($error) {
   <label>Season <input name="season_label" value="<?= e((string) $p['season_label']) ?>"></label>
   <label>Offer starts <input name="offer_starts_at" type="datetime-local" value="<?= e(substr(str_replace(' ', 'T', (string) ($p['offer_starts_at'] ?? '')), 0, 16)) ?>"></label>
   <label>Offer ends <input name="offer_ends_at" type="datetime-local" value="<?= e(substr(str_replace(' ', 'T', (string) ($p['offer_ends_at'] ?? '')), 0, 16)) ?>"></label>
+  <fieldset>
+    <legend>Shop by purpose</legend>
+    <?php $have = array_filter(array_map('trim', explode(',', (string) ($p['purposes'] ?? '')))); ?>
+    <?php foreach (purpose_choices() as $key => $label): ?>
+      <label><input type="checkbox" name="purposes[]" value="<?= e($key) ?>" <?= in_array($key, $have, true) ? 'checked' : '' ?>> <?= e($label) ?></label>
+    <?php endforeach; ?>
+  </fieldset>
+  <label><input type="checkbox" name="shop_card" value="1" <?= (int) ($p['list_only'] ?? 0) === 0 ? 'checked' : '' ?>> Show this plant in the shop</label>
   <label><input type="checkbox" name="bestseller" <?= $p['bestseller'] ? 'checked' : '' ?>> Bestseller</label>
   <label><input type="checkbox" name="is_new" <?= $p['is_new'] ? 'checked' : '' ?>> New</label>
   <label><input type="checkbox" name="on_offer" <?= $p['on_offer'] ? 'checked' : '' ?>> On offer</label>

@@ -179,10 +179,11 @@ function shop_phone_digits(): string
     if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
         $digits = substr($digits, 2);
     }
-    if ($digits === '9011975959') {
+    $allowed = ['8080370152', '8421577787', '8421577725'];
+    if (!in_array($digits, $allowed, true)) {
         return '8080370152';
     }
-    return $digits !== '' ? $digits : '8080370152';
+    return $digits;
 }
 
 function shop_phone_links(): string
@@ -285,6 +286,7 @@ function csv_cell(string $value): string
 function save_setting(string $key, string $value): void
 {
     db()->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)')->execute([$key, $value]);
+    $GLOBALS['pa_settings_dirty'] = true;
 }
 
 function checked_setting(string $key, string $value): string

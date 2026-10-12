@@ -1,7 +1,7 @@
 CHANGELOG — phones, 2026-27 varieties, farmer list, per-seedling prices
 
 What you will notice
-- The old mobile 9011975959 is gone. The site shows 8080370152, 8421577787 and 8421577725. WhatsApp picks one of them and keeps it for that visit.
+- The old mobile the nursery numbers is gone. The site shows 8080370152, 8421577787 and 8421577725. WhatsApp picks one of them and keeps it for that visit.
 - Shop cards show the rate per seedling and the price per tray of 150. Example: marigold is ₹4.25 per seedling and ₹637.50 per tray. The old tray price was ₹220.
 - 19 plants you already had stay as the shop cards. 26 plants from the sheet were added. Varieties with their own price sit on the parent card. They are not separate cards.
 - Ptilotus was not on the sheet. Its price is still ₹450.

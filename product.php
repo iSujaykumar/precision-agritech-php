@@ -15,6 +15,16 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
+        if (($_POST['action'] ?? '') === 'restock') {
+            $contact = trim((string) ($_POST['contact'] ?? ''));
+            if ($contact === '' || strlen($contact) > 160) {
+                throw new RuntimeException('Enter a phone number or email so we can tell you.');
+            }
+            db()->prepare('INSERT INTO restock_requests (product_id, contact) VALUES (?, ?)')->execute([(int) $product['id'], $contact]);
+            flash_set('We will contact you when this plant is back.');
+            header('Location: /product/' . rawurlencode($product['slug']));
+            exit;
+        }
         if (($_POST['action'] ?? '') === 'review') {
             $user = require_user();
             if (($user['role'] ?? '') === 'admin') {
@@ -138,6 +148,8 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
       <?php endif; ?>
       <p class="muted"><?= e($product['scientific_name']) ?> · <?= e($product['variety']) ?><?php if (($sell['marathi'] ?? '') !== ''): ?> · <?= e((string) $sell['marathi']) ?><?php endif; ?></p>
       <p class="price"><?= $sell['blocked'] ? 'Price on request' : e(price_pair_text($sell)) ?></p>
+      <p class="muted">Nursery grown at Theur. Sold by the tray (150 seedlings). Call or WhatsApp for bulk.</p>
+      <?php $banner = discount_banner_text(); if ($banner !== ''): ?><p class="muted"><?= e($banner) ?></p><?php endif; ?>
       <p>Grown at Theur, Pune · <?= (int) available_trays($product) ?> trays ready · Delivery in 2–4 days after payment is confirmed.</p>
       <?php if ($rating): ?><p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?> reviews</span></p><?php endif; ?>
       <p><?= e($product['description']) ?></p>
@@ -145,7 +157,13 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
         <p class="stock-out">On request. Ask us for availability.</p>
       <?php elseif ($stock <= 0): ?>
         <p class="stock-out">Out of stock</p>
-      <?php elseif ($stock <= 5): ?>
+        <form method="post">
+          <?= csrf_field() ?>
+          <input type="hidden" name="action" value="restock">
+          <label>Notify me when available <input name="contact" required placeholder="Phone or email"></label>
+          <button class="btn" type="submit">Notify me when available</button>
+        </form>
+      <?php elseif ($stock <= low_stock_limit()): ?>
         <p class="stock-low">Only <?= (int) $stock ?> left</p>
       <?php else: ?>
         <p class="muted"><?= (int) $stock ?> trays ready · minimum <?= (int) $qtyMin ?></p>
@@ -157,7 +175,30 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
         <label>Trays <input name="qty" type="number" min="1" max="50" value="<?= (int) $qtyMin ?>"></label>
         <button class="btn" type="submit" <?= ($stock < 1 || !empty($sell['blocked'])) ? 'disabled' : '' ?>>Add to cart</button>
       </form>
-      <?php if ($waTray !== ''): ?><p><a class="btn" href="<?= e($waTray) ?>" target="_blank" rel="noopener">Ask about this tray on WhatsApp</a></p><?php endif; ?>
+      <?php if ($waTray !== ''): ?><p><a class="btn" href="<?= e(wa_order_href($product, $qtyMin)) ?>" target="_blank" rel="noopener">WhatsApp this plant</a></p><?php endif; ?>
+      <?php $varieties = plant_varieties((int) $product['id']); if ($varieties): ?>
+      <h2>Varieties and rates</h2>
+      <div class="table-wrap"><table>
+        <tr><th>Item</th><th>Variety</th><th>Rate per seedling</th><th>Price per tray (150)</th></tr>
+        <?php foreach ($varieties as $variety):
+          $paise = (int) $variety['price_per_seedling_paise'];
+          $size = (int) ($variety['seedlings_per_tray'] ?? 150);
+          if ($size < 1) { $size = 150; }
+        ?>
+        <tr>
+          <td><?= e((string) $variety['item_name']) ?></td>
+          <td><?= e((string) $variety['variety']) ?><?php if (trim((string) $variety['marathi_name']) !== ''): ?> · <?= e((string) $variety['marathi_name']) ?><?php endif; ?></td>
+          <td><?= e(seedling_rate_text($paise)) ?></td>
+          <td><?= e(inr_paise(exact_tray_paise($paise, $size))) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </table></div>
+      <?php endif; ?>
+      <h2>Order calculator</h2>
+      <form class="calc" data-calc data-paise="<?= (int) ($sell['paise'] ?? 0) ?>" data-tray="<?= (int) ($sell['tray'] ?? 150) ?>" data-min-inr="<?= (int) setting('seasonal_discount_min_inr', '5000') ?>" data-min-seed="<?= (int) setting('discount_min_seedlings', '5000') ?>" data-percent="<?= (int) setting('seasonal_discount_percent', '10') ?>" data-basis="<?= e(setting('discount_basis', 'rupees')) ?>" data-on="<?= setting('seasonal_discount_on', '0') === '1' ? '1' : '0' ?>">
+        <label>Number of seedlings <input data-calc-qty type="number" min="1" value="150"></label>
+        <p data-calc-out class="price"></p>
+      </form>
       <?php $family = variety_family($product); if (count($family) > 1): ?>
       <h2>Choose a variety</h2>
       <div class="table-wrap"><table>

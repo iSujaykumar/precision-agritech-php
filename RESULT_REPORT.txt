@@ -1,0 +1,82 @@
+PRECISION AGRITECH — RESULT REPORT
+Date: 12 October 2026
+
+WHAT WAS WRONG AND WHAT CHANGED
+- The live shop still had all 26 sheet plants as half-empty cards (stock 0, needs copy, shared seedling picture). The update now keeps 30 shop cards: the 19 older plants, Ptilotus, and Cosmos, Aster, Calendula, Dahlia, Verbena, Portulaca, Phlox, Torenia, Gerbera, Alyssum. The other 16 stay on the full price list until someone presses Show this plant in the shop.
+- Price-list rows used the printed serial number as the key. Two seasonal rows shared serial 22, and the farmer list restarts at 1, so rows were dropped. Each sheet row now has its own key. Seasonal list is 67 rows. Farmer list is 33 rows.
+- A shared seedling picture was kept even when a real photo existed. Cards now use products/<slug>.webp.
+- Bulk discount is 10% above Rs 5,000 on plants only. Packing and transport are not discounted. Checkout uses the same seedling-count rule as the cart.
+- Hide replaces Delete on the plant list. Restore is under Recently hidden.
+- The product form can set the Marathi name, purpose tags, show-in-shop, and shows the tray price as you type.
+- Visitors see “We are updating the shop” until a staff sign-in has loaded the sheets. No raw SQL error is shown.
+
+COUNTS
+- Shop cards: 30
+- With an image file: 30
+- With stock: 30
+- Flagged New: 10
+- Flagged Best seller: 8 (marigold, petunia, zinnia, sunflower, salvia, vinca, impatiens, geranium)
+- Price-list-only plants: 16
+- Placeholder photos: none. image_is_placeholder is 0. Photos are the files already in products/.
+- Default starting stock: 40 trays. See IMPORT_REPORT.txt for the plants that were at 0 and were set to 40.
+
+TEST-FIX LOOP
+Round 1: final list test failed because old price-list rows were left behind (67 and 33 counts). Fixed by removing rows that are not on the current sheet.
+Round 2: counts still failed because serial numbers repeat. Fixed with a unique key per sheet row. Ptilotus stayed flagged New. Fixed. Discount tests read a stale settings cache. Fixed.
+Round 3: catalog test expected the old “new” plants and a sale compare of Rs 400, which is below today’s tray price. Updated the test to the 10 new plants and a higher compare price.
+Round 4: full re-run after the live update. Green.
+
+CHECKS
+PASS php -l on 99 PHP files
+PASS node --check on assets/js/admin.js and assets/js/calc.js
+PASS sh -n tests/smoke.sh
+PASS tests/v2_prove.php
+PASS tests/final_lists.php
+PASS tests/catalog_rules.php
+PASS tests/pricing_rules.php
+PASS tests/upi_qr.php
+PASS fresh database from schema.sql, update run twice: 30 cards, 67 seasonal rows, 33 farmer rows, second run added 0 plants
+PASS legacy database with the new columns removed, update run twice: columns came back, 30 cards, 67 seasonal rows, second run added 0 plants
+PASS public pages HTTP 200: home, shop, shop?filter=new, product/marigold, product/cosmos, price-list, cart, checkout
+PASS homepage shows 30 plants, both prices, best sellers, new arrivals, plant this month, order calculator, 10% banner
+PASS farmer page returns “not listed” for a guest
+PASS Nursery Desk as owner: Today, stock, prices, update, help, attention, products, orders, settings, finder — HTTP 200, no Unknown column, Fatal, Warning, Notice, or Deprecated
+PASS lower role (staff): stock page opens; banks, update, and labels say Not allowed
+PASS /tests/, /database/, /uploads/private/, and config.local.php are not downloadable (HTTP 403)
+PASS old phone search (including spaces, dashes, +91, and wa.me) returns no hits
+PASS old terms text is not in the shop files
+PASS discount maths: Rs 4,999 → no discount; Rs 5,000 → Rs 500 off; Rs 6,500 → Rs 650 off; packing Rs 180 stays outside the discount
+PASS seedling basis: 4,999 seedlings no discount; 5,000 seedlings → 10% of the plant total
+PASS calculator trays: 1→1, 149→1, 150→1, 151→2, 5000→34
+NOT RUN MySQL 5.7
+NOT RUN MySQL 8
+NOT RUN a live UPI payment
+NOT RUN a live WhatsApp or SMS send
+NOT RUN two database connections racing the last tray (the row lock is still in checkout; it was not executed on two connections)
+NOT RUN an exact homepage query counter. The homepage loads the card list in one query, reviews in one query, and ratings in one grouped query. It does not query inside the card loop.
+
+CONTROL CHECKLIST
+The desk pages below are the place to change each thing. A value was not clicked, watched on the public site, and put back for every row in this session, so those rows are NOT RUN rather than a claimed PASS.
+
+| Item | Desk page | Result |
+| Plants add, edit, hide, restore, photo, text, Marathi, purposes, flags, stock, price, show in shop | Products, Edit product, Stock, Prices, Photos, Needs attention | NOT RUN as a click-revert. Pages open. Import set the live cards. |
+| Price lists add, edit, hide, import, export | Price lists | NOT RUN as a click-revert. Sheet import verified at 67 and 33 rows. |
+| Discount on/off, percent, minimum, basis, banner | Settings and Invoices | PASS for the default (10% above Rs 5,000). Click-revert of the minimum was not done. |
+| Homepage hero, rails, plant this month | Homepage, Plant this month | NOT RUN as a click-revert. October plants show on the home page. |
+| Three phones and WhatsApp mode | Phones | PASS that only 8080370152, 8421577787, 8421577725 are stored. Mode click-revert NOT RUN. |
+| Banks and UPI | Banks | NOT RUN as a click-revert. Accounts stay hidden until verified. |
+| Terms and policies | Invoices, Pages | PASS terms field is empty and the old paragraph is not shown. |
+| Orders, payments, invoices, customers, restock | Orders, Payments, Restock | NOT RUN as a click-revert. Pages open. |
+| Stock rules | Settings | NOT RUN as a click-revert. Default stock 40 and low-stock 10 are in use. |
+| Language labels | Labels | NOT RUN as a click-revert. English/Marathi switch exists. |
+| Staff, audit, health | Staff, Audit log, Health | NOT RUN as a click-revert. |
+| Where do I change this? | Finder | PASS page opens and lists the jobs. |
+
+BUGS FIXED THIS ROUND
+- Half-empty shop cards and 26 extra plants on the shop
+- Price list shorter than the sheet because serial numbers repeat
+- Seedling fallback image kept instead of the plant photo
+- Discount setting looked unchanged inside the same request
+- Checkout ignored the “number of seedlings” discount basis
+- Delete could remove a plant; it now hides, with restore
+- Catalog tests still expected the old new-arrival plants

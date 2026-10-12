@@ -5,55 +5,33 @@ connect_or_explain();
 if (!can_see_farmer()) {
     http_response_code(404);
     render_header('Page not found | Precision Agritech');
-    echo '<section class="section"><div class="wrap narrow"><h1>Page not found</h1><p>That page is not on the nursery site.</p></div></section>';
+    echo '<section class="section"><div class="wrap"><h1>That page is not listed.</h1><p><a href="/shop">Browse the shop</a></p></div></section>';
     render_footer();
     exit;
 }
-$rows = db()->query("SELECT p.* FROM products p WHERE p.active = 1 AND p.farmer_only = 1 AND p.parent_product_id IS NOT NULL ORDER BY p.name, p.id")->fetchAll();
-$columns = ['Marigold' => [], 'Chrysanthemum' => []];
-foreach ($rows as $row) {
-    $key = stripos((string) $row['name'], 'chrys') !== false || stripos((string) $row['sku'], 'chrys') !== false ? 'Chrysanthemum' : 'Marigold';
-    if (stripos((string) $row['name'], 'Marigold') !== false) {
-        $key = 'Marigold';
-    }
-    $columns[$key][] = $row;
-}
-render_header('Farmer rates | Precision Agritech', 'Marigold and chrysanthemum rates from 1 January 2026.');
+$rows = db()->query("SELECT i.item_name, i.variety, i.marathi_name, i.price_per_seedling_paise
+    FROM price_list_items i JOIN price_lists l ON l.id = i.price_list_id
+    WHERE l.slug = 'farmer' AND i.active = 1 ORDER BY i.id")->fetchAll();
+$traySize = (int) setting('seedlings_per_tray', '150');
+render_header('Farmer rates | Precision Agritech', 'Farmer rates for marigold and chrysanthemum.');
 ?>
 <section class="section"><div class="wrap">
-  <h1>दि ०१.०१.२०२६ पासून झेंडू आणि शेवंतीचे नवीन दरपत्रक</h1>
-  <p>New rate sheet for marigold and chrysanthemum from 01.01.2026</p>
-  <p class="muted">1 tray = 150 seedlings. These rates are for approved farmer accounts.</p>
-  <div class="grid">
-    <?php foreach ($columns as $title => $items): ?>
-    <div>
-      <h2><?= e($title) ?></h2>
-      <div class="table-wrap"><table>
-        <tr><th>Variety</th><th>Rate</th><th></th></tr>
-        <?php foreach ($items as $item):
-          $sell = selling_price($item);
-          $name = (string) $item['variety'];
-          if (setting('show_marathi_names', '1') === '1' && trim((string) $item['marathi_name']) !== '') {
-              $name = (string) $item['marathi_name'] . ' (' . $name . ')';
-          }
-        ?>
-        <tr>
-          <td><?= e($name) ?></td>
-          <td><?= e(price_pair_text($sell)) ?></td>
-          <td>
-            <form method="post" action="/cart">
-              <?= csrf_field() ?>
-              <input type="hidden" name="action" value="add">
-              <input type="hidden" name="slug" value="<?= e((string) $item['slug']) ?>">
-              <input type="hidden" name="qty" value="1">
-              <button class="btn" type="submit">Add</button>
-            </form>
-          </td>
-        </tr>
-        <?php endforeach; ?>
-      </table></div>
-    </div>
+  <h1>Farmer rates</h1>
+  <p class="muted">These rates show only for a customer marked Farmer. 1 tray = <?= (int) $traySize ?> seedlings.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Item</th><th>Variety</th><th>Marathi</th><th>Per seedling</th><th>Per tray</th></tr>
+    <?php foreach ($rows as $row):
+      $paise = (int) $row['price_per_seedling_paise'];
+    ?>
+    <tr>
+      <td><?= e((string) $row['item_name']) ?></td>
+      <td><?= e((string) $row['variety']) ?></td>
+      <td><?= e((string) $row['marathi_name']) ?></td>
+      <td><?= e(seedling_rate_text($paise)) ?></td>
+      <td><?= e(inr_paise(exact_tray_paise($paise, $traySize))) ?></td>
+    </tr>
     <?php endforeach; ?>
-  </div>
+  </table></div>
+  <?php if (!$rows): ?><p>The farmer list has not been loaded yet.</p><?php endif; ?>
 </div></section>
-<?php render_footer();
+<?php render_footer(); ?>

@@ -112,8 +112,8 @@ ALTER TABLE reviews MODIFY product_id INT UNSIGNED NULL;
 
 INSERT INTO settings (`key`, `value`) VALUES
 ('min_order_inr','0'),
-('shop_phone','9011975959'),
-('whatsapp_number','919011975959'),
+('shop_phone','8080370152'),
+('whatsapp_number','918080370152'),
 ('shop_email','info@precisionagritech.in'),
 ('mail_from','info@precisionagritech.in'),
 ('shop_address','Survey No. 44/2, Theur Naygaon Road, Gaikwadvasti, Pune 412110'),
@@ -499,7 +499,7 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('invoice_email_on','1'),
 ('overgrown_intro','These trays grew past the usual transplant stage. They are sold as they are.'),
 ('prices_dispatch_note','Prices are subject to change. The price at dispatch is final.'),
-('invoice_terms','Confirmation in writing or by phone with a minimum 50 percent advance. The advance covers box packing, transport and freight. Discount is not applicable on packaging and transportation. The price at dispatch is final. A variety may be replaced with a suitable alternative. Packing and transport are extra at actual cost. Prices are subject to change. Disputes are under Pune jurisdiction.')
+('invoice_terms','')
 ON DUPLICATE KEY UPDATE `key` = `key`;
 
 
@@ -591,9 +591,10 @@ WHERE NOT EXISTS (SELECT 1 FROM bank_accounts WHERE account_no = '06072011000015
 INSERT INTO bank_accounts (bank, branch, account_name, account_no, ifsc, sort_order, verified, show_public)
 SELECT 'FEDERAL BANK', 'Pune Branch', 'Precision Agritech Pvt. Ltd.', '13480200009958', 'FDRL0001348', 3, 0, 0 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM bank_accounts WHERE account_no = '13480200009958');
-UPDATE settings SET `value` = '8080370152' WHERE `key` = 'shop_phone' AND `value` IN ('9011975959', '919011975959');
-UPDATE settings SET `value` = '918080370152' WHERE `key` = 'whatsapp_number' AND `value` IN ('9011975959', '919011975959');
-UPDATE settings SET `value` = '8080370152' WHERE `key` = 'grievance_officer_phone' AND `value` IN ('9011975959', '919011975959');
+UPDATE settings SET `value` = '8080370152' WHERE `key` = 'shop_phone' AND `value` NOT IN ('8080370152','8421577787','8421577725');
+UPDATE settings SET `value` = '918080370152' WHERE `key` = 'whatsapp_number' AND `value` NOT IN ('918080370152','918421577787','918421577725');
+UPDATE settings SET `value` = '8080370152' WHERE `key` = 'grievance_officer_phone' AND `value` NOT IN ('8080370152','8421577787','8421577725');
+DELETE FROM phone_numbers WHERE digits NOT IN ('8080370152','8421577787','8421577725');
 INSERT INTO settings (`key`, `value`) VALUES
 ('whatsapp_mode','random'),
 ('whatsapp_fixed_id','0'),
@@ -605,3 +606,49 @@ INSERT INTO settings (`key`, `value`) VALUES
 ON DUPLICATE KEY UPDATE `key` = `key`;
 UPDATE price_lists SET effective_from = '2026-04-01', effective_to = '2027-03-31' WHERE slug = 'seasonal-2026-27' AND effective_from IS NULL;
 UPDATE price_lists SET effective_from = '2026-01-01' WHERE slug = 'farmer' AND effective_from IS NULL;
+DROP PROCEDURE IF EXISTS pa_add_column;
+DELIMITER $$
+CREATE PROCEDURE pa_add_column(IN tbl VARCHAR(64), IN col VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND COLUMN_NAME = col
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+CALL pa_add_column('products', 'image_is_placeholder', 'ALTER TABLE products ADD COLUMN image_is_placeholder TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('products', 'purposes', 'ALTER TABLE products ADD COLUMN purposes VARCHAR(240) NOT NULL DEFAULT ''''');
+CALL pa_add_column('products', 'list_only', 'ALTER TABLE products ADD COLUMN list_only TINYINT(1) NOT NULL DEFAULT 0');
+DROP PROCEDURE IF EXISTS pa_add_column;
+CREATE TABLE IF NOT EXISTS restock_requests (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  contact VARCHAR(160) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'new',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY restock_product (product_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS price_undo (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  old_paise INT NOT NULL,
+  new_paise INT NOT NULL,
+  admin_id INT UNSIGNED NOT NULL,
+  undone TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY price_undo_product (product_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO settings (`key`, `value`) VALUES
+('discount_basis','rupees'),
+('discount_min_seedlings','5000'),
+('discount_banner',''),
+('default_starting_stock','40'),
+('schema_version',''),
+('lists_loaded','0')
+ON DUPLICATE KEY UPDATE `key` = `key`;
+UPDATE settings SET `value` = '' WHERE `key` = 'invoice_terms' AND CHAR_LENGTH(`value`) > 180;

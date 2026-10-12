@@ -75,7 +75,7 @@ function can_see_farmer(): bool
 
 function catalog_card_sql(): string
 {
-    return catalog_public_sql() . ' AND p.parent_product_id IS NULL';
+    return catalog_public_sql() . ' AND p.parent_product_id IS NULL AND p.list_only = 0';
 }
 
 function variety_family(array $product): array
@@ -284,6 +284,8 @@ function load_supplied_lists(PDO $pdo): array
 {
     $tray = 150;
     $report = [];
+    $stockNotes = [];
+    apply_v2_defaults($pdo);
     $seasonalId = (int) $pdo->query("SELECT id FROM price_lists WHERE slug = 'seasonal-2026-27'")->fetchColumn();
     $farmerId = (int) $pdo->query("SELECT id FROM price_lists WHERE slug = 'farmer'")->fetchColumn();
     if ($seasonalId < 1 || $farmerId < 1) {
@@ -312,6 +314,7 @@ function load_supplied_lists(PDO $pdo): array
         'vinca' => 'Pacifica Mix',
         'zinnia' => 'Zahara / Zydeco / Profusion Double',
     ];
+    $shopNew = array_fill_keys(shop_new_slugs(), true);
     $groups = [];
     foreach (sheet_csv('price-list-2026-27.csv') as $row) {
         $key = (string) (($row['plant_group'] ?? '') !== '' ? $row['plant_group'] : $row['item']);
@@ -319,6 +322,9 @@ function load_supplied_lists(PDO $pdo): array
     }
     $matchedParents = 0;
     $createdParents = 0;
+    $keepSkus = [];
+    $seasonSeq = 0;
+    $pdo->exec('UPDATE products SET active = 0, list_only = 1 WHERE parent_product_id IS NOT NULL AND farmer_only = 0');
     foreach ($groups as $plant => $rows) {
         usort($rows, static fn ($a, $b) => ((int) $a['sr_no']) <=> ((int) $b['sr_no']));
         $existingSlug = '';
@@ -328,6 +334,7 @@ function load_supplied_lists(PDO $pdo): array
                 break;
             }
         }
+        $slug = $existingSlug !== '' ? $existingSlug : list_slug($plant);
         $wanted = $parentVariety[$existingSlug] ?? '';
         $parentRow = $rows[0];
         foreach ($rows as $row) {
@@ -337,6 +344,34 @@ function load_supplied_lists(PDO $pdo): array
             }
         }
         $paise = price_rupees_to_paise((string) $parentRow['price_per_seedling']);
+        $trayPaise = exact_tray_paise($paise, $tray);
+        $rupees = intdiv($trayPaise + 50, 100);
+        $isShop = $existingSlug !== '' || isset($shopNew[$slug]);
+        $copy = plant_copy($slug, $plant);
+        $dedicated = '/products/' . $slug . '.webp';
+        $hasPhoto = is_file(dirname(__DIR__) . $dedicated);
+        $image = $hasPhoto ? $dedicated : '/brand/seedling.webp';
+        $spec = [
+            'slug' => $slug,
+            'sku' => $existingSlug !== '' ? '' : substr('S26-' . $slug, 0, 40),
+            'name' => $plant,
+            'variety' => (string) $parentRow['variety'],
+            'paise' => $paise,
+            'tray_paise' => $trayPaise,
+            'rupees' => $rupees,
+            'category_id' => category_id_for($pdo, (string) ($parentRow['category'] ?? '')),
+            'copy' => $copy,
+            'image' => $image,
+            'placeholder' => $hasPhoto ? 0 : 1,
+            'stock' => default_start_stock(),
+            'active' => $isShop ? 1 : 0,
+            'list_only' => $isShop ? 0 : 1,
+            'is_new' => isset($shopNew[$slug]) ? 1 : 0,
+            'bestseller' => in_array($slug, bestseller_slugs(), true) ? 1 : 0,
+            'purposes' => purpose_for_slug($slug),
+            'marathi' => (string) ($parentRow['marathi_name'] ?? ''),
+            'farmer_only' => 0,
+        ];
         if ($existingSlug !== '') {
             $found = $pdo->prepare('SELECT * FROM products WHERE slug = ?');
             $found->execute([$existingSlug]);
@@ -344,97 +379,126 @@ function load_supplied_lists(PDO $pdo): array
             if (!$product) {
                 throw new RuntimeException('Existing plant missing: ' . $existingSlug);
             }
-            $saved = upsert_sheet_product($pdo, [
-                'sku' => (string) $product['sku'],
-                'keep_identity' => true,
-                'variety' => (string) $parentRow['variety'],
-                'paise' => $paise,
-                'tray' => $tray,
-            ]);
+            $spec['sku'] = (string) $product['sku'];
+            $saved = ['id' => (int) $product['id'], 'action' => 'matched', 'slug' => $existingSlug];
+            $fill = fill_shop_card($pdo, (int) $product['id'], $spec);
+            $saved['stock_default'] = $fill['stock_default'];
             $matchedParents++;
-            $parentId = $saved['id'];
-            $parentSku = (string) $product['sku'];
-            $report[] = ['list' => 'seasonal', 'plant' => $plant, 'variety' => $parentRow['variety'], 'sr' => $parentRow['sr_no'], 'action' => 'matched-parent', 'slug' => $existingSlug, 'old_inr' => $saved['old'], 'new_inr' => $saved['new'], 'tray_paise' => $saved['tray_paise'], 'sku' => $parentSku];
         } else {
-            $sku = substr('S26-' . list_slug($plant, 30), 0, 40);
-            $saved = upsert_sheet_product($pdo, [
-                'sku' => $sku,
-                'slug' => list_slug($plant),
-                'name' => $plant,
-                'variety' => (string) $parentRow['variety'],
-                'paise' => $paise,
-                'tray' => $tray,
-                'category_id' => category_id_for($pdo, (string) ($parentRow['category'] ?? '')),
-                'farmer_only' => 0,
-                'parent_id' => null,
-            ]);
+            $saved = ensure_card($pdo, $spec);
             if ($saved['action'] === 'created') {
                 $createdParents++;
             }
-            $parentId = $saved['id'];
-            $parentSku = $sku;
-            $report[] = ['list' => 'seasonal', 'plant' => $plant, 'variety' => $parentRow['variety'], 'sr' => $parentRow['sr_no'], 'action' => $saved['action'] . '-parent', 'slug' => $saved['slug'], 'old_inr' => $saved['old'], 'new_inr' => $saved['new'], 'tray_paise' => $saved['tray_paise'], 'sku' => $sku];
         }
-        upsert_list_item($pdo, $seasonalId, $parentRow, $parentId, $parentSku, 'seasonal');
-        $n = 1;
+        if (!empty($saved['stock_default'])) {
+            $stockNotes[] = $plant . ' (' . $saved['slug'] . ') set to ' . default_start_stock() . ' trays';
+        }
+        $parentId = (int) $saved['id'];
         foreach ($rows as $row) {
-            if ($row['variety'] === $parentRow['variety'] && $row['sr_no'] === $parentRow['sr_no'] && $row['item'] === $parentRow['item']) {
-                continue;
-            }
-            $childSku = substr('S26-' . list_slug($plant, 16) . '-' . str_pad((string) $row['sr_no'], 2, '0', STR_PAD_LEFT) . '-' . $n, 0, 40);
-            $n++;
-            $saved = upsert_sheet_product($pdo, [
-                'sku' => $childSku,
-                'slug' => list_slug($plant . ' ' . $row['variety']),
-                'name' => $plant,
-                'variety' => (string) $row['variety'],
-                'paise' => price_rupees_to_paise((string) $row['price_per_seedling']),
-                'tray' => $tray,
-                'category_id' => category_id_for($pdo, (string) ($row['category'] ?? '')),
-                'farmer_only' => 0,
-                'parent_id' => $parentId,
-            ]);
-            upsert_list_item($pdo, $seasonalId, $row, $saved['id'], $childSku, 'seasonal');
-            $report[] = ['list' => 'seasonal', 'plant' => $plant, 'variety' => $row['variety'], 'sr' => $row['sr_no'], 'action' => $saved['action'] . '-child', 'slug' => $saved['slug'], 'old_inr' => $saved['old'], 'new_inr' => $saved['new'], 'tray_paise' => $saved['tray_paise'], 'sku' => $childSku];
+            $seasonSeq++;
+            $sku = 'S26-' . str_pad((string) $seasonSeq, 3, '0', STR_PAD_LEFT);
+            $keepSkus[] = $sku;
+            upsert_list_item($pdo, $seasonalId, $row, $parentId, $sku, 'seasonal');
+            $report[] = ['list' => 'seasonal', 'plant' => $plant, 'variety' => $row['variety'], 'sr' => $row['sr_no'], 'action' => $saved['action'] . '-row', 'slug' => $saved['slug'], 'sku' => $sku];
         }
+    }
+    if ($keepSkus) {
+        $marks = implode(',', array_fill(0, count($keepSkus), '?'));
+        $pdo->prepare('DELETE FROM price_list_items WHERE price_list_id = ? AND sku NOT IN (' . $marks . ')')
+            ->execute(array_merge([$seasonalId], $keepSkus));
+    }
+    $ptilotus = $pdo->query("SELECT id, description FROM products WHERE slug = 'ptilotus'")->fetch();
+    if ($ptilotus) {
+        $lock = (string) $pdo->query("SELECT `value` FROM settings WHERE `key` = 'v2_flags_locked'")->fetchColumn() === '1';
+        $sql = "UPDATE products SET unit_label = 'tray (150 seedlings)', price_per_seedling_paise = 300, tray_paise = 45000, price_inr = 450, needs_copy = 0, list_only = 0, active = 1, description = ?";
+        if (!$lock) {
+            $sql .= ', is_new = 0';
+        }
+        $sql .= ' WHERE id = ?';
+        $pdo->prepare($sql)->execute([scrub_tray_wording((string) $ptilotus['description']), (int) $ptilotus['id']]);
     }
     $farmerParents = [];
     foreach (['Marigold' => ['farmer-marigold', 'F26-marigold', 'झेंडू'], 'Chrysanthemum' => ['farmer-chrysanthemum', 'F26-chrysanthemum', 'शेवंती']] as $item => $meta) {
-        $saved = upsert_sheet_product($pdo, [
-            'sku' => $meta[1],
+        $copy = plant_copy($meta[0], $item);
+        $saved = ensure_card($pdo, [
             'slug' => $meta[0],
+            'sku' => $meta[1],
             'name' => $item . ' farmer rates',
             'variety' => 'Farmer list from 01.01.2026',
             'paise' => 300,
-            'tray' => $tray,
+            'tray_paise' => 45000,
+            'rupees' => 450,
             'category_id' => category_id_for($pdo, 'Marigold and Chrysanthemum'),
+            'copy' => $copy,
+            'image' => '/products/' . ($item === 'Marigold' ? 'marigold' : 'chrysanthemum') . '.webp',
+            'placeholder' => 0,
+            'stock' => default_start_stock(),
+            'active' => 1,
+            'list_only' => 0,
             'farmer_only' => 1,
-            'parent_id' => null,
             'marathi' => $meta[2],
+            'purposes' => 'garlands',
+            'is_new' => 0,
+            'bestseller' => 0,
         ]);
         $farmerParents[$item] = $saved['id'];
     }
+    $farmerKeep = [];
     $farmerN = 0;
     foreach (sheet_csv('price-list-farmer.csv') as $row) {
         $farmerN++;
         $item = (string) $row['item'];
-        $sku = substr('F26-' . list_slug($item, 8) . '-' . str_pad((string) $row['sr_no'], 2, '0', STR_PAD_LEFT), 0, 40);
-        $saved = upsert_sheet_product($pdo, [
+        $sku = 'F26-' . str_pad((string) $farmerN, 3, '0', STR_PAD_LEFT);
+        $farmerKeep[] = $sku;
+        $slug = 'farmer-' . list_slug($item . ' ' . $row['variety']);
+        $paise = price_rupees_to_paise((string) $row['price_per_seedling']);
+        $trayPaise = exact_tray_paise($paise, $tray);
+        $copy = plant_copy($slug, $item);
+        $saved = ensure_card($pdo, [
+            'slug' => $slug,
             'sku' => $sku,
-            'slug' => 'farmer-' . list_slug($item . ' ' . $row['variety']),
             'name' => $item,
             'variety' => (string) $row['variety'],
-            'paise' => price_rupees_to_paise((string) $row['price_per_seedling']),
-            'tray' => $tray,
+            'paise' => $paise,
+            'tray_paise' => $trayPaise,
+            'rupees' => intdiv($trayPaise + 50, 100),
             'category_id' => category_id_for($pdo, 'Marigold and Chrysanthemum'),
+            'copy' => $copy,
+            'image' => '/products/' . (str_starts_with($item, 'Mar') ? 'marigold' : 'chrysanthemum') . '.webp',
+            'placeholder' => 0,
+            'stock' => default_start_stock(),
+            'active' => 1,
+            'list_only' => 0,
             'farmer_only' => 1,
             'parent_id' => $farmerParents[$item] ?? null,
             'marathi' => (string) ($row['marathi_name'] ?? ''),
+            'purposes' => 'garlands',
+            'is_new' => 0,
+            'bestseller' => 0,
         ]);
         upsert_list_item($pdo, $farmerId, $row, $saved['id'], $sku, 'farmer');
-        $report[] = ['list' => 'farmer', 'plant' => $item, 'variety' => $row['variety'], 'sr' => $row['sr_no'], 'marathi' => $row['marathi_name'] ?? '', 'action' => $saved['action'] . '-farmer', 'slug' => $saved['slug'], 'old_inr' => $saved['old'], 'new_inr' => $saved['new'], 'tray_paise' => $saved['tray_paise'], 'sku' => $sku];
+        $report[] = ['list' => 'farmer', 'plant' => $item, 'variety' => $row['variety'], 'sr' => $row['sr_no'], 'marathi' => $row['marathi_name'] ?? '', 'action' => $saved['action'] . '-farmer', 'slug' => $saved['slug'], 'sku' => $sku];
     }
-    return ['rows' => $report, 'matched_parents' => $matchedParents, 'new_parents' => $createdParents, 'farmer_rows' => $farmerN, 'groups' => count($groups)];
+    if ($farmerKeep) {
+        $marks = implode(',', array_fill(0, count($farmerKeep), '?'));
+        $pdo->prepare('DELETE FROM price_list_items WHERE price_list_id = ? AND sku NOT IN (' . $marks . ')')
+            ->execute(array_merge([$farmerId], $farmerKeep));
+    }
+    $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (\'v2_flags_locked\', \'1\') ON DUPLICATE KEY UPDATE `value` = \'1\'')->execute();
+    $fresh = $stockNotes ? implode("\n", $stockNotes) : '';
+    $saved = (string) $pdo->query("SELECT `value` FROM settings WHERE `key` = 'stock_default_note'")->fetchColumn();
+    if ($fresh !== '') {
+        $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (\'stock_default_note\', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)')->execute([$fresh]);
+        $saved = $fresh;
+    }
+    $lines = ['Plants that received the default starting stock (' . default_start_stock() . ' trays):', ''];
+    $lines[] = $saved !== '' ? $saved : 'None. Existing tray counts were kept.';
+    $lines[] = '';
+    $lines[] = 'Shop cards are the 19 older plants, Ptilotus, and these 10: ' . implode(', ', shop_new_slugs()) . '.';
+    $lines[] = 'Other sheet plants stay on the full price list until someone presses Show this plant in the shop.';
+    file_put_contents(dirname(__DIR__) . '/IMPORT_REPORT.txt', implode("\n", $lines) . "\n");
+    $GLOBALS['pa_settings_dirty'] = true;
+    return ['rows' => $report, 'matched_parents' => $matchedParents, 'new_parents' => $createdParents, 'farmer_rows' => $farmerN, 'groups' => count($groups), 'stock_defaults' => $stockNotes];
 }
 
 function load_business_settings(PDO $pdo): void
@@ -450,9 +514,12 @@ function load_business_settings(PDO $pdo): void
         }
         $ins->execute([$digits, $labels[$i] ?? 'Phone', $i + 1, $digits]);
     }
-    $pdo->exec("UPDATE settings SET `value` = '8080370152' WHERE `key` = 'shop_phone' AND `value` IN ('9011975959', '919011975959', '')");
-    $pdo->exec("UPDATE settings SET `value` = '918080370152' WHERE `key` = 'whatsapp_number' AND `value` IN ('9011975959', '919011975959', '')");
-    $pdo->exec("UPDATE settings SET `value` = '8080370152' WHERE `key` = 'grievance_officer_phone' AND `value` IN ('9011975959', '919011975959')");
+    $allowed = ['8080370152', '8421577787', '8421577725'];
+    $in = "'" . implode("','", $allowed) . "'";
+    $pdo->exec("UPDATE settings SET `value` = '8080370152' WHERE `key` = 'shop_phone' AND `value` NOT IN ($in)");
+    $pdo->exec("UPDATE settings SET `value` = '918080370152' WHERE `key` = 'whatsapp_number' AND `value` NOT IN ('918080370152','918421577787','918421577725')");
+    $pdo->exec("UPDATE settings SET `value` = '8080370152' WHERE `key` = 'grievance_officer_phone' AND `value` NOT IN ($in)");
+    $pdo->exec("DELETE FROM phone_numbers WHERE digits NOT IN ($in)");
     $put = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `key` = `key`');
     foreach ([
         'whatsapp_mode' => 'random',
@@ -470,12 +537,7 @@ function load_business_settings(PDO $pdo): void
         $pdo->prepare("UPDATE settings SET `value` = ? WHERE `key` = 'seller_legal_name' AND `value` IN ('', 'Precision Agritech Private Limited', 'Precision Agritech')")->execute([$legal]);
         $put->execute(['seller_legal_name', $legal]);
     }
-    $terms = $data['terms'] ?? [];
-    if (is_array($terms) && $terms) {
-        $text = implode("\n", array_map(static fn ($line) => trim((string) $line), $terms));
-        $old = 'Confirmation in writing or by phone with a minimum 50 percent advance. The advance covers box packing, transport and freight. Discount is not applicable on packaging and transportation. The price at dispatch is final. A variety may be replaced with a suitable alternative. Packing and transport are extra at actual cost. Prices are subject to change. Disputes are under Pune jurisdiction.';
-        $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (\'invoice_terms\', ?) ON DUPLICATE KEY UPDATE `value` = IF(`value` IN (\'\', ?), VALUES(`value`), `value`)')->execute([$text, $old]);
-    }
+    clear_old_terms($pdo);
     $bankIns = $pdo->prepare('INSERT INTO bank_accounts (bank, branch, account_name, account_no, ifsc, sort_order, verified, show_public) SELECT ?, ?, ?, ?, ?, ?, 0, 0 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM bank_accounts WHERE account_no = ?)');
     foreach (array_values($data['banks'] ?? []) as $i => $bank) {
         if (!is_array($bank)) {
@@ -523,13 +585,23 @@ function schema_ready(): bool
         return $ok;
     }
     try {
-        $cols = db()->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME IN ('farmer_only', 'parent_product_id')")->fetchAll(PDO::FETCH_COLUMN);
+        $cols = db()->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME IN ('farmer_only', 'parent_product_id', 'list_only', 'image_is_placeholder')")->fetchAll(PDO::FETCH_COLUMN);
         $table = db()->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'phone_numbers'")->fetchColumn();
-        $ok = count($cols) === 2 && (bool) $table;
+        $restock = db()->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'restock_requests'")->fetchColumn();
+        $ok = count($cols) === 4 && (bool) $table && (bool) $restock;
     } catch (Throwable $err) {
         $ok = true;
     }
     return $ok;
+}
+
+function lists_loaded(): bool
+{
+    try {
+        return (string) db()->query("SELECT `value` FROM settings WHERE `key` = 'lists_loaded'")->fetchColumn() === '1';
+    } catch (Throwable $err) {
+        return false;
+    }
 }
 
 function schema_guard(): void
@@ -538,18 +610,24 @@ function schema_guard(): void
         return;
     }
     $script = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
-    if (str_contains($script, 'migrate.php') || str_contains($script, 'setup.php')) {
+    $open = str_contains($script, 'migrate.php') || str_contains($script, 'setup.php') || str_contains($script, 'login.php') || str_contains($script, 'logout.php') || str_contains($script, 'update.php');
+    if (($_SESSION['role'] ?? '') === 'admin' && !$open) {
+        maybe_auto_update();
+    }
+    if ($open) {
         return;
     }
-    if (schema_ready()) {
+    if (schema_ready() && lists_loaded()) {
         return;
     }
-    http_response_code(503);
-    header('Content-Type: text/html; charset=UTF-8');
+    if (!headers_sent()) {
+        http_response_code(503);
+        header('Content-Type: text/html; charset=UTF-8');
+    }
     $staff = (($_SESSION['role'] ?? '') === 'admin');
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Precision Agritech</title></head><body style="font-family:sans-serif;margin:2rem;line-height:1.5">';
     if ($staff) {
-        echo '<h1>Database update needed</h1><p>The shop database is missing the latest columns. Open the database update page and run it. It is safe to run again.</p><p><a href="/admin/migrate">Open database update</a></p>';
+        echo '<h1>The shop needs a quick update</h1><p>Open Update everything and press the button. It is safe to press again.</p><p><a href="/admin/update">Update everything</a></p>';
     } else {
         echo '<h1>We are updating the shop</h1><p>Please check back shortly.</p><p>You can call <a href="tel:+918080370152">8080370152</a>, <a href="tel:+918421577787">8421577787</a> or <a href="tel:+918421577725">8421577725</a>.</p>';
     }

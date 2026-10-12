@@ -1,0 +1,5 @@
+1. Back up the current website files and the database.
+2. Upload this zip and unpack it over the site. Do not replace config/config.local.php.
+3. Sign in as staff and open the shop once.
+4. Open Nursery Desk, then Update everything, and wait until the result is green.
+5. Later, replace any photo you do not like with Photos → bulk upload (file name = plant slug).

@@ -41,7 +41,7 @@ Open Settings → Invoices for the switches. Open Products → Price lists for t
 
 | Setting | Where | Default | Effect | Who can change it |
 | seedlings per tray | Settings → Invoices | 150 | Used when a per-seedling rate is turned into a tray price | manager, owner |
-| show seedling count | Settings → Invoices | off | Leave off while the shop still says 104 plants | manager, owner |
+| show seedling count | Settings → Invoices | off | Leave off while the shop still says 150 seedlings | manager, owner |
 | seasonal discount | Settings → Invoices | off | 10% off plant subtotals of Rs 5000 or more. Delivery is never discounted | manager, owner |
 | applies to farmer list | Settings → Invoices | off | Farmer orders do not get the extra 10% until you turn this on | manager, owner |
 | stacks with coupons | Settings → Invoices | off | The customer gets whichever discount is larger | manager, owner |

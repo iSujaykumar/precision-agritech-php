@@ -7,6 +7,6 @@ Staging checklist — lists and phones
 5. Ptilotus should still be ₹450.
 6. Sign out. Open /farmer-prices. It should say page not found.
 7. Mark one customer as Farmer, sign in as them, and open Farmer rates. Marathi and English names should both show. The 50 paise note should not.
-8. Footer and contact should show three phone numbers, not 9011975959. WhatsApp should stay on the same number while you browse.
+8. Footer and contact should show three phone numbers, not the nursery numbers. WhatsApp should stay on the same number while you browse.
 9. Desk → Banks. Accounts should be listed and not visible on checkout until you tick verified and show.
 10. Place a small order only after you are happy with the new tray prices. Old prices were replaced for the 19 plants that are on the sheet.

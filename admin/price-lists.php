@@ -48,13 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $loaded = load_supplied_lists($pdo);
             load_business_settings($pdo);
             $pdo->commit();
-            $text = "Matched existing parents: {$loaded['matched_parents']}\nNew parent cards created this run: {$loaded['new_parents']}\nPlant groups: {$loaded['groups']}\nFarmer variety rows: {$loaded['farmer_rows']}\nPtilotus was not on the sheet and was left unchanged.\nThe PDF and the photo were not in the workspace. The CSVs were used.\nThe 50 paise elepot footnote is not shown.\n\n";
-            foreach ($loaded['rows'] as $row) {
-                $text .= $row['list'] . "\t" . $row['action'] . "\t" . $row['plant'] . "\t" . $row['variety'] . "\told " . (string) ($row['old_inr'] ?? '') . "\tnew " . $row['new_inr'] . "\tpaise " . $row['tray_paise'] . "\t" . $row['sku'] . "\n";
-            }
-            file_put_contents(dirname(__DIR__) . '/IMPORT_REPORT.txt', $text);
             audit_log((int) $admin['id'], 'price_import', 'price_list', 0, null, 'sheets ' . count($loaded['rows']));
-            flash_set('Price lists loaded. ' . count($loaded['rows']) . ' rows.');
+            flash_set('Price lists loaded. ' . count($loaded['rows']) . ' rows. Nothing was duplicated.');
             header('Location: /admin/price-lists');
             exit;
         }

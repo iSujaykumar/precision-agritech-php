@@ -2,7 +2,10 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 admin_boot();
-admin_open('Nursery desk');
+admin_open('Today');
+if (setting('schema_version', '') !== '2026.10.12-final' || setting('lists_loaded', '0') !== '1') {
+    echo '<p class="desk-warn"><a href="/admin/update">The shop update has not run. Open Update everything.</a></p>';
+}
 foreach (desk_warnings() as $warning) {
     echo '<p class="desk-warn" role="alert">' . e($warning) . '</p>';
 }
@@ -25,10 +28,42 @@ $month = (int) db()->query("SELECT COALESCE(SUM(total_inr),0) FROM orders WHERE 
 $waiting = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status IN ('placed','payment_pending')")->fetchColumn();
 $unpaid = (int) db()->query("SELECT COUNT(*) FROM orders WHERE payment_status IN ('unpaid','pending') AND status <> 'cancelled'")->fetchColumn();
 $paid = (int) db()->query("SELECT COUNT(*) FROM orders WHERE payment_status = 'paid'")->fetchColumn();
-$lowLimit = (int) setting('low_stock_threshold', '5');
-if ($lowLimit < 0 || $lowLimit > 500) {
-    $lowLimit = 5;
+$lowLimit = low_stock_limit();
+$waitingOrders = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status IN ('placed','payment_pending')")->fetchColumn();
+$payConfirm = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status = 'payment_submitted'")->fetchColumn();
+$toPack = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status IN ('payment_confirmed','confirmed','preparing')")->fetchColumn();
+$lowPlants = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND list_only = 0 AND farmer_only = 0 AND parent_product_id IS NULL AND stock_qty - reserved_qty > 0 AND stock_qty - reserved_qty <= ' . $lowLimit)->fetchColumn();
+$outPlants = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND list_only = 0 AND farmer_only = 0 AND parent_product_id IS NULL AND stock_qty - reserved_qty <= 0')->fetchColumn();
+$restockN = 0;
+try {
+    $restockN = (int) db()->query("SELECT COUNT(*) FROM restock_requests WHERE status = 'new'")->fetchColumn();
+} catch (Throwable $err) {
+    $restockN = 0;
 }
+$photoN = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND parent_product_id IS NULL AND farmer_only = 0 AND image_is_placeholder = 1')->fetchColumn();
+?>
+<div class="desk-cards">
+  <a class="card card-body" href="/admin/orders?status=placed"><strong><?= $waitingOrders ?></strong><br>New orders waiting</a>
+  <a class="card card-body" href="/admin/orders?status=payment_submitted"><strong><?= $payConfirm ?></strong><br>Payments to confirm</a>
+  <a class="card card-body" href="/admin/orders?status=confirmed"><strong><?= $toPack ?></strong><br>Orders to pack</a>
+  <a class="card card-body" href="/admin/stock"><strong><?= $lowPlants ?></strong><br>Low stock plants</a>
+  <a class="card card-body" href="/admin/stock"><strong><?= $outPlants ?></strong><br>Out of stock plants</a>
+  <a class="card card-body" href="/admin/restock"><strong><?= $restockN ?></strong><br>Back-in-stock requests</a>
+  <a class="card card-body" href="/admin/photos?filter=placeholder"><strong><?= $photoN ?></strong><br>Plants needing a photo</a>
+  <a class="card card-body" href="/admin/attention"><strong>Needs attention</strong><br><span class="muted">Photos, stock, hidden plants</span></a>
+</div>
+<?php
+$weekOrders = (int) db()->query("SELECT COUNT(*) FROM orders WHERE created_at >= (NOW() - INTERVAL 7 DAY)")->fetchColumn();
+$weekSales = (int) db()->query("SELECT COALESCE(SUM(total_inr),0) FROM orders WHERE payment_status = 'paid' AND created_at >= (NOW() - INTERVAL 7 DAY)")->fetchColumn();
+$weekBest = db()->query("SELECT oi.product_name, SUM(oi.quantity) AS qty FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.created_at >= (NOW() - INTERVAL 7 DAY) GROUP BY oi.product_name ORDER BY qty DESC LIMIT 3")->fetchAll();
+echo '<h2>Last 7 days</h2><p>' . $weekOrders . ' orders. Paid sales ' . inr($weekSales) . '.</p><ul>';
+foreach ($weekBest as $best) {
+    echo '<li>' . e((string) $best['product_name']) . ' · ' . (int) $best['qty'] . ' trays</li>';
+}
+if (!$weekBest) {
+    echo '<li>No plants sold in the last 7 days.</li>';
+}
+echo '</ul>';
 $week = (int) db()->query("SELECT COUNT(*) FROM orders WHERE created_at >= (NOW() - INTERVAL 7 DAY)")->fetchColumn();
 $out = (int) db()->query('SELECT COUNT(*) FROM products WHERE active = 1 AND stock_qty - reserved_qty <= 0')->fetchColumn();
 $offerCount = (int) db()->query('SELECT COUNT(*) FROM products p JOIN categories c ON c.id = p.category_id WHERE p.active = 1 AND c.active = 1 AND ' . offer_active_sql())->fetchColumn();

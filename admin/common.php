@@ -16,6 +16,10 @@ function admin_open(string $title, string $section = ''): void
         admin_tabs($section);
     }
     echo '<h1>' . e($title) . '</h1>';
+    $help = desk_help_text();
+    if ($help !== '') {
+        echo '<p class="muted">? ' . e($help) . '</p>';
+    }
     $flash = flash_take();
     if ($flash) {
         echo '<p class="flash ' . e($flash['kind']) . '" role="status">' . e($flash['message']) . '</p>';

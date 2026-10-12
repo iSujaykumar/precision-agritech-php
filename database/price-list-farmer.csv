@@ -1,16 +1,34 @@
-item,variety,marathi_name,price_per_seedling,source,sr_no,notes,sku
-Marigold,Mahavishnu Yellow,,3.00,prompt-text-not-photo,1,UNVERIFIED. English name is from the written prompt. Marathi name was not transcribed because IMG20261012141209.jpg was not in the workspace. Do not activate until you check the photo.,
-Marigold,Super Shree Yellow,,3.00,prompt-text-not-photo,2,UNVERIFIED. Marathi name missing. Photo was not in the workspace.,
-Marigold,Amber Yellow,,3.00,prompt-text-not-photo,3,UNVERIFIED. Marathi name missing. Photo was not in the workspace.,
-Marigold,Sai Super Yellow,,3.00,prompt-text-not-photo,4,UNVERIFIED. Marathi name missing. Photo was not in the workspace.,
-Marigold,Mahavishnu Orange,,3.00,prompt-text-not-photo,5,UNVERIFIED. Marathi name missing. Photo was not in the workspace.,
-Marigold,Super Shree Orange,,3.00,prompt-text-not-photo,6,UNVERIFIED. Marathi name missing. Photo was not in the workspace.,
-Marigold,Sai Super Orange,,3.00,prompt-text-not-photo,7,UNVERIFIED. Marathi name missing. Photo was not in the workspace.,
-Chrysanthemum,Bhagyashree White Plus,,3.10,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. The other chrysanthemum names were not printed in the prompt and the photo was missing.,
-Chrysanthemum,Bhagyashree Pink,,3.25,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. Photo missing.,
-Chrysanthemum,Bhagyashree Red,,3.25,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. Photo missing.,
-Chrysanthemum,Madhuri Yellow,,3.50,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. Photo missing.,
-Chrysanthemum,Scent White,,2.50,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. Photo missing.,
-Chrysanthemum,Scent Yellow,,2.50,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. Photo missing.,
-Chrysanthemum,Pournima White,,2.50,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. Photo missing.,
-Chrysanthemum,Pournima Yellow,,2.50,prompt-text-not-photo,,UNVERIFIED partial line from the prompt. Photo missing.,
+item,variety,marathi_name,price_per_seedling,source,sr_no,notes,sku,category
+Marigold,Mahavishnu Yellow,महाविष्णू येलो,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",1,Marigold list number 1. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Marigold,Super Shree Yellow,सुपर श्री येलो,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",2,Marigold list number 2. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Marigold,Amber Yellow,अंबर येलो,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",3,Marigold list number 3. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Marigold,Sai Super Yellow,साई सुपर यलो,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",4,Marigold list number 4. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Marigold,Mahavishnu Orange,महाविष्णू ऑरेंज,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",5,Marigold list number 5. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Marigold,Super Shree Orange,सुपर श्री ऑरेंज,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",6,Marigold list number 6. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Marigold,Sai Super Orange,साई सुपर ऑरेंज,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",7,Marigold list number 7. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Bhagyashree White,भाग्यश्री व्हाईट,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",1,Chrysanthemum list number 1. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Bhagyashree White Plus,भाग्यश्री व्हाईट प्लस,3.10,"Marathi poster, rates from 01.01.2026 (farmer list)",2,Chrysanthemum list number 2. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Kabutar White,कबुतर व्हाईट,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",3,Chrysanthemum list number 3. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Shanka White,शंका व्हाईट,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",4,Chrysanthemum list number 4. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Kalpataru White,कल्पतरू व्हाईट,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",5,Chrysanthemum list number 5. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Aishwarya Yellow,ऐश्वर्या यलो,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",6,Chrysanthemum list number 6. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Pramila Yellow,प्रमिला यलो,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",7,Chrysanthemum list number 7. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Sharvari Purple,शर्वरी पर्पल,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",8,Chrysanthemum list number 8. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Meghana Orange,मेघना ऑरेंज,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",9,Chrysanthemum list number 9. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Mansi Bronze,मानसी ब्रॉन्झ,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",10,Chrysanthemum list number 10. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Suvarna Yellow,सुवर्णा यलो,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",11,Chrysanthemum list number 11. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Aditi Yellow,अदिती यलो,3.50,"Marathi poster, rates from 01.01.2026 (farmer list)",12,Chrysanthemum list number 12. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Aditi Red,अदिती रेड,3.50,"Marathi poster, rates from 01.01.2026 (farmer list)",13,Chrysanthemum list number 13. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Aditi White,अदिती व्हाईट,3.50,"Marathi poster, rates from 01.01.2026 (farmer list)",14,Chrysanthemum list number 14. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Aditi Pink,अदिती पिंक,3.50,"Marathi poster, rates from 01.01.2026 (farmer list)",15,Chrysanthemum list number 15. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Aditi Purple,अदिती परपल,3.50,"Marathi poster, rates from 01.01.2026 (farmer list)",16,Chrysanthemum list number 16. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Bhagyashree Yellow,भाग्यश्री यलो,3.50,"Marathi poster, rates from 01.01.2026 (farmer list)",17,Chrysanthemum list number 17. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Bhagyashree Pink,भाग्यश्री पिंक,3.25,"Marathi poster, rates from 01.01.2026 (farmer list)",18,Chrysanthemum list number 18. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Bhagyashree Red,भाग्यश्री रेड,3.25,"Marathi poster, rates from 01.01.2026 (farmer list)",19,Chrysanthemum list number 19. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Jayashree Bronze Red,जयश्री ब्राँझ रेड,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",20,Chrysanthemum list number 20. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Pramila Bronze,प्रमिला ब्राँझ,3.00,"Marathi poster, rates from 01.01.2026 (farmer list)",21,Chrysanthemum list number 21. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Madhuri Yellow,माधुरी यलो,3.50,"Marathi poster, rates from 01.01.2026 (farmer list)",22,Chrysanthemum list number 22. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Scent White,सेंट व्हाईट,2.50,"Marathi poster, rates from 01.01.2026 (farmer list)",23,Chrysanthemum list number 23. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Scent Yellow,सेंट यलो,2.50,"Marathi poster, rates from 01.01.2026 (farmer list)",24,Chrysanthemum list number 24. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Pournima White,पौर्णिमा व्हाईट,2.50,"Marathi poster, rates from 01.01.2026 (farmer list)",25,Chrysanthemum list number 25. Transliteration is mine; owner to verify.,,Marigold and Chrysanthemum
+Chrysanthemum,Pournima Yellow,पोर्णिमा यलो,2.50,"Marathi poster, rates from 01.01.2026 (farmer list)",26,"Chrysanthemum list number 26. Transliteration is mine; owner to verify. Marathi spelling printed as पोर्णिमा (no ौ), unlike number 25; kept as printed.",,Marigold and Chrysanthemum

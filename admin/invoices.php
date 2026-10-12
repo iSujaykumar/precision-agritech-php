@@ -53,6 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'seasonal_discount_on' => isset($_POST['seasonal_discount_on']) ? '1' : '0',
             'seasonal_discount_percent' => trim((string) ($_POST['seasonal_discount_percent'] ?? '10')),
             'seasonal_discount_min_inr' => trim((string) ($_POST['seasonal_discount_min_inr'] ?? '5000')),
+            'discount_basis' => (($_POST['discount_basis'] ?? '') === 'seedlings') ? 'seedlings' : 'rupees',
+            'discount_min_seedlings' => trim((string) ($_POST['discount_min_seedlings'] ?? '5000')),
+            'discount_banner' => clean_text((string) ($_POST['discount_banner'] ?? ''), 160),
             'seasonal_discount_label' => clean_text((string) ($_POST['seasonal_discount_label'] ?? 'Seasonal discount'), 80),
             'seasonal_discount_start' => trim((string) ($_POST['seasonal_discount_start'] ?? '')),
             'seasonal_discount_end' => trim((string) ($_POST['seasonal_discount_end'] ?? '')),
@@ -61,8 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'seasonal_applies_cod' => isset($_POST['seasonal_applies_cod']) ? '1' : '0',
             'seasonal_applies_overgrown' => isset($_POST['seasonal_applies_overgrown']) ? '1' : '0',
             'farmer_fallback_seasonal' => isset($_POST['farmer_fallback_seasonal']) ? '1' : '0',
-            'container_addon_on' => isset($_POST['container_addon_on']) ? '1' : '0',
-            'container_addon_paise' => trim((string) ($_POST['container_addon_paise'] ?? '50')),
             'invoice_prefix' => strtoupper(trim((string) ($_POST['invoice_prefix'] ?? 'PA'))),
             'gst_enabled' => isset($_POST['gst_enabled']) ? '1' : '0',
             'invoice_email_on' => isset($_POST['invoice_email_on']) ? '1' : '0',
@@ -87,16 +88,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new RuntimeException('Seasonal minimum must be a whole number of rupees.');
         }
         $keys['seasonal_discount_min_inr'] = (string) $min;
+        $seedMin = (int) $keys['discount_min_seedlings'];
+        if ($seedMin < 0 || $seedMin > 1000000) {
+            throw new RuntimeException('Seedling minimum must be a whole number.');
+        }
+        $keys['discount_min_seedlings'] = (string) $seedMin;
         foreach (['seasonal_discount_start', 'seasonal_discount_end'] as $dateKey) {
             if ($keys[$dateKey] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $keys[$dateKey])) {
                 throw new RuntimeException('Season dates must be blank or YYYY-MM-DD.');
             }
         }
-        $addon = (int) $keys['container_addon_paise'];
-        if ($addon < 0 || $addon > 10000) {
-            throw new RuntimeException('Container add-on must be from 0 to 10000 paise.');
-        }
-        $keys['container_addon_paise'] = (string) $addon;
         if (!preg_match('/^[A-Z0-9]{1,8}$/', $keys['invoice_prefix'])) {
             throw new RuntimeException('Invoice prefix must be 1 to 8 letters or digits.');
         }
@@ -155,11 +156,19 @@ $flag = static function (string $key): string {
 };
 echo '<h2>Pricing and invoice settings</h2><form method="post" class="narrow">' . csrf_field();
 echo '<label>Seedlings per tray <input name="seedlings_per_tray" type="number" min="1" max="1000" value="' . e(setting('seedlings_per_tray', '150')) . '"></label>';
-echo '<label><input type="checkbox" name="show_seedling_count" value="1"' . $flag('show_seedling_count') . '> Show seedling count (leave off while tray labels say 104 plants)</label>';
-echo '<label><input type="checkbox" name="seasonal_discount_on" value="1"' . $flag('seasonal_discount_on') . '> Seasonal discount on</label>';
-echo '<label>Label <input name="seasonal_discount_label" value="' . e(setting('seasonal_discount_label', 'Seasonal discount')) . '"></label>';
+echo '<label><input type="checkbox" name="show_seedling_count" value="1"' . $flag('show_seedling_count') . '> Show the seedling count next to the tray price</label>';
+echo '<label><input type="checkbox" name="seasonal_discount_on" value="1"' . $flag('seasonal_discount_on') . '> Bulk discount on</label>';
+echo '<label>Label <input name="seasonal_discount_label" value="' . e(setting('seasonal_discount_label', 'Bulk discount')) . '"></label>';
 echo '<label>Percent <input name="seasonal_discount_percent" type="number" min="0" max="90" value="' . e(setting('seasonal_discount_percent', '10')) . '"></label>';
-echo '<label>Minimum plant subtotal INR <input name="seasonal_discount_min_inr" type="number" min="0" value="' . e(setting('seasonal_discount_min_inr', '5000')) . '"></label>';
+echo '<label>Discount basis
+  <select name="discount_basis">
+    <option value="rupees"' . (setting('discount_basis', 'rupees') === 'rupees' ? ' selected' : '') . '>Order value in rupees</option>
+    <option value="seedlings"' . (setting('discount_basis', 'rupees') === 'seedlings' ? ' selected' : '') . '>Number of seedlings</option>
+  </select>
+</label>';
+echo '<label>Minimum order value in rupees (default 5000) <input name="seasonal_discount_min_inr" type="number" min="0" value="' . e(setting('seasonal_discount_min_inr', '5000')) . '"></label>';
+echo '<label>Minimum seedlings (default 5000) <input name="discount_min_seedlings" type="number" min="0" value="' . e(setting('discount_min_seedlings', '5000')) . '"></label>';
+echo '<label>Banner text <input name="discount_banner" value="' . e(setting('discount_banner', '')) . '" placeholder="10% off on orders above Rs 5,000"></label>';
 echo '<label>Season start <input name="seasonal_discount_start" value="' . e(setting('seasonal_discount_start', '')) . '" placeholder="YYYY-MM-DD"></label>';
 echo '<label>Season end <input name="seasonal_discount_end" value="' . e(setting('seasonal_discount_end', '')) . '" placeholder="YYYY-MM-DD"></label>';
 echo '<label><input type="checkbox" name="seasonal_stacks_coupons" value="1"' . $flag('seasonal_stacks_coupons') . '> Stack with coupons</label>';
@@ -167,8 +176,6 @@ echo '<label><input type="checkbox" name="seasonal_applies_farmer" value="1"' . 
 echo '<label><input type="checkbox" name="seasonal_applies_cod" value="1"' . $flag('seasonal_applies_cod') . '> Applies to cash on delivery</label>';
 echo '<label><input type="checkbox" name="seasonal_applies_overgrown" value="1"' . $flag('seasonal_applies_overgrown') . '> Applies to overgrown trays</label>';
 echo '<label><input type="checkbox" name="farmer_fallback_seasonal" value="1"' . $flag('farmer_fallback_seasonal') . '> If a farmer rate has expired, sell the seasonal tray price</label>';
-echo '<label><input type="checkbox" name="container_addon_on" value="1"' . $flag('container_addon_on') . '> Container add-on (elepot). Off until you confirm the meaning.</label>';
-echo '<label>Container add-on paise per seedling <input name="container_addon_paise" type="number" min="0" value="' . e(setting('container_addon_paise', '50')) . '"></label>';
 echo '<label>Invoice prefix <input name="invoice_prefix" value="' . e(setting('invoice_prefix', 'PA')) . '"></label>';
 echo '<label><input type="checkbox" name="invoice_email_on" value="1"' . $flag('invoice_email_on') . '> Email the private invoice link when payment is received</label>';
 echo '<label><input type="checkbox" name="gst_enabled" value="1"' . $flag('gst_enabled') . '> GST on (confirm with your CA first)</label>';
