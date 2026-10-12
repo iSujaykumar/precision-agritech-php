@@ -104,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $pdo->prepare("UPDATE orders SET payment_status = 'paid', paid_amount_inr = ?, paid_on = ?, paid_by = ?, payment_note = CONCAT(COALESCE(payment_note, ''), ' ', ?) WHERE id = ?")
                     ->execute([$sum, $date, (int) $admin['id'], $note, $id]);
+                issue_invoice($pdo, $id);
                 $pdo->commit();
                 audit_log((int) $admin['id'], 'payment_received', 'order', $id, (string) $total, (string) $sum . ' ' . $gap);
                 $sent = db()->prepare('SELECT * FROM orders WHERE id = ?');
@@ -155,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $left = $paid - ($already + $amount);
             $next = $left === 0 ? 'refunded' : 'partially_refunded';
             $pdo->prepare('UPDATE orders SET payment_status = ? WHERE id = ?')->execute([$next, $id]);
+            issue_credit_note($pdo, $id, $amount, $utr);
             $pdo->commit();
             audit_log((int) $admin['id'], 'refund', 'order', $id, (string) $paid, $next . ' ' . $amount . ' ' . $utr);
             $sent = db()->prepare('SELECT * FROM orders WHERE id = ?');
@@ -249,6 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             apply_order_status($pdo, $id, 'delivered', (int) $admin['id']);
             $pdo->prepare("UPDATE orders SET payment_status = 'paid', paid_amount_inr = ?, cash_collected_inr = ?, cash_reason = ?, collected_by = ?, collected_at = NOW() WHERE id = ?")
                 ->execute([$amount, $amount, $reason !== '' ? $reason : null, (int) $admin['id'], $id]);
+            issue_invoice($pdo, $id);
             $pdo->commit();
             audit_log((int) $admin['id'], 'cash_collected', 'order', $id, (string) $row['total_inr'], (string) $amount . ' ' . $reason);
             $sent = db()->prepare('SELECT * FROM orders WHERE id = ?');
@@ -267,6 +270,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo = db();
             $pdo->beginTransaction();
             apply_order_status($pdo, $id, $status, (int) $admin['id']);
+            if ($status === 'payment_confirmed') {
+                issue_invoice($pdo, $id);
+            }
             $pdo->commit();
             if (in_array($status, ['payment_confirmed', 'confirmed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled', 'delivery_failed'], true)) {
                 $mailOrder = db()->prepare('SELECT * FROM orders WHERE id = ?');
@@ -350,7 +356,15 @@ if ($error) {
       </tr>
     <?php endforeach; ?>
   </table></div>
-  <p>Subtotal <?= inr((int) $row['subtotal_inr']) ?> · Discount <?= inr((int) $row['discount_inr']) ?> · Shipping <?= inr((int) $row['shipping_inr']) ?> · Total <?= inr((int) $row['total_inr']) ?></p>
+  <p>Subtotal <?= inr((int) $row['subtotal_inr']) ?> · Discount <?= inr((int) $row['discount_inr']) ?><?php if ((int) ($row['seasonal_discount_inr'] ?? 0) > 0): ?> · Seasonal <?= inr((int) $row['seasonal_discount_inr']) ?><?php endif; ?> · Shipping <?= inr((int) $row['shipping_inr']) ?> · Total <?= inr((int) $row['total_inr']) ?></p>
+  <p>Price list <?= e((string) ($row['price_list_name'] ?? 'Seasonal (2026-27)')) ?>
+    <?php if ((string) $row['payment_status'] === 'paid'): ?>
+      · <a href="/admin/invoice?order=<?= (int) $row['id'] ?>&kind=pdf">Invoice PDF</a>
+      · <a href="/admin/invoice?order=<?= (int) $row['id'] ?>&kind=html">Print invoice</a>
+    <?php else: ?>
+      · <a href="/admin/invoice?order=<?= (int) $row['id'] ?>&kind=proforma">Proforma / estimate (not a tax invoice)</a>
+    <?php endif; ?>
+  </p>
 </article>
 <h2>Timeline</h2>
 <?php foreach ($events as $event): ?>

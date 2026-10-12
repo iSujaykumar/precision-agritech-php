@@ -193,7 +193,7 @@ function current_user(): ?array
     if (!$id) {
         return null;
     }
-    $stmt = db()->prepare('SELECT id, name, email, phone, role, desk_role, phone_verified_at, email_verified_at, google_id, status, password_changed_at, must_change_password FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT id, name, email, phone, role, desk_role, farmer, phone_verified_at, email_verified_at, google_id, status, password_changed_at, must_change_password FROM users WHERE id = ?');
     $stmt->execute([(int) $id]);
     $user = $stmt->fetch();
     if (!$user || ($user['status'] ?? '') === 'disabled') {
@@ -445,7 +445,11 @@ function product_is_new(array $product): bool
 }
 function catalog_public_sql(): string
 {
-    return 'p.active = 1 AND c.active = 1';
+    $sql = 'p.active = 1 AND c.active = 1';
+    if (!customer_is_farmer()) {
+        $sql .= ' AND p.farmer_only = 0';
+    }
+    return $sql;
 }
 function offer_active_sql(): string
 {
@@ -489,10 +493,10 @@ function lock_listed_product(PDO $pdo, int $id): ?array
     $stmt = $pdo->prepare(
         'SELECT p.* FROM products p
          JOIN categories c ON c.id = p.category_id
-         WHERE p.id = ? AND p.active = 1 AND c.active = 1
+         WHERE p.id = ? AND p.active = 1 AND c.active = 1 AND (p.farmer_only = 0 OR ? = 1)
          FOR UPDATE'
     );
-    $stmt->execute([$id]);
+    $stmt->execute([$id, customer_is_farmer() ? 1 : 0]);
     $row = $stmt->fetch();
     return $row ?: null;
 }
@@ -501,7 +505,7 @@ function product_by_slug(string $slug): ?array
     $stmt = db()->prepare(
         'SELECT p.*, c.name AS category_name, c.slug AS category_slug
          FROM products p JOIN categories c ON c.id = p.category_id
-         WHERE p.slug = ? AND p.active = 1 AND c.active = 1'
+         WHERE p.slug = ? AND ' . catalog_public_sql()
     );
     $stmt->execute([$slug]);
     $row = $stmt->fetch();
@@ -537,14 +541,19 @@ function quote_cart(string $couponCode = ''): array
         } elseif ($qty > 50) {
             $warning = 'Choose at most 50 trays';
         }
-        $price = (int) $product['price_inr'];
+        $sell = selling_price($product);
+        $price = (int) $sell['rupees'];
+        if ($warning === null && (!empty($sell['blocked']) || ((int) ($product['farmer_only'] ?? 0) === 1 && !customer_is_farmer()))) {
+            $warning = 'Price not available, please contact us.';
+            $price = 0;
+        }
         $line = $warning ? 0 : $price * $qty;
         if ($warning) {
             $blocked = true;
         } else {
             $subtotal += $line;
         }
-        $lines[] = ['product' => $product, 'qty' => $qty, 'line' => $line, 'unit' => $price, 'warning' => $warning, 'ok' => $warning === null, 'free' => $free];
+        $lines[] = ['product' => $product, 'qty' => $qty, 'line' => $line, 'unit' => $price, 'warning' => $warning, 'ok' => $warning === null, 'free' => $free, 'sell' => $sell];
     }
     $discount = 0;
     $coupon = null;
@@ -575,12 +584,24 @@ function quote_cart(string $couponCode = ''): array
     }
     $shipFlat = (int) setting('shipping_flat_inr', '180');
     $freeOver = (int) setting('free_shipping_over_inr', '4000');
-    $after = $subtotal - $discount;
+    $seasonal = seasonal_offer(seasonal_base_amount($lines), customer_is_farmer(), false);
+    if ($seasonal['amount'] > 0 && $discount > 0 && setting('seasonal_stacks_coupons', '0') !== '1') {
+        if ($seasonal['amount'] > $discount) {
+            $discount = 0;
+            if ($coupon) {
+                $coupon['discount'] = 0;
+            }
+        } else {
+            $seasonal['amount'] = 0;
+        }
+    }
+    $after = max(0, $subtotal - $discount - (int) $seasonal['amount']);
     $shipping = ($after >= $freeOver || $after === 0) ? 0 : $shipFlat;
     return [
         'lines' => $lines,
         'subtotal' => $subtotal,
         'discount' => $discount,
+        'seasonal' => $seasonal,
         'shipping' => $shipping,
         'total' => $after + $shipping,
         'coupon' => $coupon,
@@ -731,6 +752,9 @@ function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int
 require dirname(__DIR__) . '/includes/desk.php';
 require dirname(__DIR__) . '/includes/otp.php';
 require dirname(__DIR__) . '/includes/mail.php';
+require dirname(__DIR__) . '/includes/pricing.php';
+require dirname(__DIR__) . '/includes/pdf.php';
+require dirname(__DIR__) . '/includes/invoice.php';
 require dirname(__DIR__) . '/includes/qr.php';
 require dirname(__DIR__) . '/includes/commerce.php';
 require dirname(__DIR__) . '/includes/signin.php';

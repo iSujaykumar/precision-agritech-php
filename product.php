@@ -62,6 +62,7 @@ $reviews->execute([(int) $product['id']]);
 $reviewRows = $reviews->fetchAll();
 $rating = product_rating((int) $product['id']);
 $stock = available_trays($product);
+$sell = selling_price($product);
 $image = product_image((string) ($product['image_url'] ?? ''));
 $badge = offer_badge($product);
 $isNew = product_is_new($product);
@@ -73,14 +74,16 @@ $schema = [
     'image' => $image,
     'description' => $product['short_description'],
     'sku' => $product['sku'],
-    'offers' => [
+];
+if (empty($sell['blocked'])) {
+    $schema['offers'] = [
         '@type' => 'Offer',
         'priceCurrency' => 'INR',
-        'price' => (int) $product['price_inr'],
+        'price' => (int) $sell['rupees'],
         'availability' => $stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-    ],
-];
-if ($badge === 'Sale') {
+    ];
+}
+if ($badge === 'Sale' && isset($schema['offers'])) {
     $end = offer_moment((string) ($product['offer_ends_at'] ?? ''));
     if ($end !== null) {
         $schema['offers']['priceValidUntil'] = $end->format('Y-m-d');
@@ -115,7 +118,7 @@ $GLOBALS['json_ld'] = json_encode([
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 $flash = flash_take();
 $viewer = current_user();
-$waTray = wa_href('Hello Precision Agritech, I want to know about ' . $product['name'] . ' at ' . inr((int) $product['price_inr']) . ' per tray.');
+$waTray = wa_href('Hello Precision Agritech, I want to know about ' . $product['name'] . ($sell['blocked'] ? '.' : ' at ' . inr((int) $sell['rupees']) . ' per tray.'));
 render_header($product['name'] . ' trays | Precision Agritech', $product['short_description']);
 ?>
 <section class="section">
@@ -130,11 +133,12 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
       </nav>
       <p class="kicker"><?= e($product['category_name']) ?></p>
       <h1><?= e($product['name']) ?></h1>
-      <?php if ($badge !== '' || $isNew): ?>
-      <p class="badge-row"><?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?><?php if ($isNew): ?><span class="new-badge">New</span><?php endif; ?></p>
+      <?php if ($badge !== '' || $isNew || (int) ($product['is_overgrown'] ?? 0) === 1): ?>
+      <p class="badge-row"><?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?><?php if ((int) ($product['is_overgrown'] ?? 0) === 1): ?><span class="new-badge">Overgrown / as-is</span><?php endif; ?><?php if ($isNew): ?><span class="new-badge">New</span><?php endif; ?></p>
       <?php endif; ?>
-      <p class="muted"><?= e($product['scientific_name']) ?> · <?= e($product['variety']) ?></p>
-      <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ <?= e((string) $product['unit_label']) ?></span><?php if ($badge === 'Sale'): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
+      <p class="muted"><?= e($product['scientific_name']) ?> · <?= e($product['variety']) ?><?php if (($sell['marathi'] ?? '') !== ''): ?> · <?= e((string) $sell['marathi']) ?><?php endif; ?></p>
+      <p class="price"><?= $sell['blocked'] ? 'Price on request' : inr((int) $sell['rupees']) ?> <span class="muted">/ <?= e((string) $product['unit_label']) ?></span><?php if ($badge === 'Sale' && !$sell['blocked']): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
+      <?php if (setting('show_seedling_count', '0') === '1'): ?><p class="muted">1 tray = <?= (int) $sell['tray'] ?> seedlings<?php if ($sell['paise']): ?> · Rs <?= e(number_format(((int) $sell['paise']) / 100, 2, '.', '')) ?> each<?php endif; ?></p><?php endif; ?>
       <p>Grown at Theur, Pune · <?= (int) available_trays($product) ?> trays ready · Delivery in 2–4 days after payment is confirmed.</p>
       <?php if ($rating): ?><p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?> reviews</span></p><?php endif; ?>
       <p><?= e($product['description']) ?></p>
@@ -150,7 +154,7 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
       <form method="post">
         <?= csrf_field() ?>
         <label>Trays <input name="qty" type="number" min="1" max="50" value="<?= (int) $qtyMin ?>"></label>
-        <button class="btn" type="submit" <?= $stock < 1 ? 'disabled' : '' ?>>Add to cart</button>
+        <button class="btn" type="submit" <?= ($stock < 1 || !empty($sell['blocked'])) ? 'disabled' : '' ?>>Add to cart</button>
       </form>
       <?php if ($waTray !== ''): ?><p><a class="btn" href="<?= e($waTray) ?>" target="_blank" rel="noopener">Ask about this tray on WhatsApp</a></p><?php endif; ?>
       <h2>Planting</h2><p><?= e($product['planting_info']) ?></p>

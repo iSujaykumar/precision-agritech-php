@@ -28,6 +28,50 @@ if (!$found) {
 $full = db()->prepare('SELECT * FROM orders WHERE id = ?');
 $full->execute([(int) $found['id']]);
 $order = $full->fetch();
+if ($private && (string) ($_GET['invoice'] ?? '') !== '') {
+    if (rate_limited('invoice:' . client_ip(), 20, 10)) {
+        http_response_code(429);
+        exit('Too many invoice downloads.');
+    }
+    header('Cache-Control: private, no-store');
+    header('Pragma: no-cache');
+    if ((string) $order['payment_status'] !== 'paid') {
+        http_response_code(404);
+        exit('The invoice is available after payment.');
+    }
+    $inv = db()->prepare('SELECT * FROM invoices WHERE order_id = ?');
+    $inv->execute([(int) $order['id']]);
+    $invoice = $inv->fetch();
+    if (!$invoice) {
+        http_response_code(404);
+        exit('The invoice is not ready yet.');
+    }
+    $snapshot = json_decode((string) $invoice['snapshot_json'], true) ?: [];
+    $text = invoice_lines_text($snapshot, (string) $invoice['invoice_number'], (string) $invoice['created_at']);
+    if (($_GET['invoice'] ?? '') === 'html') {
+        header('Content-Type: text/html; charset=UTF-8');
+        echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' . e((string) $invoice['invoice_number']) . '</title>';
+        echo '<style>body{font-family:sans-serif;margin:2rem;color:#14221b} table{width:100%;border-collapse:collapse} td,th{border-bottom:1px solid #ccc;text-align:left;padding:.35rem}</style></head><body>';
+        foreach ($text as $line) {
+            echo '<p>' . e($line) . '</p>';
+        }
+        if (!empty($snapshot['lines'])) {
+            echo '<p>Marathi names, when stored: ';
+            foreach ($snapshot['lines'] as $line) {
+                if (!empty($line['marathi_name'])) {
+                    echo e((string) $line['marathi_name']) . ' ';
+                }
+            }
+            echo '</p>';
+        }
+        echo '<p><button type="button" onclick="print()">Print</button></p></body></html>';
+        exit;
+    }
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . preg_replace('/[^A-Za-z0-9._-]/', '', (string) $invoice['invoice_number']) . '.pdf"');
+    echo pdf_document($text);
+    exit;
+}
 $error = null;
 $notice = null;
 if ($private && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -204,6 +248,7 @@ $showPay = in_array($order['payment_method'], ['upi', 'bank_transfer'], true) &&
   <?php endif; ?>
   <p>
     <a class="btn" href="/track">Track order</a>
+    <?php if ($private && (string) $order['payment_status'] === 'paid'): ?><a class="btn" href="/order/<?= e($token) ?>?invoice=pdf">Download invoice (PDF)</a> <a class="btn" href="/order/<?= e($token) ?>?invoice=html">Print invoice</a><?php endif; ?>
     <?php if ($help !== ''): ?><a class="btn" href="<?= e($help) ?>" target="_blank" rel="noopener">WhatsApp</a><?php endif; ?>
     <button class="text-link" type="button" data-print="1">Print</button>
   </p>

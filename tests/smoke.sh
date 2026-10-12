@@ -27,6 +27,7 @@ check() {
 check home "$BASE/" "200"
 check shop "$BASE/shop" "200"
 check cart "$BASE/cart" "200"
+check overgrown "$BASE/overgrown" "200"
 check checkout "$BASE/checkout" "200"
 check login "$BASE/login" "200"
 check robots "$BASE/robots.txt" "200"

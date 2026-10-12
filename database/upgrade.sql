@@ -387,4 +387,120 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('low_stock_threshold','5')
 ON DUPLICATE KEY UPDATE `key` = `key`;
 
+DROP PROCEDURE IF EXISTS pa_add_column;
+DELIMITER $$
+CREATE PROCEDURE pa_add_column(IN tbl VARCHAR(64), IN col VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND COLUMN_NAME = col
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+CALL pa_add_column('users', 'farmer', 'ALTER TABLE users ADD COLUMN farmer TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('products', 'seedlings_override', 'ALTER TABLE products ADD COLUMN seedlings_override INT NULL');
+CALL pa_add_column('products', 'price_per_seedling_paise', 'ALTER TABLE products ADD COLUMN price_per_seedling_paise INT NULL');
+CALL pa_add_column('products', 'farmer_only', 'ALTER TABLE products ADD COLUMN farmer_only TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('products', 'is_overgrown', 'ALTER TABLE products ADD COLUMN is_overgrown TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('orders', 'seasonal_discount_inr', 'ALTER TABLE orders ADD COLUMN seasonal_discount_inr INT NOT NULL DEFAULT 0');
+CALL pa_add_column('orders', 'price_list_name', 'ALTER TABLE orders ADD COLUMN price_list_name VARCHAR(80) NULL');
+CALL pa_add_column('order_items', 'seedling_paise', 'ALTER TABLE order_items ADD COLUMN seedling_paise INT NULL');
+CALL pa_add_column('order_items', 'tray_size', 'ALTER TABLE order_items ADD COLUMN tray_size INT NULL');
+CALL pa_add_column('order_items', 'price_list_name', 'ALTER TABLE order_items ADD COLUMN price_list_name VARCHAR(80) NULL');
+CALL pa_add_column('order_items', 'marathi_name', 'ALTER TABLE order_items ADD COLUMN marathi_name VARCHAR(160) NULL');
+DROP PROCEDURE IF EXISTS pa_add_column;
+
+CREATE TABLE IF NOT EXISTS price_lists (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(40) NOT NULL,
+  name VARCHAR(80) NOT NULL,
+  audience VARCHAR(20) NOT NULL,
+  effective_from DATE NULL,
+  effective_to DATE NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  notes VARCHAR(500) NOT NULL DEFAULT '',
+  source_ref VARCHAR(160) NOT NULL DEFAULT '',
+  UNIQUE KEY price_lists_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO price_lists (slug, name, audience, notes, source_ref, active)
+SELECT 'seasonal-2026-27', 'Seasonal (2026-27)', 'seasonal', 'Standard rates for the 2026-27 season.', 'DOC-20260923-WA0002_.pdf', 1
+WHERE NOT EXISTS (SELECT 1 FROM price_lists WHERE slug = 'seasonal-2026-27');
+INSERT INTO price_lists (slug, name, audience, effective_from, notes, source_ref, active)
+SELECT 'farmer', 'Farmer', 'farmer', '2026-01-01', 'Farmer rates. Marathi names stay as printed.', 'IMG20261012141209.jpg', 1
+WHERE NOT EXISTS (SELECT 1 FROM price_lists WHERE slug = 'farmer');
+CREATE TABLE IF NOT EXISTS price_list_items (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  price_list_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NULL,
+  sku VARCHAR(40) NOT NULL,
+  item_name VARCHAR(120) NOT NULL,
+  variety VARCHAR(160) NOT NULL DEFAULT '',
+  marathi_name VARCHAR(160) NOT NULL DEFAULT '',
+  price_per_seedling_paise INT NOT NULL,
+  seedlings_per_tray INT NULL,
+  visibility VARCHAR(20) NOT NULL DEFAULT 'everyone',
+  active TINYINT(1) NOT NULL DEFAULT 0,
+  notes VARCHAR(255) NOT NULL DEFAULT '',
+  UNIQUE KEY price_items_sku (price_list_id, sku),
+  KEY price_items_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS invoice_counters (
+  fy VARCHAR(9) NOT NULL PRIMARY KEY,
+  last_no INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS invoices (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  invoice_number VARCHAR(40) NOT NULL,
+  fy VARCHAR(9) NOT NULL,
+  total_inr INT NOT NULL,
+  snapshot_json MEDIUMTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY invoices_number (invoice_number),
+  UNIQUE KEY invoices_order (order_id),
+  KEY invoices_fy (fy, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS credit_notes (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  invoice_id INT UNSIGNED NULL,
+  credit_number VARCHAR(40) NOT NULL,
+  fy VARCHAR(9) NOT NULL,
+  amount_inr INT NOT NULL,
+  snapshot_json MEDIUMTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY credit_notes_number (credit_number),
+  KEY credit_notes_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO settings (`key`, `value`) VALUES
+('seedlings_per_tray','150'),
+('show_seedling_count','0'),
+('seasonal_discount_on','0'),
+('seasonal_discount_percent','10'),
+('seasonal_discount_min_inr','5000'),
+('seasonal_discount_label','Seasonal discount'),
+('seasonal_discount_start',''),
+('seasonal_discount_end',''),
+('seasonal_stacks_coupons','0'),
+('seasonal_applies_farmer','0'),
+('seasonal_applies_cod','1'),
+('seasonal_applies_overgrown','0'),
+('farmer_fallback_seasonal','0'),
+('container_addon_on','0'),
+('container_addon_paise','50'),
+('invoice_prefix','PA'),
+('gst_enabled','0'),
+('overgrown_nav','0'),
+('invoice_email_on','1'),
+('overgrown_intro','These trays grew past the usual transplant stage. They are sold as they are.'),
+('prices_dispatch_note','Prices are subject to change. The price at dispatch is final.'),
+('invoice_terms','Confirmation in writing or by phone with a minimum 50 percent advance. The advance covers box packing, transport and freight. Discount is not applicable on packaging and transportation. The price at dispatch is final. A variety may be replaced with a suitable alternative. Packing and transport are extra at actual cost. Prices are subject to change. Disputes are under Pune jurisdiction.')
+ON DUPLICATE KEY UPDATE `key` = `key`;
+
+
 

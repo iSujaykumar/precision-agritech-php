@@ -535,6 +535,14 @@ function mail_order_customer(array $order, string $intro): void
             $lines .= "The QR code is on that page. This email does not include a payment image.\n";
         }
     }
+    if (($order['payment_status'] ?? '') === 'paid' && setting('invoice_email_on', '1') === '1') {
+        $token = (string) ($order['lookup_token'] ?? '');
+        global $config;
+        $base = rtrim((string) ($config['site_url'] ?? ''), '/');
+        if ($token !== '' && $base !== '') {
+            $lines .= "Invoice: " . $base . "/order/" . $token . "?invoice=pdf\n";
+        }
+    }
     notify_mail($email, 'Order ' . ($order['order_number'] ?? '') . ' — Precision Agritech', $lines);
 }
 

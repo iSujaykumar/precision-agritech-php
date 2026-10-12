@@ -183,6 +183,9 @@ function admin_menu(): void
         '/admin/claims' => '/admin/orders',
         '/admin/health' => '/admin/settings',
         '/admin/offers' => '/admin/products',
+        '/admin/price-lists' => '/admin/products',
+        '/admin/invoices' => '/admin/settings',
+        '/admin/invoice' => '/admin/orders',
         '/admin/homepage' => '/admin/settings',
         '/admin/pages' => '/admin/settings',
         '/admin/migrate' => '/admin/settings',
@@ -205,9 +208,9 @@ function admin_menu(): void
 function admin_tabs(string $group): void
 {
     $sets = [
-        'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory', 'Offers' => '/admin/offers', 'Reviews' => '/admin/reviews'],
+        'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory', 'Offers' => '/admin/offers', 'Price lists' => '/admin/price-lists', 'Reviews' => '/admin/reviews'],
         'enquiries' => ['Messages' => '/admin/messages', 'Wholesale' => '/admin/wholesale'],
-        'settings' => ['Shop' => '/admin/settings', 'Homepage' => '/admin/homepage', 'Pages' => '/admin/pages', 'Payments' => '/admin/payments', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
+        'settings' => ['Shop' => '/admin/settings', 'Homepage' => '/admin/homepage', 'Pages' => '/admin/pages', 'Payments' => '/admin/payments', 'Invoices' => '/admin/invoices', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
     ];
     if (!isset($sets[$group])) {
         return;
@@ -265,6 +268,7 @@ $cin = trim(shop_setting('cin', ''));
       <a href="/returns">Returns</a>
       <a href="/cancellation">Cancellation</a>
       <a href="/faq">FAQ</a>
+      <?php if (shop_setting('overgrown_nav', '0') === '1'): ?><a href="/overgrown">Overgrown seedlings</a><?php endif; ?>
       <a href="/contact">Contact</a>
       <a href="/reviews">Reviews</a>
     </div>
@@ -333,17 +337,19 @@ function product_card(array $product, bool $eager = false): void
     $badge = offer_badge($product);
     $isNew = product_is_new($product);
     $variety = (string) ($product['variety'] ?? $product['scientific_name'] ?? '');
+    $shown = selling_price($product);
     ?>
 <article class="card">
   <a class="card-photo" href="<?= e($href) ?>">
     <img src="<?= e($image) ?>"<?php if ($srcset !== ''): ?> srcset="<?= e($srcset) ?>" sizes="(max-width:640px) 50vw, 25vw"<?php endif; ?> alt="<?= e($product['name']) ?> seedling tray" width="800" height="600" decoding="async"<?= $eager ? '' : ' loading="lazy"' ?>>
     <?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?>
+    <?php if ((int) ($product['is_overgrown'] ?? 0) === 1): ?><span class="new-badge">Overgrown / as-is</span><?php endif; ?>
     <?php if ($isNew): ?><span class="new-badge">New</span><?php endif; ?>
   </a>
   <div class="card-body">
     <h3><a href="<?= e($href) ?>"><?= e($product['name']) ?></a></h3>
     <p class="muted"><?= e($variety) ?></p>
-    <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ tray</span><?php if ($badge === 'Sale'): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
+    <p class="price"><?= $shown['blocked'] ? 'Price on request' : inr((int) $shown['rupees']) ?> <span class="muted">/ tray</span><?php if ($badge === 'Sale' && !$shown['blocked']): ?><span class="compare"><?= inr((int) offer_compare_price($product)) ?></span><?php endif; ?></p>
     <?php $rating = product_rating((int) ($product['id'] ?? 0)); if ($rating): ?>
       <p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?></span></p>
     <?php endif; ?>

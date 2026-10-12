@@ -7,6 +7,14 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
+        if (($_POST['action'] ?? '') === 'farmer') {
+            $flag = isset($_POST['farmer']) ? 1 : 0;
+            db()->prepare('UPDATE users SET farmer = ? WHERE id = ? AND role = ?')->execute([$flag, $id, 'customer']);
+            audit_log((int) $admin['id'], 'customer_farmer', 'user', $id, null, (string) $flag);
+            flash_set($flag === 1 ? 'Farmer rates turned on for this customer' : 'Farmer rates turned off');
+            header('Location: /admin/customer-view?id=' . $id);
+            exit;
+        }
         if (($_POST['action'] ?? '') === 'deletion') {
             db()->prepare('UPDATE users SET deletion_requested = 0, status = ? WHERE id = ? AND role = ?')
                 ->execute(['disabled', $id, 'customer']);
@@ -54,6 +62,9 @@ if (!empty($user['deletion_requested'])) {
     echo '<form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $user['id'] . '"><input type="hidden" name="action" value="deletion"><button class="btn" type="submit">Disable account and mark the request handled</button></form>';
 }
 echo '<p>Last sign-in: ' . e((string) ($user['last_login_at'] ?: '—')) . '</p>';
+echo '<form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $user['id'] . '"><input type="hidden" name="action" value="farmer">';
+echo '<label><input type="checkbox" name="farmer" value="1"' . ((int) ($user['farmer'] ?? 0) === 1 ? ' checked' : '') . '> Farmer rates (staff only; the customer cannot choose this)</label> ';
+echo '<button class="btn" type="submit">Save farmer rates</button></form>';
 echo '<form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $user['id'] . '">';
 echo '<input type="hidden" name="status" value="' . ($user['status'] === 'disabled' ? 'active' : 'disabled') . '">';
 echo '<button class="btn" type="submit" data-confirm="Change this account?">' . ($user['status'] === 'disabled' ? 'Enable account' : 'Disable account') . '</button></form>';

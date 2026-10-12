@@ -10,6 +10,7 @@ CREATE TABLE users (
   google_id VARCHAR(64) NULL,
   role VARCHAR(20) NOT NULL DEFAULT 'customer',
   desk_role VARCHAR(20) NOT NULL DEFAULT 'owner',
+  farmer TINYINT(1) NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL DEFAULT 'active',
   phone_verified_at TIMESTAMP NULL,
   email_verified_at TIMESTAMP NULL,
@@ -69,6 +70,10 @@ CREATE TABLE products (
   on_offer TINYINT(1) NOT NULL DEFAULT 0,
   offer_starts_at DATETIME NULL,
   offer_ends_at DATETIME NULL,
+  seedlings_override INT NULL,
+  price_per_seedling_paise INT NULL,
+  farmer_only TINYINT(1) NOT NULL DEFAULT 0,
+  is_overgrown TINYINT(1) NOT NULL DEFAULT 0,
   active TINYINT(1) NOT NULL DEFAULT 1,
   UNIQUE KEY products_slug (slug),
   UNIQUE KEY products_sku (sku),
@@ -115,6 +120,8 @@ CREATE TABLE orders (
   reminder_sent TINYINT(1) NOT NULL DEFAULT 0,
   payment_alerted TINYINT(1) NOT NULL DEFAULT 0,
   cancel_reason VARCHAR(255) NULL,
+  seasonal_discount_inr INT NOT NULL DEFAULT 0,
+  price_list_name VARCHAR(80) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY orders_number (order_number),
   UNIQUE KEY orders_token (lookup_token),
@@ -136,6 +143,10 @@ CREATE TABLE order_items (
   unit_price_inr INT NOT NULL,
   quantity INT NOT NULL,
   line_total_inr INT NOT NULL,
+  seedling_paise INT NULL,
+  tray_size INT NULL,
+  price_list_name VARCHAR(80) NULL,
+  marathi_name VARCHAR(160) NULL,
   KEY order_items_order (order_id),
   CONSTRAINT order_items_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   CONSTRAINT order_items_product_fk FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
@@ -448,4 +459,90 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('rail_new_on','1'),
 ('rail_offers_on','1'),
 ('rail_limit','8'),
-('low_stock_threshold','5');
+('low_stock_threshold','5'),
+('seedlings_per_tray','150'),
+('show_seedling_count','0'),
+('seasonal_discount_on','0'),
+('seasonal_discount_percent','10'),
+('seasonal_discount_min_inr','5000'),
+('seasonal_discount_label','Seasonal discount'),
+('seasonal_discount_start',''),
+('seasonal_discount_end',''),
+('seasonal_stacks_coupons','0'),
+('seasonal_applies_farmer','0'),
+('seasonal_applies_cod','1'),
+('seasonal_applies_overgrown','0'),
+('farmer_fallback_seasonal','0'),
+('container_addon_on','0'),
+('container_addon_paise','50'),
+('invoice_prefix','PA'),
+('gst_enabled','0'),
+('overgrown_nav','0'),
+('invoice_email_on','1'),
+('overgrown_intro','These trays grew past the usual transplant stage. They are sold as they are.'),
+('prices_dispatch_note','Prices are subject to change. The price at dispatch is final.'),
+('invoice_terms','Confirmation in writing or by phone with a minimum 50 percent advance. The advance covers box packing, transport and freight. Discount is not applicable on packaging and transportation. The price at dispatch is final. A variety may be replaced with a suitable alternative. Packing and transport are extra at actual cost. Prices are subject to change. Disputes are under Pune jurisdiction.');
+
+CREATE TABLE price_lists (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(40) NOT NULL,
+  name VARCHAR(80) NOT NULL,
+  audience VARCHAR(20) NOT NULL,
+  effective_from DATE NULL,
+  effective_to DATE NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  notes VARCHAR(500) NOT NULL DEFAULT '',
+  source_ref VARCHAR(160) NOT NULL DEFAULT '',
+  UNIQUE KEY price_lists_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO price_lists (slug, name, audience, notes, source_ref, active)
+SELECT 'seasonal-2026-27', 'Seasonal (2026-27)', 'seasonal', 'Standard rates for the 2026-27 season.', 'DOC-20260923-WA0002_.pdf', 1
+WHERE NOT EXISTS (SELECT 1 FROM price_lists WHERE slug = 'seasonal-2026-27');
+INSERT INTO price_lists (slug, name, audience, effective_from, notes, source_ref, active)
+SELECT 'farmer', 'Farmer', 'farmer', '2026-01-01', 'Farmer rates. Marathi names stay as printed.', 'IMG20261012141209.jpg', 1
+WHERE NOT EXISTS (SELECT 1 FROM price_lists WHERE slug = 'farmer');
+CREATE TABLE price_list_items (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  price_list_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NULL,
+  sku VARCHAR(40) NOT NULL,
+  item_name VARCHAR(120) NOT NULL,
+  variety VARCHAR(160) NOT NULL DEFAULT '',
+  marathi_name VARCHAR(160) NOT NULL DEFAULT '',
+  price_per_seedling_paise INT NOT NULL,
+  seedlings_per_tray INT NULL,
+  visibility VARCHAR(20) NOT NULL DEFAULT 'everyone',
+  active TINYINT(1) NOT NULL DEFAULT 0,
+  notes VARCHAR(255) NOT NULL DEFAULT '',
+  UNIQUE KEY price_items_sku (price_list_id, sku),
+  KEY price_items_product (product_id),
+  CONSTRAINT price_items_list_fk FOREIGN KEY (price_list_id) REFERENCES price_lists(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE invoice_counters (
+  fy VARCHAR(9) NOT NULL PRIMARY KEY,
+  last_no INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE invoices (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  invoice_number VARCHAR(40) NOT NULL,
+  fy VARCHAR(9) NOT NULL,
+  total_inr INT NOT NULL,
+  snapshot_json MEDIUMTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY invoices_number (invoice_number),
+  UNIQUE KEY invoices_order (order_id),
+  KEY invoices_fy (fy, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE credit_notes (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  invoice_id INT UNSIGNED NULL,
+  credit_number VARCHAR(40) NOT NULL,
+  fy VARCHAR(9) NOT NULL,
+  amount_inr INT NOT NULL,
+  snapshot_json MEDIUMTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY credit_notes_number (credit_number),
+  KEY credit_notes_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

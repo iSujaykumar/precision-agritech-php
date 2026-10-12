@@ -47,6 +47,20 @@ try {
     $qrWorks = false;
 }
 $add('UPI QR can be generated', $qrWorks || (setting('upi_qr_mode', 'auto') === 'upload' && setting('upi_qr_image', '') !== ''));
+$tray = (int) setting('seedlings_per_tray', '0');
+$add('Seedlings per tray is set', $tray >= 1 && $tray <= 1000, (string) $tray);
+$pdfOk = str_starts_with(pdf_document(['Health check']), '%PDF');
+$add('Invoice PDF engine works', $pdfOk);
+$add('Bank details are saved', trim(setting('bank_account_name', '')) !== '' && trim(setting('bank_account_number', '')) !== '', 'Paste the bank block from the price-list PDF if this is empty');
+$gstOn = setting('gst_enabled', '0') === '1';
+$gstin = trim(setting('gstin', ''));
+$add('GST setting is consistent', !$gstOn || preg_match('/^[0-9A-Z]{15}$/', $gstin) === 1, $gstOn ? 'Confirm the rate with your CA before charging GST' : 'GST is off');
+try {
+    $drafts = (int) db()->query('SELECT COUNT(*) FROM price_list_items WHERE active = 0')->fetchColumn();
+    $add('Price-list drafts waiting', true, (string) $drafts);
+} catch (Throwable $err) {
+    $add('Price-list drafts waiting', false, 'Run the database update');
+}
 admin_open('Health', 'settings');
 echo '<ul class="health">';
 foreach ($checks as [$label, $ok, $detail]) {

@@ -34,3 +34,40 @@ The first accounts stay owners. You cannot remove your own owner role.
 
 What this panel does not do
 It does not take UPI money automatically. It does not email a QR image. It does not replace your accountant, your GST decision, or the delivery PIN list.
+
+Invoices, tray size, seasonal discount, farmer rates, overgrown trays
+
+Open Settings → Invoices for the switches. Open Products → Price lists for the two rate cards. Open a customer and tick Farmer rates if that person should see farmer prices. Customers cannot tick this themselves.
+
+| Setting | Where | Default | Effect | Who can change it |
+| seedlings per tray | Settings → Invoices | 150 | Used when a per-seedling rate is turned into a tray price | manager, owner |
+| show seedling count | Settings → Invoices | off | Leave off while the shop still says 104 plants | manager, owner |
+| seasonal discount | Settings → Invoices | off | 10% off plant subtotals of Rs 5000 or more. Delivery is never discounted | manager, owner |
+| applies to farmer list | Settings → Invoices | off | Farmer orders do not get the extra 10% until you turn this on | manager, owner |
+| stacks with coupons | Settings → Invoices | off | The customer gets whichever discount is larger | manager, owner |
+| applies to COD | Settings → Invoices | on | Cash on delivery can use the seasonal discount when the discount itself is on | manager, owner |
+| applies to overgrown | Settings → Invoices | off | Overgrown trays are left out of the Rs 5000 test until you turn this on | manager, owner |
+| farmer fallback | Settings → Invoices | off | If a farmer rate is expired, the tray cannot be bought unless you allow the seasonal price | manager, owner |
+| container add-on | Settings → Invoices | off | Saved only. It does not change the cart until the elepot footnote is confirmed | manager, owner |
+| invoice prefix | Settings → Invoices | PA | Becomes PA/2026-27/0001. Numbers are never moved backwards | manager, owner |
+| GST | Settings → Invoices | off | Do not turn on until your CA confirms GSTIN, HSN and rates | manager, owner |
+| invoice email | Settings → Invoices | on | Payment email includes the private invoice link, not an attachment | manager, owner |
+| overgrown footer link | Settings → Invoices | off | Shows /overgrown in the footer | manager, owner |
+| farmer flag | Customer page | off | That customer sees Farmer list rates | staff, manager, owner |
+| farmers only | Product edit | off | Hidden from guests, search, sitemap and the product link | staff, manager, owner |
+| overgrown flag | Product edit | off | Same tray, labelled Overgrown / as-is | staff, manager, owner |
+
+How to turn the seasonal discount on
+Settings → Invoices → tick Seasonal discount on → Save. It stays hidden while the box is empty or the dates are outside today (Asia/Kolkata).
+
+How to download an invoice
+On a paid order, use Invoice PDF or Print invoice. Print is the one that can show Marathi. Before payment, the desk can open a proforma. It says it is not a tax invoice. A credit note is created when you record a refund on an order that already has an invoice.
+
+Price lists
+The PDF is Seasonal (2026-27). The Marathi photo is Farmer. They are not merged. Import is preview, then confirm. New rows stay drafts. The source files were not in the build, so the seasonal CSV is only a header and the farmer CSV is an unverified short list. Check PRICE_LIST_SOURCE.txt before you import.
+
+Bank lines from the PDF were not readable here. Paste the account name and number under shop settings when you have the sheet. Health will stay red until then.
+
+Rollback
+database/upgrade.sql only adds columns and tables. It does not delete orders. To roll back, restore the database backup you took before running it. Do not drop the new tables if invoices have already been issued.
+
