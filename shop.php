@@ -7,8 +7,12 @@ $q = trim((string) ($_GET['q'] ?? ''));
 $category = trim((string) ($_GET['category'] ?? ''));
 $use = trim((string) ($_GET['use'] ?? ''));
 $sort = (string) ($_GET['sort'] ?? 'name');
-if (!in_array($sort, ['name', 'price'], true)) {
+if (!in_array($sort, ['name', 'price', 'price_desc'], true)) {
     $sort = 'name';
+}
+$flag = (string) ($_GET['flag'] ?? '');
+if (!in_array($flag, ['', 'new', 'offer'], true)) {
+    $flag = '';
 }
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 12;
@@ -28,6 +32,11 @@ if ($use !== '') {
     $where .= ' AND p.uses LIKE ?';
     $params[] = '%' . str_replace(['%', '_'], '', $use) . '%';
 }
+if ($flag === 'new') {
+    $where .= ' AND p.is_new = 1';
+} elseif ($flag === 'offer') {
+    $where .= ' AND ' . offer_active_sql();
+}
 $count = db()->prepare('SELECT COUNT(*) FROM products p JOIN categories c ON c.id = p.category_id' . $where);
 $count->execute($params);
 $total = (int) $count->fetchColumn();
@@ -37,7 +46,11 @@ if ($page > $pages) {
 }
 $offset = ($page - 1) * $perPage;
 $sql = 'SELECT p.*, c.name AS category_name, c.slug AS category_slug FROM products p JOIN categories c ON c.id = p.category_id' . $where;
-$sql .= $sort === 'price' ? ' ORDER BY p.price_inr, p.name' : ' ORDER BY p.bestseller DESC, p.name';
+$sql .= match ($sort) {
+    'price' => ' ORDER BY p.price_inr, p.name, p.id',
+    'price_desc' => ' ORDER BY p.price_inr DESC, p.name, p.id',
+    default => ' ORDER BY p.bestseller DESC, p.name, p.id',
+};
 $sql .= ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
 $stmt = db()->prepare($sql);
 $stmt->execute($params);
@@ -65,6 +78,7 @@ render_header('Shop seedling trays | Precision Agritech', 'Flower seedling trays
     <form method="get" action="/shop">
       <?php if ($category !== ''): ?><input type="hidden" name="category" value="<?= e($category) ?>"><?php endif; ?>
       <?php if ($sort !== 'name'): ?><input type="hidden" name="sort" value="<?= e($sort) ?>"><?php endif; ?>
+      <?php if ($flag !== ''): ?><input type="hidden" name="flag" value="<?= e($flag) ?>"><?php endif; ?>
       <label class="search-label">Search trays
         <input name="q" value="<?= e($q) ?>" placeholder="Search marigold, petunia, shade...">
       </label>
@@ -75,7 +89,10 @@ render_header('Shop seedling trays | Precision Agritech', 'Flower seedling trays
         <a href="/shop?category=<?= e($cat['slug']) ?>"<?= $category === $cat['slug'] ? ' aria-current="page"' : '' ?>><?= e($cat['name']) ?></a>
       <?php endforeach; ?>
       <a href="<?= e(shop_href(['sort' => 'name', 'page' => null])) ?>"<?= $sort === 'name' ? ' aria-current="page"' : '' ?>>Name</a>
-      <a href="<?= e(shop_href(['sort' => 'price', 'page' => null])) ?>"<?= $sort === 'price' ? ' aria-current="page"' : '' ?>>Price</a>
+      <a href="<?= e(shop_href(['sort' => 'price', 'page' => null])) ?>"<?= $sort === 'price' ? ' aria-current="page"' : '' ?>>Price low</a>
+      <a href="<?= e(shop_href(['sort' => 'price_desc', 'page' => null])) ?>"<?= $sort === 'price_desc' ? ' aria-current="page"' : '' ?>>Price high</a>
+      <a href="<?= e(shop_href(['flag' => $flag === 'new' ? null : 'new', 'page' => null])) ?>"<?= $flag === 'new' ? ' aria-current="page"' : '' ?>>New</a>
+      <a href="<?= e(shop_href(['flag' => $flag === 'offer' ? null : 'offer', 'page' => null])) ?>"<?= $flag === 'offer' ? ' aria-current="page"' : '' ?>>Offers</a>
     </div>
     <div class="grid">
       <?php foreach ($products as $index => $product) { product_card($product, $page === 1 && $index < 4); } ?>

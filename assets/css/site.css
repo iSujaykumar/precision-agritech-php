@@ -276,6 +276,12 @@ th, td { text-align: left; padding: 0.55rem; border-bottom: 1px solid var(--line
   .card { transition: transform 0.16s ease, box-shadow 0.16s ease; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgb(28 43 35 / 0.12); }
 }
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}
+.crumbs { display: flex; flex-wrap: wrap; gap: 0.35rem 0.5rem; margin: 0 0 0.6rem; color: var(--muted); font-size: 0.92rem; }
+.crumbs a { text-decoration: none; }
+.crumbs a::after { content: "/"; margin-left: 0.5rem; color: var(--muted); }
 @media (max-width: 1024px) {
   .rail { grid-auto-columns: calc((100% - 2rem) / 3); }
   .grid { grid-template-columns: repeat(3, 1fr); }

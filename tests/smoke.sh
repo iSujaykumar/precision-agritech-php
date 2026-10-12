@@ -37,6 +37,8 @@ check notes "$BASE/SETUP-NOTES.txt" "403|404"
 check private "$BASE/uploads/private/x.webp" "403|404"
 check cron "$BASE/cron.php" "403|404"
 check setup "$BASE/setup" "200|403|404"
+check tests "$BASE/tests/catalog_rules.php" "403|404"
+check notes-txt "$BASE/SETUP-NOTES.txt" "403|404"
 
 body() {
   curl -fsS --max-time 20 "$1" || true

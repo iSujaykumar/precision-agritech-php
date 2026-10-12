@@ -68,7 +68,6 @@ $isNew = product_is_new($product);
 $qtyMin = max(1, (int) $product['min_order']);
 $GLOBALS['og_image'] = $image;
 $schema = [
-    '@context' => 'https://schema.org',
     '@type' => 'Product',
     'name' => $product['name'],
     'image' => $image,
@@ -94,7 +93,26 @@ if ($rating) {
         'reviewCount' => $rating['n'],
     ];
 }
-$GLOBALS['json_ld'] = json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+global $config;
+$crumbBase = rtrim((string) ($config['site_url'] ?? ''), '/');
+$crumbItems = [
+    ['name' => 'Home', 'path' => '/'],
+    ['name' => 'Shop', 'path' => '/shop'],
+    ['name' => (string) $product['category_name'], 'path' => '/shop?category=' . rawurlencode((string) $product['category_slug'])],
+    ['name' => (string) $product['name'], 'path' => '/product/' . rawurlencode((string) $product['slug'])],
+];
+$crumbLd = ['@type' => 'BreadcrumbList', 'itemListElement' => []];
+foreach ($crumbItems as $i => $crumb) {
+    $entry = ['@type' => 'ListItem', 'position' => $i + 1, 'name' => $crumb['name']];
+    if ($crumbBase !== '') {
+        $entry['item'] = $crumbBase . $crumb['path'];
+    }
+    $crumbLd['itemListElement'][] = $entry;
+}
+$GLOBALS['json_ld'] = json_encode([
+    '@context' => 'https://schema.org',
+    '@graph' => [$schema, $crumbLd],
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 $flash = flash_take();
 $viewer = current_user();
 $waTray = wa_href('Hello Precision Agritech, I want to know about ' . $product['name'] . ' at ' . inr((int) $product['price_inr']) . ' per tray.');
@@ -104,6 +122,12 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
   <div class="wrap split product-split">
     <img src="<?= e($image) ?>"<?php $set = image_srcset($image); if ($set !== ''): ?> srcset="<?= e($set) ?>" sizes="(max-width:900px) 100vw, 50vw"<?php endif; ?> alt="<?= e($product['name']) ?> seedling tray" width="1200" height="900" decoding="async">
     <div>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <a href="/shop">Shop</a>
+        <a href="/shop?category=<?= e((string) $product['category_slug']) ?>"><?= e($product['category_name']) ?></a>
+        <span aria-current="page"><?= e($product['name']) ?></span>
+      </nav>
       <p class="kicker"><?= e($product['category_name']) ?></p>
       <h1><?= e($product['name']) ?></h1>
       <?php if ($badge !== '' || $isNew): ?>

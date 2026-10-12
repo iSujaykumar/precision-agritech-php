@@ -1,0 +1,53 @@
+STAGING CHECKLIST — Precision Agritech
+Do this on the Hostinger staging copy, not on the live shop if it is already serving customers.
+
+1. Database
+- In phpMyAdmin, export the staging database first and save the file somewhere safe.
+- If this is a new staging database, import database/schema.sql once.
+- If the staging database is an older copy, import database/upgrade.sql. Import it a second time. The second import must finish without an error.
+- If phpMyAdmin says procedures are not allowed, sign in to the nursery desk and open Settings → Database update. Press the button once, then once more. Both times should finish. Do not press it while the SQL file is still running.
+
+2. Staff sign-in
+- Open /admin/login and sign in.
+- Confirm the desk does not show "Debug is on" or "Sign-in codes are shown on screen".
+- If it says setup is still open, set allow_setup to false in config.local.php and upload that file again.
+
+3. Offers
+- Edit one tray. Set the old price higher than the selling price and leave the dates empty. Save.
+- On the shop and the product page, you should see Sale and the old price crossed out.
+- Set the start date to tomorrow. The sale badge and the crossed-out price must disappear, on the homepage as well.
+- Clear the old price, tick On offer, and clear the dates. You should see the word Offer and no crossed-out price.
+- Put the dates back so the offer has ended. The badge must disappear.
+- The product list in the desk should say whether that tray is live, scheduled, or expired.
+
+4. Hide a category
+- In Categories, turn one category off.
+- Its trays must disappear from the homepage, the shop, and the sitemap.
+- Opening one of those product links must say the tray is not listed.
+- A tray already in the cart must say it is no longer available and must not go through checkout.
+- Turn the category back on. The trays return. Old orders must still show the original line.
+
+5. Cart and checkout
+- Add a tray, change the quantity, and remove it.
+- Try a coupon you know is invalid. It must be rejected.
+- Place one order with UPI or bank transfer. You should land on the private order link, not a paid confirmation. The desk should show the order as waiting for payment.
+- Place one cash-on-delivery order if COD is turned on. It should not ask for a payment screenshot.
+- Open Track an order. With the order number and mobile, you should see status only, not the address.
+- The private link (the long one) should show the address and items.
+
+6. Protected files
+- These addresses must refuse to open: /config/config.php, /includes/bootstrap.php, /database/schema.sql, /tests/catalog_rules.php, /SETUP-NOTES.txt, /uploads/private/.
+- /robots.txt and the homepage must still open.
+
+7. Phone and desktop
+- On a phone, open the homepage, shop, a product, the cart, and checkout.
+- Nothing should stick out sideways. Buttons should be easy to tap. The New badge should not cover the Sale badge.
+
+8. Mail, SMS, and Google
+- Send a contact message. If mail is configured, it should arrive. If not, the message should still be saved and the page must not crash.
+- Request an email code. Confirm the code is not printed on the page.
+- Google sign-in can only be checked after the Google client id and secret are saved. If they are empty, the button should send you back to sign-in without an error page.
+
+9. Cleanup job
+- After the cron URL has been called, the desk health page should say the cleanup has run.
+- Call the cron URL twice. The second call must not double-release stock.

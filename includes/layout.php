@@ -178,6 +178,7 @@ function admin_menu(): void
         '/admin/deliveries' => '/admin/orders',
         '/admin/claims' => '/admin/orders',
         '/admin/health' => '/admin/settings',
+        '/admin/migrate' => '/admin/settings',
         '/admin/mail-log' => '/admin/settings',
         '/admin/cod-block' => '/admin/settings',
     ];
@@ -199,7 +200,7 @@ function admin_tabs(string $group): void
     $sets = [
         'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory'],
         'enquiries' => ['Messages' => '/admin/messages', 'Wholesale' => '/admin/wholesale'],
-        'settings' => ['Shop' => '/admin/settings', 'Payments' => '/admin/payments', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Activity log' => '/admin/audit-log'],
+        'settings' => ['Shop' => '/admin/settings', 'Payments' => '/admin/payments', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
     ];
     if (!isset($sets[$group])) {
         return;

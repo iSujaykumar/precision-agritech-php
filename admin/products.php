@@ -59,10 +59,29 @@ $stmt = db()->prepare('SELECT p.*, c.name AS category_name FROM products p JOIN 
 $stmt->execute($params);
 $rows = $stmt->fetchAll();
 $categories = db()->query('SELECT id, name FROM categories ORDER BY sort_order, name')->fetchAll();
+$liveOffers = [];
+$scheduledOffers = [];
+$expiredOffers = [];
+$offerNow = new DateTimeImmutable('now', shop_timezone());
+foreach ($rows as $row) {
+    $named = (string) $row['name'];
+    if (offer_is_listed($row, $offerNow)) {
+        $liveOffers[] = $named . ' · ' . offer_badge($row, $offerNow);
+        continue;
+    }
+    $start = offer_moment((string) ($row['offer_starts_at'] ?? ''));
+    $flagged = (int) $row['on_offer'] === 1 || $row['compare_at_inr'] !== null;
+    if ($flagged && $start !== null && $offerNow < $start) {
+        $scheduledOffers[] = $named;
+    } elseif ($flagged && !offer_window_open($row, $offerNow)) {
+        $expiredOffers[] = $named;
+    }
+}
 admin_open('Products', 'products');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }
+echo '<p class="muted">Live offers: ' . ($liveOffers ? e(implode(', ', $liveOffers)) : 'none') . '. Scheduled: ' . ($scheduledOffers ? e(implode(', ', $scheduledOffers)) : 'none') . '. Expired: ' . ($expiredOffers ? e(implode(', ', $expiredOffers)) : 'none') . '.</p>';
 echo '<p><a class="btn" href="/admin/product-edit">Add product</a></p>';
 echo '<form method="get" class="inline filters">';
 echo '<label>Search <input name="q" value="' . e($q) . '"></label>';

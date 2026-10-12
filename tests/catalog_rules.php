@@ -1,5 +1,9 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 $_SERVER['REQUEST_URI'] = '/';
 $_SERVER['HTTP_HOST'] = '127.0.0.1';
 $_SERVER['REMOTE_ADDR'] = '127.0.0.1';

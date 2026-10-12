@@ -1,0 +1,38 @@
+CHANGELOG — audit pass 2026-10-12
+
+tests/catalog_rules.php
+Exits immediately unless it is run from the command line, so a browser cannot run database tests.
+
+.htaccess
+Denies /tests/ and every .txt file except robots.txt.
+
+dev-router.php
+Same denials for the local preview server. This file is not uploaded to Hostinger; .htaccess does that job there.
+
+shop.php
+Adds price high-to-low sorting and New / Offers filters. Search keeps the active filter. Offers uses the shared date rule.
+
+product.php
+Adds a breadcrumb trail and BreadcrumbList structured data. The selling price is unchanged.
+
+assets/css/site.css
+Styles the breadcrumb and turns off card motion when the visitor prefers reduced motion.
+
+admin/products.php
+Shows which offers are live, scheduled, or expired.
+
+includes/migrate.php
+Reads database/upgrade.sql and applies it without stored procedures. Skips anything that already exists.
+
+admin/migrate.php
+Staff-only, CSRF-protected button for that update. Linked from Desk → Settings.
+
+includes/layout.php
+Adds the Database update tab.
+
+tests/smoke.sh
+Checks that the catalog test and the setup notes are not publicly readable.
+
+Not changed
+database/schema.sql and database/upgrade.sql were already aligned. No columns were added in this pass.
+config/config.local.php was not opened for editing and is not in the zip.
