@@ -12,6 +12,30 @@ function nav_here(string $href): string
     return ($path === $href || str_starts_with($path, $href . '/')) ? ' aria-current="page"' : '';
 }
 
+function image_srcset(string $url): string
+{
+    $url = product_image($url);
+    $path = parse_url($url, PHP_URL_PATH) ?: $url;
+    $root = dirname(__DIR__);
+    $set = [];
+    if (preg_match('#^/products/([a-z0-9-]+)\.webp$#', $path, $m)) {
+        foreach ([400, 800, 1200] as $width) {
+            $rel = '/products/sm/' . $m[1] . '-' . $width . '.webp';
+            if (is_file($root . $rel)) {
+                $set[] = $rel . ' ' . $width . 'w';
+            }
+        }
+    } elseif (preg_match('#^/uploads/products/([a-z0-9]+)\.webp$#', $path, $m)) {
+        foreach ([400, 800, 1200] as $width) {
+            $rel = '/uploads/products/' . $m[1] . '-' . $width . '.webp';
+            if (is_file($root . $rel)) {
+                $set[] = $rel . ' ' . $width . 'w';
+            }
+        }
+    }
+    return implode(', ', $set);
+}
+
 function product_image(?string $url): string
 {
     $fallback = '/brand/seedling.webp';
@@ -35,7 +59,7 @@ function render_header(string $title, string $description = '', string $chrome =
     $jsonLd = (string) ($GLOBALS['json_ld'] ?? '');
     if ($jsonLd !== '') {
         $hash = base64_encode(hash('sha256', $jsonLd, true));
-        header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'sha256-$hash'; form-action 'self'; base-uri 'self'; frame-ancestors 'self'");
+        send_security_headers($hash);
     }
     $user = null;
     try {
@@ -72,9 +96,10 @@ function render_header(string $title, string $description = '', string $chrome =
   <?php endif; ?>
   <?php if ($jsonLd !== ''): ?><script type="application/ld+json"><?= $jsonLd ?></script><?php endif; ?>
   <link rel="icon" href="/favicon.svg">
-  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/site.css?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/css/site.css') ?>">
 </head>
 <body class="<?= $chrome === 'shop' ? 'shop' : 'desk' ?>">
+<a class="skip" href="#content">Skip to content</a>
 <?php if ($chrome === 'admin'): ?>
 <header class="admin-bar">
   <a class="logo" href="/admin">Nursery desk</a>
@@ -120,7 +145,7 @@ function render_header(string $title, string $description = '', string $chrome =
   </nav>
 </header>
 <?php endif; ?>
-<main>
+<main id="content">
 <?php
 }
 
@@ -148,6 +173,13 @@ function admin_menu(): void
         '/admin/wholesale' => '/admin/messages',
         '/admin/staff' => '/admin/settings',
         '/admin/audit-log' => '/admin/settings',
+        '/admin/payments' => '/admin/settings',
+        '/admin/delivery' => '/admin/settings',
+        '/admin/deliveries' => '/admin/orders',
+        '/admin/claims' => '/admin/orders',
+        '/admin/health' => '/admin/settings',
+        '/admin/mail-log' => '/admin/settings',
+        '/admin/cod-block' => '/admin/settings',
     ];
     $here = $alias[$path] ?? $path;
     echo '<nav class="admin-nav" id="admin-nav" aria-label="Desk">';
@@ -167,7 +199,7 @@ function admin_tabs(string $group): void
     $sets = [
         'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory'],
         'enquiries' => ['Messages' => '/admin/messages', 'Wholesale' => '/admin/wholesale'],
-        'settings' => ['Shop' => '/admin/settings', 'Staff' => '/admin/staff', 'Activity log' => '/admin/audit-log'],
+        'settings' => ['Shop' => '/admin/settings', 'Payments' => '/admin/payments', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Activity log' => '/admin/audit-log'],
     ];
     if (!isset($sets[$group])) {
         return;
@@ -201,24 +233,29 @@ $hours = shop_setting('opening_hours', 'Monday to Saturday, 9:00 to 6:00');
 $address = shop_setting('shop_address', 'Survey No. 44/2, Theur Naygaon Road, Gaikwadvasti, Pune 412110');
 $email = shop_setting('shop_email', 'info@precisionagritech.in');
 $map = shop_setting('map_url', 'https://www.google.com/maps/search/?api=1&query=Survey+No.+44/2+Theur+Naygaon+Road+Gaikwadvasti+Pune+412110');
+$legal = shop_setting('seller_legal_name', 'Precision Agritech Private Limited');
+$gstin = trim(shop_setting('gstin', ''));
+$cin = trim(shop_setting('cin', ''));
 ?>
 <footer class="footer">
   <div class="wrap footer-grid">
     <div>
-      <strong>Precision Agritech</strong>
-      <p><?= e($address) ?></p>
-      <p><?= e($hours) ?></p>
-      <p><a href="tel:+<?= e($tel) ?>"><?= e($phone) ?></a>
-        <?php if ($wa !== ''): ?> · <a href="<?= e($wa) ?>" target="_blank" rel="noopener">Chat on WhatsApp</a><?php endif; ?>
-      </p>
-      <p><a href="mailto:<?= e($email) ?>"><?= e($email) ?></a></p>
-      <p><a href="<?= e($map) ?>" target="_blank" rel="noopener">Map</a></p>
+      <strong><?= e($legal) ?></strong>
+      <?php if ($address !== ''): ?><p><?= e($address) ?></p><?php endif; ?>
+      <?php if ($hours !== ''): ?><p><?= e($hours) ?></p><?php endif; ?>
+      <?php if ($phone !== ''): ?><p><a href="tel:+<?= e($tel) ?>"><?= e($phone) ?></a></p><?php endif; ?>
+      <?php if ($wa !== ''): ?><p><a href="<?= e($wa) ?>" target="_blank" rel="noopener">Chat on WhatsApp</a></p><?php endif; ?>
+      <?php if ($email !== ''): ?><p><a href="mailto:<?= e($email) ?>"><?= e($email) ?></a></p><?php endif; ?>
+      <?php if ($gstin !== ''): ?><p>GSTIN <?= e($gstin) ?></p><?php endif; ?>
+      <?php if ($cin !== ''): ?><p>CIN <?= e($cin) ?></p><?php endif; ?>
+      <?php if ($map !== ''): ?><p><a href="<?= e($map) ?>" target="_blank" rel="noopener">Map</a></p><?php endif; ?>
     </div>
     <div>
       <p class="footer-title">Shop</p>
       <a href="/shop">Shop</a>
       <a href="/shipping">Shipping</a>
       <a href="/returns">Returns</a>
+      <a href="/cancellation">Cancellation</a>
       <a href="/faq">FAQ</a>
       <a href="/contact">Contact</a>
       <a href="/reviews">Reviews</a>
@@ -226,20 +263,25 @@ $map = shop_setting('map_url', 'https://www.google.com/maps/search/?api=1&query=
     <div>
       <p class="footer-title">Company</p>
       <a href="/about">About</a>
+      <a href="/nursery">Our nursery</a>
       <a href="/wholesale">Wholesale</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
+      <a href="/contact#grievance">Grievance officer</a>
     </div>
   </div>
-  <div class="wrap footer-copy"><p>(c) Precision Agritech</p></div>
+  <div class="wrap footer-copy"><p>© <?= date('Y') ?> <?= e($legal) ?></p></div>
 </footer>
 <?php if ($wa !== ''): ?>
 <a class="wa-float" href="<?= e($wa) ?>" target="_blank" rel="noopener" aria-label="Chat with our sales team on WhatsApp">
   <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="#fff" d="M20.5 3.5A11 11 0 0 0 2.1 16.8L1 22.3l5.6-1.1A11 11 0 0 0 20.5 3.5zM12 20.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3.3.7.7-3.2-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.7.9-.3.2-.5.1a6.7 6.7 0 0 1-2-1.2 7.4 7.4 0 0 1-1.4-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.3a.5.5 0 0 0 0-.5c0-.1-.5-1.3-.7-1.7s-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3 2.9 2.9 0 0 0-.9 2.2 5 5 0 0 0 1.1 2.7 11.4 11.4 0 0 0 4.3 3.8 14 14 0 0 0 1.4.5 3.4 3.4 0 0 0 1.6.1 2.6 2.6 0 0 0 1.7-1.2 2.1 2.1 0 0 0 .2-1.2c-.1-.1-.2-.1-.4-.2z"/></svg>
 </a>
 <?php endif; ?>
-<script src="/assets/js/nav.js"></script>
-<script src="/assets/js/rail.js"></script>
+<script src="/assets/js/nav.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/nav.js') ?>"></script>
+<script src="/assets/js/rail.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/rail.js') ?>"></script>
+<script src="/assets/js/cart.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/cart.js') ?>"></script>
+<script src="/assets/js/pay.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/pay.js') ?>"></script>
+<script src="/assets/js/signin.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/signin.js') ?>"></script>
 <?php elseif ($chrome === 'admin'): ?>
 <script src="/assets/js/admin.js"></script>
 <?php endif; ?>
@@ -253,12 +295,13 @@ function product_card(array $product, bool $eager = false): void
     $stock = available_trays($product);
     $href = '/product/' . rawurlencode((string) $product['slug']);
     $image = product_image((string) ($product['image_url'] ?? ''));
+    $srcset = image_srcset($image);
     $onSale = $product['compare_at_inr'] !== null && (int) $product['compare_at_inr'] > (int) $product['price_inr'];
     $variety = (string) ($product['variety'] ?? $product['scientific_name'] ?? '');
     ?>
 <article class="card">
   <a class="card-photo" href="<?= e($href) ?>">
-    <img src="<?= e($image) ?>" alt="<?= e($product['name']) ?> seedling tray" width="800" height="600" decoding="async"<?= $eager ? '' : ' loading="lazy"' ?>>
+    <img src="<?= e($image) ?>"<?php if ($srcset !== ''): ?> srcset="<?= e($srcset) ?>" sizes="(max-width:640px) 50vw, 25vw"<?php endif; ?> alt="<?= e($product['name']) ?> seedling tray" width="800" height="600" decoding="async"<?= $eager ? '' : ' loading="lazy"' ?>>
     <?php if ($onSale): ?><span class="sale-badge">Sale</span><?php endif; ?>
   </a>
   <div class="card-body">

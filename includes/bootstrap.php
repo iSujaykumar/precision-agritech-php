@@ -8,6 +8,24 @@ function request_is_https(): bool
     }
     return strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
 }
+function send_security_headers(?string $scriptHash = null): void
+{
+    global $config;
+    $path = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+    $admin = str_starts_with($path, '/admin');
+    $script = "'self'";
+    $frame = "'none'";
+    if ($scriptHash !== null && $scriptHash !== '') {
+        $script .= " 'sha256-$scriptHash'";
+    }
+    if (($config['turnstile_site_key'] ?? '') !== '') {
+        $script .= ' https://challenges.cloudflare.com';
+        $frame = 'https://challenges.cloudflare.com';
+    }
+    $ancestors = $admin ? "'none'" : "'self'";
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src $script; frame-src $frame; form-action 'self'; base-uri 'self'; frame-ancestors $ancestors");
+    header('X-Frame-Options: ' . ($admin ? 'DENY' : 'SAMEORIGIN'));
+}
 global $config;
 $config = require dirname(__DIR__) . '/config/config.php';
 $debug = !empty($config['debug']);
@@ -36,11 +54,11 @@ if ($siteHost !== '' && strcasecmp($requestHost, $siteHost) === 0 && str_starts_
 }
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
-header('X-Frame-Options: SAMEORIGIN');
+header('Cross-Origin-Opener-Policy: same-origin');
 header("Permissions-Policy: camera=(), microphone=(), geolocation=()");
-header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'self'");
+send_security_headers();
 if (request_is_https()) {
-    header('Strict-Transport-Security: max-age=15552000');
+    header('Strict-Transport-Security: max-age=31536000');
 }
 $robotPath = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
 $robotScript = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
@@ -50,7 +68,9 @@ if (str_starts_with($robotPath, '/admin') || str_contains($robotScript, '/admin/
 if (!empty($_SESSION['user_id'])) {
     $seen = (int) ($_SESSION['seen'] ?? 0);
     $idle = (($_SESSION['role'] ?? '') === 'admin') ? 2 * 3600 : 12 * 3600;
-    if ($seen > 0 && time() - $seen > $idle) {
+    $started = (int) ($_SESSION['admin_started'] ?? 0);
+    $absolute = (($_SESSION['role'] ?? '') === 'admin') && $started > 0 && time() - $started > 8 * 3600;
+    if ($seen > 0 && (time() - $seen > $idle || $absolute)) {
         $wasAdmin = (($_SESSION['role'] ?? '') === 'admin');
         $_SESSION = [];
         session_regenerate_id(true);
@@ -151,6 +171,9 @@ function db(): PDO
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
     $pdo->exec("SET time_zone = '+05:30'");
+    if (function_exists('housekeeping_tick')) {
+        housekeeping_tick();
+    }
     return $pdo;
 }
 function setting(string $key, string $fallback = ''): string
@@ -170,7 +193,7 @@ function current_user(): ?array
     if (!$id) {
         return null;
     }
-    $stmt = db()->prepare('SELECT id, name, email, phone, role, phone_verified_at, status, password_changed_at, must_change_password FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT id, name, email, phone, role, phone_verified_at, email_verified_at, google_id, status, password_changed_at, must_change_password FROM users WHERE id = ?');
     $stmt->execute([(int) $id]);
     $user = $stmt->fetch();
     if (!$user || ($user['status'] ?? '') === 'disabled') {
@@ -265,6 +288,9 @@ function sign_in_user(array $user): void
     $_SESSION['role'] = (string) ($user['role'] ?? 'customer');
     $_SESSION['seen'] = time();
     $_SESSION['pwd_stamp'] = (string) ($user['password_changed_at'] ?? '');
+    if (($user['role'] ?? '') === 'admin') {
+        $_SESSION['admin_started'] = time();
+    }
     rotate_csrf();
     db()->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?')->execute([(int) $user['id']]);
 }
@@ -344,20 +370,45 @@ function quote_cart(string $couponCode = ''): array
 {
     $lines = [];
     $subtotal = 0;
+    $blocked = false;
     foreach (cart() as $slug => $qty) {
-        $product = product_by_slug((string) $slug);
         $qty = (int) $qty;
+        $stmt = db()->prepare('SELECT p.*, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id WHERE p.slug = ?');
+        $stmt->execute([(string) $slug]);
+        $product = $stmt->fetch() ?: null;
         if (!$product || $qty < 1) {
+            $blocked = true;
+            $lines[] = [
+                'product' => ['slug' => (string) $slug, 'name' => 'Tray', 'image_url' => '', 'variety' => '', 'price_inr' => 0, 'unit_label' => 'tray', 'active' => 0, 'stock_qty' => 0, 'reserved_qty' => 0],
+                'qty' => max(1, $qty),
+                'line' => 0,
+                'warning' => 'No longer available. Remove it from the cart.',
+                'ok' => false,
+            ];
             continue;
         }
-        $line = (int) $product['price_inr'] * $qty;
-        $subtotal += $line;
-        $lines[] = ['product' => $product, 'qty' => $qty, 'line' => $line];
+        $free = available_trays($product);
+        $warning = null;
+        if ((int) $product['active'] !== 1 || $free < 1) {
+            $warning = 'No longer available. Remove it from the cart.';
+        } elseif ($qty > $free) {
+            $warning = 'Only ' . $free . ' left';
+        } elseif ($qty > 50) {
+            $warning = 'Choose at most 50 trays';
+        }
+        $price = (int) $product['price_inr'];
+        $line = $warning ? 0 : $price * $qty;
+        if ($warning) {
+            $blocked = true;
+        } else {
+            $subtotal += $line;
+        }
+        $lines[] = ['product' => $product, 'qty' => $qty, 'line' => $line, 'unit' => $price, 'warning' => $warning, 'ok' => $warning === null, 'free' => $free];
     }
     $discount = 0;
     $coupon = null;
     $code = strtoupper(trim($couponCode));
-    if ($code !== '') {
+    if ($code !== '' && !$blocked && $subtotal > 0) {
         $stmt = db()->prepare('SELECT * FROM coupons WHERE code = ? AND active = 1 LIMIT 1');
         $stmt->execute([$code]);
         $coupon = $stmt->fetch() ?: null;
@@ -379,6 +430,7 @@ function quote_cart(string $couponCode = ''): array
             ? (int) round($subtotal * ((int) $coupon['amount']) / 100)
             : (int) $coupon['amount'];
         $discount = max(0, min($discount, $subtotal));
+        $coupon['discount'] = $discount;
     }
     $shipFlat = (int) setting('shipping_flat_inr', '180');
     $freeOver = (int) setting('free_shipping_over_inr', '4000');
@@ -391,6 +443,7 @@ function quote_cart(string $couponCode = ''): array
         'shipping' => $shipping,
         'total' => $after + $shipping,
         'coupon' => $coupon,
+        'blocked' => $blocked,
     ];
 }
 function lock_coupon(PDO $pdo, string $code, int $subtotal): ?array
@@ -416,6 +469,26 @@ function lock_coupon(PDO $pdo, string $code, int $subtotal): ?array
             throw new RuntimeException('This coupon has reached its limit.');
         }
     }
+    $perCustomer = array_key_exists('per_customer_limit', $coupon) ? (int) $coupon['per_customer_limit'] : 1;
+    $whoPhone = preg_replace('/\D+/', '', (string) ($GLOBALS['coupon_phone'] ?? '')) ?? '';
+    $whoEmail = strtolower(trim((string) ($GLOBALS['coupon_email'] ?? '')));
+    if ($perCustomer > 0 && ($whoPhone !== '' || $whoEmail !== '')) {
+        $parts = [];
+        $args = [(int) $coupon['id']];
+        if ($whoPhone !== '') {
+            $parts[] = 'phone = ?';
+            $args[] = $whoPhone;
+        }
+        if ($whoEmail !== '') {
+            $parts[] = 'customer_email = ?';
+            $args[] = $whoEmail;
+        }
+        $mine = $pdo->prepare('SELECT COUNT(*) FROM coupon_redemptions WHERE coupon_id = ? AND (' . implode(' OR ', $parts) . ')');
+        $mine->execute($args);
+        if ((int) $mine->fetchColumn() >= $perCustomer) {
+            throw new RuntimeException('You have already used this coupon.');
+        }
+    }
     $discount = $coupon['kind'] === 'percent'
         ? (int) round($subtotal * ((int) $coupon['amount']) / 100)
         : (int) $coupon['amount'];
@@ -425,11 +498,16 @@ function lock_coupon(PDO $pdo, string $code, int $subtotal): ?array
 function apply_order_status(PDO $pdo, int $id, string $status, int $adminId): void
 {
     $allowed = [
-        'placed' => ['payment_pending', 'payment_confirmed', 'preparing', 'cancelled'],
-        'payment_pending' => ['payment_confirmed', 'cancelled'],
-        'payment_confirmed' => ['preparing', 'cancelled'],
-        'preparing' => ['dispatched', 'cancelled'],
-        'dispatched' => ['delivered'],
+        'placed' => ['payment_submitted', 'payment_confirmed', 'confirmed', 'preparing', 'cancelled'],
+        'payment_pending' => ['payment_submitted', 'payment_confirmed', 'cancelled'],
+        'payment_submitted' => ['payment_confirmed', 'cancelled'],
+        'payment_confirmed' => ['confirmed', 'preparing', 'cancelled'],
+        'confirmed' => ['packed', 'preparing', 'cancelled'],
+        'packed' => ['out_for_delivery', 'dispatched', 'cancelled'],
+        'preparing' => ['dispatched', 'out_for_delivery', 'cancelled'],
+        'out_for_delivery' => ['delivered', 'delivery_failed'],
+        'dispatched' => ['delivered', 'delivery_failed'],
+        'delivery_failed' => ['out_for_delivery', 'dispatched', 'cancelled'],
         'delivered' => [],
         'cancelled' => [],
     ];
@@ -443,21 +521,47 @@ function apply_order_status(PDO $pdo, int $id, string $status, int $adminId): vo
     if (!in_array($status, $allowed[$from] ?? [], true)) {
         throw new RuntimeException('That order status change is not allowed.');
     }
+    if (in_array($status, ['dispatched', 'out_for_delivery'], true)
+        && ($row['payment_method'] ?? '') === 'cod'
+        && setting('require_phone_confirm', '1') === '1'
+        && (int) ($row['phone_confirmed'] ?? 0) !== 1) {
+        throw new RuntimeException('Confirm this order by phone before it goes out.');
+    }
     if ($status === 'cancelled') {
-        if ($row['inventory_state'] === 'sold') {
-            throw new RuntimeException('A sold order cannot be cancelled here.');
-        }
         if ($row['inventory_state'] === 'reserved') {
-            $pdo->prepare('UPDATE products p JOIN order_items oi ON oi.product_id = p.id SET p.reserved_qty = GREATEST(0, p.reserved_qty - oi.quantity) WHERE oi.order_id = ?')->execute([$id]);
+            release_order_hold($pdo, $id);
             $pdo->prepare("UPDATE orders SET inventory_state = 'released', status = 'cancelled' WHERE id = ?")->execute([$id]);
+        } elseif ($row['inventory_state'] === 'sold' && $from !== 'delivered') {
+            $items = $pdo->prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ? AND product_id IS NOT NULL');
+            $items->execute([$id]);
+            foreach ($items as $item) {
+                $pdo->prepare('UPDATE products SET stock_qty = stock_qty + ? WHERE id = ?')->execute([(int) $item['quantity'], (int) $item['product_id']]);
+            }
+            $pdo->prepare("UPDATE orders SET inventory_state = 'restocked', status = 'cancelled' WHERE id = ?")->execute([$id]);
         } else {
             $pdo->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?")->execute([$id]);
+        }
+        release_coupon_for_order($pdo, $id);
+        if (in_array((string) $row['payment_status'], ['paid', 'partial', 'partially_refunded'], true) || (int) ($row['paid_amount_inr'] ?? 0) > 0) {
+            $pdo->prepare("UPDATE orders SET payment_status = 'refund_due' WHERE id = ?")->execute([$id]);
+        }
+        if (($row['payment_method'] ?? '') === 'cod' && in_array($from, ['out_for_delivery', 'dispatched', 'delivery_failed'], true)) {
+            $pdo->prepare("UPDATE orders SET cancel_reason = 'Refused on delivery' WHERE id = ? AND (cancel_reason IS NULL OR cancel_reason = '')")->execute([$id]);
+            maybe_cod_block($pdo, (string) $row['customer_phone']);
         }
     } elseif ($status === 'payment_confirmed' && $row['inventory_state'] === 'reserved') {
         $pdo->prepare('UPDATE products p JOIN order_items oi ON oi.product_id = p.id SET p.reserved_qty = GREATEST(0, p.reserved_qty - oi.quantity), p.stock_qty = GREATEST(0, p.stock_qty - oi.quantity) WHERE oi.order_id = ?')->execute([$id]);
         $pdo->prepare("UPDATE orders SET inventory_state = 'sold', status = 'payment_confirmed', payment_status = 'paid' WHERE id = ?")->execute([$id]);
+    } elseif (in_array($status, ['dispatched', 'out_for_delivery'], true) && $row['inventory_state'] === 'reserved') {
+        $pdo->prepare('UPDATE products p JOIN order_items oi ON oi.product_id = p.id SET p.reserved_qty = GREATEST(0, p.reserved_qty - oi.quantity), p.stock_qty = GREATEST(0, p.stock_qty - oi.quantity) WHERE oi.order_id = ?')->execute([$id]);
+        $pdo->prepare('UPDATE orders SET inventory_state = ?, status = ? WHERE id = ?')->execute(['sold', $status, $id]);
+    } elseif ($status === 'delivered' && ($row['payment_method'] ?? '') !== 'cod') {
+        $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $id]);
     } else {
         $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $id]);
+    }
+    if ($status === 'delivery_failed' && ($row['payment_method'] ?? '') === 'cod') {
+        maybe_cod_block($pdo, (string) $row['customer_phone']);
     }
     $pdo->prepare('INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)')->execute([$id, $status, 'Nursery updated the order.']);
     audit_log($adminId, 'order_status', 'order', $id, $from, $status);
@@ -485,4 +589,7 @@ function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int
 }
 require dirname(__DIR__) . '/includes/desk.php';
 require dirname(__DIR__) . '/includes/otp.php';
+require dirname(__DIR__) . '/includes/mail.php';
+require dirname(__DIR__) . '/includes/commerce.php';
+require dirname(__DIR__) . '/includes/signin.php';
 require dirname(__DIR__) . '/includes/layout.php';

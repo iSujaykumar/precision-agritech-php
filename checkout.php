@@ -4,39 +4,100 @@ require __DIR__ . '/includes/bootstrap.php';
 connect_or_explain();
 
 $user = current_user();
-if (!$user || ($user['role'] ?? '') === 'admin') {
-    header('Location: /login?next=' . rawurlencode('/checkout'));
-    exit;
+if ($user && ($user['role'] ?? '') === 'admin') {
+    $user = null;
 }
-$error = null;
+$errors = [];
+$posted = [
+    'name' => trim((string) ($_POST['name'] ?? ($user['name'] ?? ''))),
+    'phone' => trim((string) ($_POST['phone'] ?? ($user['phone'] ?? ''))),
+    'email' => trim((string) ($_POST['email'] ?? ($user['email'] ?? ''))),
+    'address' => trim((string) ($_POST['address'] ?? '')),
+    'city' => trim((string) ($_POST['city'] ?? '')),
+    'state' => trim((string) ($_POST['state'] ?? 'Maharashtra')),
+    'postal' => trim((string) ($_POST['postal'] ?? '')),
+    'method' => (string) ($_POST['method'] ?? 'upi'),
+    'coupon' => trim((string) ($_POST['coupon'] ?? ($_SESSION['coupon'] ?? ''))),
+];
+if ($posted['address'] === '' && $user) {
+    $saved = db()->prepare('SELECT * FROM addresses WHERE user_id = ? ORDER BY id DESC LIMIT 1');
+    $saved->execute([(int) $user['id']]);
+    $address = $saved->fetch();
+    if ($address && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+        $posted['address'] = (string) $address['line'];
+        $posted['city'] = (string) $address['city'];
+        $posted['state'] = (string) $address['state_name'];
+        $posted['postal'] = (string) $address['postal_code'];
+    }
+}
+$requireEmail = setting('require_email', '1') === '1';
+$codOn = setting('cod_enabled', '1') === '1';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
+        form_opened_ok();
+        unset($_POST['price'], $_POST['total'], $_POST['unit_price']);
         take_checkout_token((string) ($_POST['checkout_token'] ?? ''));
-        $name = trim((string) ($_POST['name'] ?? ''));
-        $phone = normalize_phone((string) ($_POST['phone'] ?? ''));
-        $email = strtolower(trim((string) ($_POST['email'] ?? '')));
-        $address = trim((string) ($_POST['address'] ?? ''));
-        $city = trim((string) ($_POST['city'] ?? ''));
-        $state = trim((string) ($_POST['state'] ?? ''));
-        $postal = trim((string) ($_POST['postal'] ?? ''));
-        $method = (string) ($_POST['method'] ?? 'cod');
-        $couponCode = trim((string) ($_POST['coupon'] ?? ''));
-        if (strlen($name) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new RuntimeException('Check the name, mobile and email.');
+        $name = clean_text($posted['name'], 120);
+        try {
+            $phone = normalize_phone($posted['phone']);
+        } catch (RuntimeException $err) {
+            $phone = '';
+            $errors['phone'] = 'Enter a 10-digit mobile number.';
         }
-        if (strlen($address) < 8 || strlen($city) < 2 || strlen($state) < 2 || !preg_match('/^[0-9]{6}$/', $postal)) {
-            throw new RuntimeException('Check the address and 6-digit PIN code.');
+        $email = strtolower(clean_text($posted['email'], 160));
+        $address = clean_text($posted['address'], 400);
+        $city = clean_text($posted['city'], 80);
+        $state = clean_text($posted['state'], 80);
+        $postal = preg_replace('/\D+/', '', $posted['postal']) ?? '';
+        $method = $posted['method'];
+        $couponCode = strtoupper(clean_text($posted['coupon'], 40));
+        if (strlen($name) < 2) {
+            $errors['name'] = 'Enter the name for this order.';
         }
-        if (!in_array($method, ['cod', 'bank_transfer'], true)) {
-            throw new RuntimeException('Choose cash on delivery or bank transfer.');
+        if ($requireEmail && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Enter an email so we can send the order update.';
+        } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'That email does not look right.';
+        }
+        if (strlen($address) < 8) {
+            $errors['address'] = 'Enter the full delivery address.';
+        }
+        if (strlen($city) < 2) {
+            $errors['city'] = 'Enter the city.';
+        }
+        if (strlen($state) < 2) {
+            $errors['state'] = 'Enter the state.';
+        }
+        if (!preg_match('/^[0-9]{6}$/', $postal)) {
+            $errors['postal'] = 'Enter a 6-digit PIN code.';
+        } elseif (!pin_is_served($postal)) {
+            $errors['postal'] = 'We do not deliver to this PIN yet.';
+        }
+        $allowedMethods = ['upi', 'bank_transfer'];
+        if ($codOn) {
+            $allowedMethods[] = 'cod';
+        }
+        if (!in_array($method, $allowedMethods, true)) {
+            $errors['method'] = 'Choose how you would like to pay.';
+        }
+        if ($errors) {
+            throw new RuntimeException('Check the fields below.');
         }
         if (shop_paused()) {
-            throw new RuntimeException('Orders are paused');
+            throw new RuntimeException('Orders are paused right now.');
+        }
+        $hold = unpaid_hold_message($phone);
+        if ($hold !== null) {
+            throw new RuntimeException($hold);
+        }
+        if ($method === 'cod' && cod_is_blocked($phone)) {
+            throw new RuntimeException('Cash on delivery is not available for this mobile number.');
         }
         $quote = quote_cart($couponCode);
-        if (!$quote['lines']) {
-            throw new RuntimeException('The cart is empty.');
+        if (!$quote['lines'] || !empty($quote['blocked'])) {
+            throw new RuntimeException('Fix the cart before checkout. A tray is missing or there are not enough left.');
         }
         $minimum = (int) setting('min_order_inr', '0');
         if ($minimum > 0 && $quote['subtotal'] < $minimum) {
@@ -53,38 +114,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('A tray in this cart is no longer listed.');
             }
             $qty = (int) $line['qty'];
-            if ($qty < (int) $product['min_order'] || $qty > 50) {
-                throw new RuntimeException($product['name'] . ' must be between ' . (int) $product['min_order'] . ' and 50 trays.');
+            $price = (int) $product['price_inr'];
+            if ($qty < (int) $product['min_order'] || $qty > 50 || $qty > available_trays($product)) {
+                throw new RuntimeException($product['name'] . ' no longer has that many trays.');
             }
-            if ($qty > ((int) $product['stock_qty'] - (int) $product['reserved_qty'])) {
-                throw new RuntimeException('A tray in your cart no longer has that many left. Check the cart and try again.');
+            $upd = $pdo->prepare('UPDATE products SET reserved_qty = reserved_qty + ? WHERE id = ? AND stock_qty - reserved_qty >= ?');
+            $upd->execute([$qty, (int) $product['id'], $qty]);
+            if ($upd->rowCount() !== 1) {
+                throw new RuntimeException('Those trays were just reserved by another order.');
             }
-            $locked[] = ['product' => $product, 'qty' => $qty, 'line' => (int) $product['price_inr'] * $qty];
+            $locked[] = ['product' => $product, 'qty' => $qty, 'price' => $price, 'line' => $price * $qty];
         }
         $subtotal = 0;
         foreach ($locked as $line) {
             $subtotal += $line['line'];
-            $upd = $pdo->prepare('UPDATE products SET reserved_qty = reserved_qty + ? WHERE id = ? AND stock_qty - reserved_qty >= ?');
-            $upd->execute([$line['qty'], (int) $line['product']['id'], $line['qty']]);
-            if ($upd->rowCount() !== 1) {
-                throw new RuntimeException('Those trays were just reserved by another order.');
+        }
+        $coupon = null;
+        $GLOBALS['coupon_phone'] = $phone;
+        $GLOBALS['coupon_email'] = $email;
+        $coupon = lock_coupon($pdo, $couponCode, $subtotal);
+        $discount = (int) ($coupon['discount'] ?? 0);
+        $after = $subtotal - $discount;
+        $shipping = zone_shipping($after, $postal);
+        $total = $after + $shipping;
+        if ($method === 'cod') {
+            $minCod = (int) setting('cod_min_inr', '0');
+            $maxCod = (int) setting('cod_max_inr', '0');
+            if ($minCod > 0 && $total < $minCod) {
+                throw new RuntimeException('Cash on delivery starts at ' . inr($minCod) . '.');
+            }
+            if ($maxCod > 0 && $total > $maxCod) {
+                throw new RuntimeException('Cash on delivery is available up to ' . inr($maxCod) . '.');
             }
         }
-        $coupon = lock_coupon($pdo, $couponCode, $subtotal);
-        $discount = $coupon['discount'] ?? 0;
-        $after = $subtotal - $discount;
-        $shipFlat = (int) setting('shipping_flat_inr', '180');
-        $freeOver = (int) setting('free_shipping_over_inr', '4000');
-        $shipping = ($after >= $freeOver || $after === 0) ? 0 : $shipFlat;
-        $total = $after + $shipping;
         $status = $method === 'cod' ? 'placed' : 'payment_pending';
         $payment = $method === 'cod' ? 'unpaid' : 'pending';
         $token = bin2hex(random_bytes(32));
+        $when = reservation_until($method);
         $ins = $pdo->prepare('INSERT INTO orders (
             order_number, lookup_token, user_id, customer_name, customer_phone, customer_email,
             status, payment_status, payment_method, inventory_state, subtotal_inr, discount_inr,
-            shipping_inr, total_inr, address_line, city, state_name, postal_code
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            shipping_inr, total_inr, address_line, city, state_name, postal_code, reserved_until
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $orderId = 0;
         $number = '';
         for ($try = 0; $try < 3; $try++) {
@@ -92,9 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->exec('SAVEPOINT order_number');
             try {
                 $ins->execute([
-                    $number, $token, $user ? (int) $user['id'] : null, $name, $phone, $email,
+                    $number, $token, $user ? (int) $user['id'] : null, $name, $phone, $email !== '' ? $email : null,
                     $status, $payment, $method, 'reserved', $subtotal, $discount,
-                    $shipping, $total, $address, $city, $state, $postal,
+                    $shipping, $total, $address, $city, $state, $postal, $when,
                 ]);
                 $orderId = (int) $pdo->lastInsertId();
                 break;
@@ -109,71 +180,124 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($locked as $line) {
             $item->execute([
                 $orderId, (int) $line['product']['id'], $line['product']['name'], $line['product']['sku'],
-                $line['product']['unit_label'], (int) $line['product']['price_inr'], $line['qty'], $line['line'],
+                $line['product']['unit_label'], $line['price'], $line['qty'], $line['line'],
             ]);
         }
         $pdo->prepare('INSERT INTO order_events (order_id, status, note) VALUES (?, ?, ?)')
-            ->execute([$orderId, $status, 'Order received. Trays are reserved. Payment is not confirmed until the nursery says so.']);
+            ->execute([$orderId, $status, $method === 'cod' ? 'Order received. We will confirm by phone before dispatch.' : 'Order received. Trays are reserved until payment is confirmed.']);
         if ($coupon) {
-            $pdo->prepare('INSERT INTO coupon_redemptions (coupon_id, order_id, customer_email, amount_inr) VALUES (?, ?, ?, ?)')
-                ->execute([(int) $coupon['id'], $orderId, $email, $discount]);
+            $pdo->prepare('INSERT INTO coupon_redemptions (coupon_id, order_id, customer_email, phone, amount_inr) VALUES (?, ?, ?, ?, ?)')
+                ->execute([(int) $coupon['id'], $orderId, $email, $phone, $discount]);
         }
         $pdo->commit();
+        note_order_attempt($phone);
         $_SESSION['cart'] = [];
         unset($_SESSION['coupon']);
-        mail_order_customer([
+        $mailOrder = [
             'order_number' => $number,
             'total_inr' => $total,
             'customer_email' => $email,
-        ], 'Thank you. Your order is placed.');
-        mail_staff('New order ' . $number, $name . ' placed order ' . $number . ' for ' . inr($total) . '.');
+            'reserved_until' => $when,
+            'payment_method' => $method,
+            'payment_status' => $payment,
+        ];
+        mail_order_customer($mailOrder, $method === 'cod'
+            ? 'Thank you. We will call or WhatsApp you to confirm before the trays leave.'
+            : 'Thank you. Your trays are reserved. Pay with the details in this message, then we confirm the order.');
+        mail_staff('New order ' . $number, $name . ' placed order ' . $number . ' for ' . inr($total) . ' (' . $method . ').');
         header('Location: /order/' . $token);
         exit;
     } catch (Throwable $err) {
         if (isset($pdo) && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        $error = safe_error($err, 'The order could not be saved. Nothing was charged.');
+        if (!$errors) {
+            $errors['form'] = safe_error($err, 'The order could not be saved. Nothing was charged.');
+        }
     }
 }
 try {
-    $quote = quote_cart((string) ($_POST['coupon'] ?? ''));
+    $quote = quote_cart($posted['coupon']);
 } catch (Throwable $err) {
-    try {
-        $quote = quote_cart();
-    } catch (Throwable $ignored) {
-        $quote = ['lines' => [], 'subtotal' => 0, 'discount' => 0, 'shipping' => 0, 'total' => 0, 'coupon' => null];
-    }
-    $error = $error ?: safe_error($err, 'The cart could not be priced.');
+    $quote = quote_cart();
+    $errors['coupon'] = safe_error($err, 'That coupon is not valid.');
 }
+if ($posted['postal'] !== '' && preg_match('/^[0-9]{6}$/', $posted['postal'])) {
+    $after = max(0, (int) $quote['subtotal'] - (int) $quote['discount']);
+    $quote['shipping'] = zone_shipping($after, $posted['postal']);
+    $quote['total'] = $after + (int) $quote['shipping'];
+}
+$help = wa_href('Hello Precision Agritech, I need help with checkout. My PIN is ' . $posted['postal']);
+$outside = $posted['postal'] !== '' && preg_match('/^[0-9]{6}$/', $posted['postal']) && !pin_is_served($posted['postal']);
 render_header('Checkout | Precision Agritech');
 ?>
-<section class="section"><div class="wrap narrow">
+<section class="section"><div class="wrap">
   <h1>Checkout</h1>
-  <?php if ($error): ?><p class="flash"><?= e($error) ?></p><?php endif; ?>
-  <?php if (!$quote['lines']): ?><p>Your cart is empty.</p><?php else: ?>
-  <p>Total <?= inr($quote['total']) ?>. Shipping <?= inr($quote['shipping']) ?>.</p>
-  <p class="muted">Trays usually leave the nursery within 2 to 4 days after the order is confirmed.</p>
-  <?php $payNote = trim(setting('payment_instructions', '')); if ($payNote !== ''): ?><p><?= e($payNote) ?></p><?php endif; ?>
-  <?php if (shop_paused()): ?><p class="flash bad">Orders are paused</p><?php endif; ?>
-  <form method="post">
-    <?= csrf_field() ?>
-    <input type="hidden" name="checkout_token" value="<?= e(checkout_token()) ?>">
-    <label>Name <input name="name" required value="<?= e($user ? (string) $user['name'] : '') ?>"></label>
-    <label>Phone <input name="phone" required value="<?= e($user ? (string) $user['phone'] : '') ?>"></label>
-    <label>Email <input name="email" type="email" required value="<?= e($user ? (string) $user['email'] : '') ?>"></label>
-    <label>Address <textarea name="address" required></textarea></label>
-    <label>City <input name="city" required></label>
-    <label>State <input name="state" required value="Maharashtra"></label>
-    <label>PIN <input name="postal" required pattern="[0-9]{6}" inputmode="numeric" maxlength="6"></label>
-    <label>Coupon <input name="coupon" value="<?= e((string) ($_POST['coupon'] ?? $_SESSION['coupon'] ?? '')) ?>" autocomplete="off"></label>
-    <label><input type="radio" name="method" value="cod" checked> Cash on delivery</label>
-    <label><input type="radio" name="method" value="bank_transfer"> Bank transfer. The nursery confirms payment.</label>
-    <button class="btn" type="submit" <?= shop_paused() ? 'disabled' : '' ?>>Place order</button>
-  </form>
-  <?php $help = wa_href('Hello Precision Agritech, I need help with checkout.'); if ($help !== ''): ?>
-    <p><a href="<?= e($help) ?>" target="_blank" rel="noopener">Need help? Chat on WhatsApp</a></p>
+  <?php if (!empty($errors['form'])): ?><p class="flash bad" role="alert"><?= e($errors['form']) ?></p><?php endif; ?>
+  <?php if (shop_paused()): ?><p class="flash bad" role="alert">Orders are paused right now</p><?php endif; ?>
+  <?php if (!$quote['lines']): ?><p>Your cart is empty. <a href="/shop">Shop seedlings</a></p><?php else: ?>
+  <?php if ($quote['lines']): ?>
+  <details class="card summary summary-mobile">
+    <summary>Order summary — <?= inr((int) $quote['total']) ?></summary>
+    <?php foreach ($quote['lines'] as $line): ?>
+      <p><span><?= (int) $line['qty'] ?> × <?= e((string) $line['product']['name']) ?></span><span><?= inr((int) $line['line']) ?></span></p>
+    <?php endforeach; ?>
+    <p class="summary-total"><span>Total</span><span><?= inr((int) $quote['total']) ?></span></p>
+  </details>
   <?php endif; ?>
+  <div class="checkout-layout">
+  <div>
+    <form method="post" class="checkout-form">
+      <?= csrf_field() ?>
+      <?= opened_fields() ?>
+      <input type="hidden" name="checkout_token" value="<?= e(checkout_token()) ?>">
+      <fieldset>
+        <legend><span class="step-no">1</span> Your details</legend>
+        <label>Name <input name="name" required value="<?= e($posted['name']) ?>" autocomplete="name" aria-invalid="<?= !empty($errors['name']) ? 'true' : 'false' ?>"></label>
+        <?php if (!empty($errors['name'])): ?><p class="field-error" role="alert"><?= e($errors['name']) ?></p><?php endif; ?>
+        <label>Mobile <input name="phone" type="tel" required value="<?= e($posted['phone']) ?>" inputmode="tel" autocomplete="tel-national" maxlength="14" aria-invalid="<?= !empty($errors['phone']) ? 'true' : 'false' ?>"<?= !empty($errors['phone']) ? ' aria-describedby="err-phone"' : '' ?>></label>
+        <p class="hint">We call or WhatsApp you to confirm.</p>
+        <?php if (!empty($errors['phone'])): ?><p class="field-error" id="err-phone" role="alert"><?= e($errors['phone']) ?></p><?php endif; ?>
+        <label>Email <?php if (!$requireEmail): ?><span class="muted">(optional)</span><?php endif; ?>
+          <input name="email" type="email" <?= $requireEmail ? 'required' : '' ?> value="<?= e($posted['email']) ?>" autocomplete="email" aria-invalid="<?= !empty($errors['email']) ? 'true' : 'false' ?>"></label>
+        <?php if (!empty($errors['email'])): ?><p class="field-error" role="alert"><?= e($errors['email']) ?></p><?php endif; ?>
+      </fieldset>
+      <fieldset>
+        <legend><span class="step-no">2</span> Delivery address</legend>
+        <p class="hint"><?= e(setting('delivery_area_text', 'We deliver with our own nursery vehicles.')) ?></p>
+        <label>Address <textarea name="address" required autocomplete="street-address"><?= e($posted['address']) ?></textarea></label>
+        <?php if (!empty($errors['address'])): ?><p class="field-error" role="alert"><?= e($errors['address']) ?></p><?php endif; ?>
+        <label>City <input name="city" required value="<?= e($posted['city']) ?>" autocomplete="address-level2"></label>
+        <?php if (!empty($errors['city'])): ?><p class="field-error" role="alert"><?= e($errors['city']) ?></p><?php endif; ?>
+        <label>State <input name="state" required value="<?= e($posted['state']) ?>" autocomplete="address-level1"></label>
+        <?php if (!empty($errors['state'])): ?><p class="field-error" role="alert"><?= e($errors['state']) ?></p><?php endif; ?>
+        <label>PIN <input name="postal" required value="<?= e($posted['postal']) ?>" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="postal-code" aria-invalid="<?= !empty($errors['postal']) ? 'true' : 'false' ?>"></label>
+        <p class="hint">We deliver to selected Pune PIN codes.</p>
+        <?php if (!empty($errors['postal'])): ?><p class="field-error" role="alert"><?= e($errors['postal']) ?></p><?php endif; ?>
+        <?php if ($outside && $help !== ''): ?><p><a href="<?= e($help) ?>" target="_blank" rel="noopener">Call or WhatsApp us for bulk or special delivery</a></p><?php endif; ?>
+      </fieldset>
+      <fieldset>
+        <legend><span class="step-no">3</span> Payment</legend>
+        <label class="pay-card"><input type="radio" name="method" value="upi" <?= $posted['method'] === 'upi' ? 'checked' : '' ?>><span><strong>Pay by UPI</strong><br><span class="hint">Scan the QR or use your UPI app</span></span></label>
+        <label class="pay-card"><input type="radio" name="method" value="bank_transfer" <?= $posted['method'] === 'bank_transfer' ? 'checked' : '' ?>><span><strong>Bank transfer</strong><br><span class="hint">NEFT or IMPS</span></span></label>
+        <?php if ($codOn): ?><label class="pay-card"><input type="radio" name="method" value="cod" <?= $posted['method'] === 'cod' ? 'checked' : '' ?>><span><strong>Cash on delivery</strong><br><span class="hint">Pay the driver</span></span></label><?php endif; ?>
+        <?php if (!empty($errors['method'])): ?><p class="field-error" role="alert"><?= e($errors['method']) ?></p><?php endif; ?>
+      </fieldset>
+      <label>Coupon <input name="coupon" value="<?= e($posted['coupon']) ?>" autocomplete="off"></label>
+      <?php if (!empty($errors['coupon'])): ?><p class="field-error" role="alert"><?= e($errors['coupon']) ?></p><?php endif; ?>
+      <button class="btn btn-block" type="submit" <?= (shop_paused() || !empty($quote['blocked']) || $outside) ? 'disabled' : '' ?>>Place order</button>
+      <p class="consent">We use your details only to deliver your order. <a href="/privacy">Privacy Policy</a></p>
+    </form>
+  </div>
+  <aside class="card summary summary-desk">
+    <h2>Your trays</h2>
+    <?php foreach ($quote['lines'] as $line): ?>
+      <p><span><?= (int) $line['qty'] ?> × <?= e((string) $line['product']['name']) ?></span><span><?= inr((int) $line['line']) ?></span></p>
+    <?php endforeach; ?>
+    <p><span>Shipping</span><span><?= inr((int) $quote['shipping']) ?></span></p>
+    <p class="summary-total"><span>Total</span><span><?= inr((int) $quote['total']) ?></span></p>
+  </aside>
+  </div>
   <?php endif; ?>
 </div></section>
 <?php render_footer(); ?>

@@ -20,9 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (($user['role'] ?? '') === 'admin') {
                 throw new RuntimeException('Sign in with a customer account to review.');
             }
-            if (review_limit_hit((int) $user['id'])) {
+            if (rate_limited('review:' . (int) $user['id'], 3, 60)) {
                 throw new RuntimeException('You have sent several reviews. Please try again in an hour.');
             }
+            note_rate('review:' . (int) $user['id']);
             $existing = db()->prepare('SELECT id FROM reviews WHERE product_id = ? AND user_id = ? LIMIT 1');
             $existing->execute([(int) $product['id'], (int) $user['id']]);
             if ($existing->fetch()) {
@@ -39,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $verified = $bought->fetch() ? 1 : 0;
             db()->prepare('INSERT INTO reviews (product_id, user_id, author_name, rating, body, status, verified) VALUES (?, ?, ?, ?, ?, ?, ?)')
                 ->execute([(int) $product['id'], (int) $user['id'], $author, $rating, $body, 'pending', $verified]);
+            mail_staff('Review waiting', $product['name'] . ' has a new review to check.');
             flash_set('Thanks - your review will appear after we check it.');
             header('Location: /product/' . rawurlencode($product['slug']));
             exit;
@@ -93,12 +95,13 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
 ?>
 <section class="section">
   <div class="wrap split product-split">
-    <img src="<?= e($image) ?>" alt="<?= e($product['name']) ?> seedling tray" width="1200" height="900" decoding="async">
+    <img src="<?= e($image) ?>"<?php $set = image_srcset($image); if ($set !== ''): ?> srcset="<?= e($set) ?>" sizes="(max-width:900px) 100vw, 50vw"<?php endif; ?> alt="<?= e($product['name']) ?> seedling tray" width="1200" height="900" decoding="async">
     <div>
       <p class="kicker"><?= e($product['category_name']) ?></p>
       <h1><?= e($product['name']) ?></h1>
       <p class="muted"><?= e($product['scientific_name']) ?> · <?= e($product['variety']) ?></p>
-      <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ tray</span><?php if ($onSale): ?><span class="compare"><?= inr((int) $product['compare_at_inr']) ?></span><?php endif; ?></p>
+      <p class="price"><?= inr((int) $product['price_inr']) ?> <span class="muted">/ <?= e((string) $product['unit_label']) ?></span><?php if ($onSale): ?><span class="compare"><?= inr((int) $product['compare_at_inr']) ?></span><?php endif; ?></p>
+      <p>Grown at Theur, Pune · <?= (int) available_trays($product) ?> trays ready · Delivery in 2–4 days after payment is confirmed.</p>
       <?php if ($rating): ?><p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?> reviews</span></p><?php endif; ?>
       <p><?= e($product['description']) ?></p>
       <?php if ($stock <= 0): ?>

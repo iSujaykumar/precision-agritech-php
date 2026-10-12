@@ -10,9 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$user || ($user['role'] ?? '') === 'admin') {
             throw new RuntimeException('Sign in to review.');
         }
-        if (review_limit_hit((int) $user['id'])) {
+        if (rate_limited('review:' . (int) $user['id'], 3, 60)) {
             throw new RuntimeException('You have sent several reviews. Please try again in an hour.');
         }
+        note_rate('review:' . (int) $user['id']);
         $existing = db()->prepare('SELECT id FROM reviews WHERE product_id IS NULL AND user_id = ? LIMIT 1');
         $existing->execute([(int) $user['id']]);
         if ($existing->fetch()) {

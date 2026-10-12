@@ -69,13 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $starts = $starts === '' ? null : str_replace('T', ' ', $starts);
         $ends = $ends === '' ? null : str_replace('T', ' ', $ends);
         $active = isset($_POST['active']) ? 1 : 0;
+        $perCustomer = max(0, (int) ($_POST['per_customer'] ?? 1));
         if ($id) {
-            db()->prepare('UPDATE coupons SET code=?, kind=?, amount=?, min_order_inr=?, usage_limit=?, active=?, starts_at=?, ends_at=? WHERE id=?')
-                ->execute([$code, $kind, $amount, $min, $limit, $active, $starts, $ends, $id]);
+            db()->prepare('UPDATE coupons SET code=?, kind=?, amount=?, min_order_inr=?, usage_limit=?, per_customer_limit=?, active=?, starts_at=?, ends_at=? WHERE id=?')
+                ->execute([$code, $kind, $amount, $min, $limit, $perCustomer, $active, $starts, $ends, $id]);
             audit_log((int) $admin['id'], 'coupon_update', 'coupon', $id, null, $code);
         } else {
-            db()->prepare('INSERT INTO coupons (code, kind, amount, min_order_inr, usage_limit, active, starts_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-                ->execute([$code, $kind, $amount, $min, $limit, $active, $starts, $ends]);
+            db()->prepare('INSERT INTO coupons (code, kind, amount, min_order_inr, usage_limit, per_customer_limit, active, starts_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                ->execute([$code, $kind, $amount, $min, $limit, $perCustomer, $active, $starts, $ends]);
             audit_log((int) $admin['id'], 'coupon_create', 'coupon', (int) db()->lastInsertId(), null, $code);
         }
         flash_set('Coupon saved');
@@ -123,6 +124,7 @@ echo '<label>Kind <select name="kind"><option value="fixed"' . ($c['kind'] === '
 echo '<label>Amount <input name="amount" type="number" min="1" required value="' . e((string) $c['amount']) . '"></label>';
 echo '<label>Minimum order <input name="min_order" type="number" min="0" value="' . (int) $c['min_order_inr'] . '"></label>';
 echo '<label>Use limit <input name="usage_limit" type="number" min="1" value="' . e((string) ($c['usage_limit'] ?? '')) . '" placeholder="Blank for no limit"></label>';
+echo '<label>Uses per customer <input name="per_customer" type="number" min="0" value="' . e((string) ($c['per_customer_limit'] ?? '1')) . '" placeholder="1, or 0 for no limit"></label>';
 echo '<label>Valid from <input name="starts_at" type="datetime-local" value="' . e(str_replace(' ', 'T', substr((string) ($c['starts_at'] ?? ''), 0, 16))) . '"></label>';
 echo '<label>Valid until <input name="ends_at" type="datetime-local" value="' . e(str_replace(' ', 'T', substr((string) ($c['ends_at'] ?? ''), 0, 16))) . '"></label>';
 echo '<label><input type="checkbox" name="active" ' . (!empty($c['active']) ? 'checked' : '') . '> Active</label>';

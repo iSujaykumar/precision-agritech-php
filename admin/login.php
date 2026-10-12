@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
         if (!$user || !password_verify((string) ($_POST['password'] ?? ''), (string) $user['password_hash'])) {
             note_login_failure('admin:' . $email);
+            audit_log(0, 'staff_login_failed', 'user', 0, $email, client_ip());
             throw new RuntimeException('That staff sign-in is not right.');
         }
         sign_in_user($user);

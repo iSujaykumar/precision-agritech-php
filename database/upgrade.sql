@@ -125,3 +125,225 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('shop_paused','0')
 ON DUPLICATE KEY UPDATE `key` = `key`;
 
+DROP PROCEDURE IF EXISTS pa_add_column;
+DELIMITER $$
+CREATE PROCEDURE pa_add_column(IN tbl VARCHAR(64), IN col VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND COLUMN_NAME = col
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+
+CALL pa_add_column('users', 'google_id', 'ALTER TABLE users ADD COLUMN google_id VARCHAR(64) NULL');
+CALL pa_add_column('users', 'email_verified_at', 'ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP NULL');
+CALL pa_add_column('users', 'deletion_requested', 'ALTER TABLE users ADD COLUMN deletion_requested TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('orders', 'reserved_until', 'ALTER TABLE orders ADD COLUMN reserved_until DATETIME NULL');
+CALL pa_add_column('orders', 'payment_ref', 'ALTER TABLE orders ADD COLUMN payment_ref VARCHAR(40) NULL');
+CALL pa_add_column('orders', 'payment_note', 'ALTER TABLE orders ADD COLUMN payment_note VARCHAR(255) NULL');
+CALL pa_add_column('orders', 'paid_amount_inr', 'ALTER TABLE orders ADD COLUMN paid_amount_inr INT NULL');
+CALL pa_add_column('orders', 'paid_on', 'ALTER TABLE orders ADD COLUMN paid_on DATE NULL');
+CALL pa_add_column('orders', 'paid_by', 'ALTER TABLE orders ADD COLUMN paid_by INT UNSIGNED NULL');
+CALL pa_add_column('orders', 'driver_id', 'ALTER TABLE orders ADD COLUMN driver_id INT UNSIGNED NULL');
+CALL pa_add_column('orders', 'delivery_date', 'ALTER TABLE orders ADD COLUMN delivery_date DATE NULL');
+CALL pa_add_column('orders', 'delivery_slot', 'ALTER TABLE orders ADD COLUMN delivery_slot VARCHAR(20) NULL');
+CALL pa_add_column('orders', 'phone_confirmed', 'ALTER TABLE orders ADD COLUMN phone_confirmed TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('orders', 'cash_collected_inr', 'ALTER TABLE orders ADD COLUMN cash_collected_inr INT NULL');
+CALL pa_add_column('orders', 'cash_handed_at', 'ALTER TABLE orders ADD COLUMN cash_handed_at DATETIME NULL');
+CALL pa_add_column('orders', 'collected_by', 'ALTER TABLE orders ADD COLUMN collected_by INT UNSIGNED NULL');
+CALL pa_add_column('orders', 'collected_at', 'ALTER TABLE orders ADD COLUMN collected_at DATETIME NULL');
+CALL pa_add_column('orders', 'cancel_reason', 'ALTER TABLE orders ADD COLUMN cancel_reason VARCHAR(255) NULL');
+DROP PROCEDURE IF EXISTS pa_add_column;
+
+ALTER TABLE users MODIFY email VARCHAR(160) NULL;
+ALTER TABLE users MODIFY phone VARCHAR(20) NULL;
+ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL;
+ALTER TABLE orders MODIFY customer_email VARCHAR(160) NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_google ON users (google_id);
+CREATE INDEX IF NOT EXISTS orders_status_created ON orders (status, created_at);
+CREATE INDEX IF NOT EXISTS orders_phone ON orders (customer_phone);
+CREATE INDEX IF NOT EXISTS orders_reserved ON orders (reserved_until);
+CREATE INDEX IF NOT EXISTS order_items_order ON order_items (order_id);
+CREATE INDEX IF NOT EXISTS reviews_product_status ON reviews (product_id, status);
+CREATE INDEX IF NOT EXISTS products_active_category ON products (active, category_id);
+
+CREATE TABLE IF NOT EXISTS drivers (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  vehicle_no VARCHAR(20) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS cod_blocks (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  phone VARCHAR(20) NOT NULL,
+  note VARCHAR(200) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY cod_blocks_phone (phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS claims (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  reason VARCHAR(500) NOT NULL,
+  photos VARCHAR(800) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'new',
+  staff_reply VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY claims_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS refunds (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  amount_inr INT NOT NULL,
+  method VARCHAR(40) NOT NULL,
+  paid_on DATE NOT NULL,
+  admin_user_id INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS email_codes (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(160) NOT NULL,
+  purpose VARCHAR(30) NOT NULL,
+  code_hash CHAR(64) NOT NULL,
+  salt CHAR(16) NOT NULL,
+  attempts INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  ip VARCHAR(64) NOT NULL,
+  KEY email_codes_email (email, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS order_attempts (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(64) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY order_attempts_ip (ip, created_at),
+  KEY order_attempts_phone (phone, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+UPDATE orders
+SET reserved_until = DATE_ADD(created_at, INTERVAL 48 HOUR)
+WHERE status IN ('placed', 'payment_pending')
+  AND inventory_state = 'reserved'
+  AND reserved_until IS NULL;
+
+INSERT INTO settings (`key`, `value`) VALUES
+('reservation_hours_bank','48'),
+('reservation_hours_cod','72'),
+('require_email','1'),
+('cod_enabled','1'),
+('require_phone_confirm','1'),
+('upi_id','precision9958@fbl'),
+('upi_payee_name','Precision Agritech Private Limited'),
+('seller_legal_name','Precision Agritech Private Limited'),
+('bank_account_name',''),
+('bank_name',''),
+('bank_account_number',''),
+('bank_ifsc',''),
+('upi_qr_image',''),
+('gstin',''),
+('cin',''),
+('grievance_officer_name',''),
+('grievance_officer_phone',''),
+('grievance_officer_email',''),
+('delivery_pins',''),
+('delivery_area_text','We deliver with our own nursery vehicles.'),
+('zone_shipping',''),
+('cod_min_inr','0'),
+('cod_max_inr','0'),
+('show_driver_phone','0'),
+('claim_hours','48'),
+('hsn_code',''),
+('gst_rate',''),
+('cleanup_last_run','0')
+ON DUPLICATE KEY UPDATE `key` = `key`;
+
+DROP PROCEDURE IF EXISTS pa_add_column;
+DELIMITER $$
+CREATE PROCEDURE pa_add_column(IN tbl VARCHAR(64), IN col VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND COLUMN_NAME = col
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+
+CALL pa_add_column('orders', 'cash_reason', 'ALTER TABLE orders ADD COLUMN cash_reason VARCHAR(160) NULL');
+CALL pa_add_column('orders', 'reservation_extended', 'ALTER TABLE orders ADD COLUMN reservation_extended TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('orders', 'reminder_sent', 'ALTER TABLE orders ADD COLUMN reminder_sent TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('orders', 'payment_alerted', 'ALTER TABLE orders ADD COLUMN payment_alerted TINYINT(1) NOT NULL DEFAULT 0');
+CALL pa_add_column('coupons', 'per_customer_limit', 'ALTER TABLE coupons ADD COLUMN per_customer_limit INT NOT NULL DEFAULT 1');
+CALL pa_add_column('coupon_redemptions', 'phone', 'ALTER TABLE coupon_redemptions ADD COLUMN phone VARCHAR(20) NULL');
+CALL pa_add_column('refunds', 'utr', 'ALTER TABLE refunds ADD COLUMN utr VARCHAR(80) NULL');
+DROP PROCEDURE IF EXISTS pa_add_column;
+
+DROP PROCEDURE IF EXISTS pa_add_index;
+DELIMITER $$
+CREATE PROCEDURE pa_add_index(IN tbl VARCHAR(64), IN idx VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND INDEX_NAME = idx
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+
+CALL pa_add_index('email_codes', 'email_codes_lookup', 'ALTER TABLE email_codes ADD KEY email_codes_lookup (email, purpose, expires_at)');
+CALL pa_add_index('orders', 'orders_payment_ref', 'ALTER TABLE orders ADD KEY orders_payment_ref (payment_ref)');
+CALL pa_add_index('orders', 'orders_driver_date', 'ALTER TABLE orders ADD KEY orders_driver_date (driver_id, delivery_date)');
+CALL pa_add_index('orders', 'orders_status_reserved', 'ALTER TABLE orders ADD KEY orders_status_reserved (status, reserved_until)');
+CALL pa_add_index('claims', 'claims_status', 'ALTER TABLE claims ADD KEY claims_status (status)');
+CALL pa_add_index('refunds', 'refunds_order', 'ALTER TABLE refunds ADD KEY refunds_order (order_id)');
+CALL pa_add_index('coupon_redemptions', 'coupon_redemptions_email', 'ALTER TABLE coupon_redemptions ADD KEY coupon_redemptions_email (coupon_id, customer_email)');
+CALL pa_add_index('coupon_redemptions', 'coupon_redemptions_phone', 'ALTER TABLE coupon_redemptions ADD KEY coupon_redemptions_phone (coupon_id, phone)');
+DROP PROCEDURE IF EXISTS pa_add_index;
+
+CREATE TABLE IF NOT EXISTS order_files (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  kind VARCHAR(30) NOT NULL,
+  path VARCHAR(255) NOT NULL,
+  created_by INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY order_files_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS mail_log (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  to_email VARCHAR(160) NOT NULL,
+  subject VARCHAR(200) NOT NULL,
+  ok TINYINT(1) NOT NULL,
+  error VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY mail_log_created (created_at, ok)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO settings (`key`, `value`) VALUES
+('max_unpaid_phone','2'),
+('max_unpaid_ip','3'),
+('max_trays_phone','60'),
+('cod_fail_limit','2'),
+('cod_max_inr','5000'),
+('reservation_hours_bank','24')
+ON DUPLICATE KEY UPDATE `key` = `key`;
+
+UPDATE settings SET `value` = '24' WHERE `key` = 'reservation_hours_bank' AND `value` = '48';
+UPDATE settings SET `value` = '5000' WHERE `key` = 'cod_max_inr' AND `value` = '0';
+
+

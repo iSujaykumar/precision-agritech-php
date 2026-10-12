@@ -42,12 +42,18 @@ render_header('Contact | Precision Agritech');
   <?php if ($error): ?><p class="flash"><?= e($error) ?></p><?php endif; ?>
   <form method="post">
     <?= csrf_field() ?>
-    <input name="company_website" style="display:none" tabindex="-1" autocomplete="off">
+    <input class="hp" name="company_website" tabindex="-1" autocomplete="off" aria-hidden="true">
     <label>Name <input name="name" required></label>
     <label>Email <input name="email" type="email" required></label>
     <label>Phone <input name="phone"></label>
     <label>Message <textarea name="body" required></textarea></label>
     <button class="btn">Send</button>
   </form>
+  <h2 id="grievance">Grievance officer</h2>
+  <p><?= e(setting('grievance_officer_name', 'The nursery office')) ?><?php $role = 'Grievance officer'; ?> · <?= e($role) ?></p>
+  <p><?php $gPhone = setting('grievance_officer_phone', shop_phone_digits()); $gMail = setting('grievance_officer_email', setting('shop_email', 'info@precisionagritech.in')); ?>
+    <a href="tel:+91<?= e(preg_replace('/\D+/', '', $gPhone) ?? '') ?>"><?= e($gPhone) ?></a>
+    · <a href="mailto:<?= e($gMail) ?>"><?= e($gMail) ?></a></p>
+  <p>We acknowledge complaints within 48 hours and aim to resolve them within one month.</p>
 </div></section>
 <?php render_footer(); ?>

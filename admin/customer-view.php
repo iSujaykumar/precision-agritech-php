@@ -7,6 +7,14 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
+        if (($_POST['action'] ?? '') === 'deletion') {
+            db()->prepare('UPDATE users SET deletion_requested = 0, status = ? WHERE id = ? AND role = ?')
+                ->execute(['disabled', $id, 'customer']);
+            audit_log((int) $admin['id'], 'customer_deletion', 'user', $id, 'requested', 'disabled');
+            flash_set('Account disabled. Remove their orders and uploads from the nursery records when you are ready.');
+            header('Location: /admin/customer-view?id=' . $id);
+            exit;
+        }
         $status = ($_POST['status'] ?? '') === 'disabled' ? 'disabled' : 'active';
         $stmt = db()->prepare("SELECT id, role FROM users WHERE id = ? AND role = 'customer'");
         $stmt->execute([$id]);
@@ -40,7 +48,11 @@ if (!$user) {
 }
 $orders = db()->prepare('SELECT id, order_number, status, total_inr, created_at FROM orders WHERE user_id = ? ORDER BY id DESC');
 $orders->execute([$id]);
-echo '<p>' . e($user['name']) . ' · ' . e($user['email']) . ' · ' . e((string) $user['phone']) . '</p>';
+echo '<p>' . e($user['name']) . ' · ' . e((string) $user['email']) . ' · ' . e((string) $user['phone']) . '</p>';
+if (!empty($user['deletion_requested'])) {
+    echo '<p class="flash">This customer asked to delete the account and data.</p>';
+    echo '<form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $user['id'] . '"><input type="hidden" name="action" value="deletion"><button class="btn" type="submit">Disable account and mark the request handled</button></form>';
+}
 echo '<p>Last sign-in: ' . e((string) ($user['last_login_at'] ?: '—')) . '</p>';
 echo '<form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $user['id'] . '">';
 echo '<input type="hidden" name="status" value="' . ($user['status'] === 'disabled' ? 'active' : 'disabled') . '">';

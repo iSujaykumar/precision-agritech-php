@@ -14,20 +14,37 @@ $fields = [
     'free_shipping_over_inr' => 'Free shipping over INR',
     'min_order_inr' => 'Minimum order INR',
     'payment_instructions' => 'Payment instructions',
+    'seller_legal_name' => 'Legal name',
+    'gstin' => 'GSTIN',
+    'cin' => 'CIN',
+    'hsn_code' => 'HSN code',
+    'gst_rate' => 'GST rate percent',
+    'grievance_officer_name' => 'Grievance officer name',
+    'grievance_officer_phone' => 'Grievance officer phone',
+    'grievance_officer_email' => 'Grievance officer email',
     'announcement' => 'Announcement',
+    'max_unpaid_phone' => 'Max open unpaid orders per phone',
+    'max_unpaid_ip' => 'Max open unpaid orders per network',
+    'max_trays_phone' => 'Max trays held unpaid per phone',
+    'cod_fail_limit' => 'Failed deliveries before cash is blocked',
 ];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_csrf();
-        foreach (['shipping_flat_inr', 'free_shipping_over_inr', 'min_order_inr'] as $key) {
-            save_setting($key, (string) max(0, (int) ($_POST[$key] ?? 0)));
+        $changed = [];
+        foreach (['shipping_flat_inr', 'free_shipping_over_inr', 'min_order_inr', 'max_unpaid_phone', 'max_unpaid_ip', 'max_trays_phone', 'cod_fail_limit'] as $key) {
+            $next = checked_setting($key, (string) ($_POST[$key] ?? '0'));
+            save_setting($key, $next);
+            $changed[] = $key;
         }
-        foreach (['shop_phone', 'whatsapp_number', 'shop_email', 'mail_from', 'shop_address', 'opening_hours', 'map_url', 'payment_instructions', 'announcement'] as $key) {
-            save_setting($key, trim((string) ($_POST[$key] ?? '')));
+        foreach (['shop_phone', 'whatsapp_number', 'shop_email', 'mail_from', 'shop_address', 'opening_hours', 'map_url', 'payment_instructions', 'announcement', 'seller_legal_name', 'gstin', 'cin', 'hsn_code', 'gst_rate', 'grievance_officer_name', 'grievance_officer_phone', 'grievance_officer_email'] as $key) {
+            $next = checked_setting($key, (string) ($_POST[$key] ?? ''));
+            save_setting($key, $next);
+            $changed[] = $key;
         }
         save_setting('announcement_on', isset($_POST['announcement_on']) ? '1' : '0');
         save_setting('shop_paused', isset($_POST['shop_paused']) ? '1' : '0');
-        audit_log((int) $admin['id'], 'settings', 'setting', 0, null, 'shop');
+        audit_log((int) $admin['id'], 'settings', 'setting', 0, null, implode(',', $changed));
         flash_set('Settings saved');
         header('Location: /admin/settings');
         exit;
@@ -41,7 +58,7 @@ if (!empty($error)) {
 }
 echo '<form method="post" class="narrow">' . csrf_field();
 foreach ($fields as $key => $label) {
-    $value = setting($key, '');
+    $value = array_key_exists($key, $_POST) ? (string) $_POST[$key] : setting($key, '');
     if ($key === 'payment_instructions' || $key === 'announcement' || $key === 'shop_address') {
         echo '<label>' . e($label) . ' <textarea name="' . e($key) . '">' . e($value) . '</textarea></label>';
     } else {

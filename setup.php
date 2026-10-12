@@ -2,8 +2,9 @@
 declare(strict_types=1);
 require __DIR__ . '/includes/bootstrap.php';
 connect_or_explain();
+global $config;
 $count = (int) db()->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
-if ($count > 0) {
+if (empty($config['allow_setup']) || $count > 0) {
     http_response_code(404);
     exit('Not found');
 }

@@ -7,7 +7,10 @@ $pay = (string) ($_GET['pay'] ?? '');
 $q = trim((string) ($_GET['q'] ?? ''));
 $where = ' WHERE 1=1';
 $params = [];
-$allowed = ['placed', 'payment_pending', 'payment_confirmed', 'preparing', 'dispatched', 'delivered', 'cancelled'];
+$allowed = ['placed', 'payment_pending', 'payment_submitted', 'payment_confirmed', 'confirmed', 'preparing', 'packed', 'out_for_delivery', 'dispatched', 'delivery_failed', 'delivered', 'cancelled'];
+if (($_GET['check'] ?? '') === '1') {
+    $where .= " AND status = 'payment_submitted'";
+}
 if (in_array($status, $allowed, true)) {
     $where .= ' AND status = ?';
     $params[] = $status;
@@ -16,6 +19,8 @@ if ($pay === 'paid') {
     $where .= " AND payment_status = 'paid'";
 } elseif ($pay === 'unpaid') {
     $where .= " AND payment_status IN ('unpaid','pending')";
+} elseif ($pay === 'refund_due') {
+    $where .= " AND payment_status = 'refund_due'";
 }
 if ($q !== '') {
     $where .= ' AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)';
@@ -44,7 +49,7 @@ $stmt = db()->prepare('SELECT id, order_number, customer_name, status, payment_s
 $stmt->execute($params);
 $rows = $stmt->fetchAll();
 admin_open('Orders');
-$tabs = ['' => 'All', 'placed' => 'New', 'payment_pending' => 'Payment pending', 'payment_confirmed' => 'Paid', 'preparing' => 'Preparing', 'dispatched' => 'Dispatched', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled'];
+$tabs = ['' => 'All', 'placed' => 'New', 'payment_submitted' => 'Waiting for payment check', 'payment_pending' => 'Payment pending', 'payment_confirmed' => 'Paid', 'preparing' => 'Preparing', 'dispatched' => 'Dispatched', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled'];
 echo '<nav class="subnav">';
 foreach ($tabs as $key => $label) {
     $href = '/admin/orders' . ($key !== '' ? '?status=' . rawurlencode($key) : '');
@@ -59,7 +64,8 @@ if ($status !== '') {
 echo '<button class="btn" type="submit">Search</button> <a href="/admin/orders?export=csv">Export CSV</a></form>';
 echo '<div class="table-wrap"><table><tr><th>Order</th><th>Date</th><th>Customer</th><th>Status</th><th>Payment</th><th>Total</th></tr>';
 foreach ($rows as $row) {
-    echo '<tr><td><a href="/admin/order-view?id=' . (int) $row['id'] . '">' . e($row['order_number']) . '</a></td><td>' . e((string) $row['created_at']) . '</td><td>' . e($row['customer_name']) . '</td><td>' . e(order_label((string) $row['status'])) . '</td><td>' . e((string) $row['payment_status']) . '</td><td>' . inr((int) $row['total_inr']) . '</td></tr>';
+    $class = $row['status'] === 'payment_submitted' ? ' class="pay-wait"' : '';
+    echo '<tr' . $class . '><td><a href="/admin/order-view?id=' . (int) $row['id'] . '">' . e($row['order_number']) . '</a></td><td>' . e((string) $row['created_at']) . '</td><td>' . e($row['customer_name']) . '</td><td>' . e(order_label((string) $row['status'])) . '</td><td>' . e((string) $row['payment_status']) . '</td><td>' . inr((int) $row['total_inr']) . '</td></tr>';
 }
 echo '</table></div>';
 pager_nav($page, $pages);

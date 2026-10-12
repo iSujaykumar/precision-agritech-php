@@ -10,8 +10,11 @@ RewriteRule ^includes/ - [F,L]
 RewriteRule ^database/ - [F,L]
 RewriteRule ^database\.sql$ - [F,L]
 RewriteRule \.sql$ - [F,L]
+RewriteRule \.md$ - [F,L]
 RewriteRule ^SETUP-NOTES\.txt$ - [F,L]
 RewriteRule ^UPLOAD\.txt$ - [F,L]
+RewriteRule ^CHANGELOG\.md$ - [F,L]
+RewriteRule ^uploads/private/ - [F,L]
 RewriteRule ^admin/common\.php$ - [F,L]
 RewriteRule "(^|/)\." - [F,L]
 
@@ -19,7 +22,9 @@ RewriteRule ^sitemap\.xml$ sitemap.php [L]
 
 RewriteRule ^product/([a-z0-9-]+)/?$ product.php?slug=$1 [L,QSA]
 RewriteRule ^order/([A-Za-z0-9]+)/?$ order.php?token=$1 [L,QSA]
-RewriteRule ^(about|nursery|faq|shipping|returns|privacy|terms|wholesale)/?$ page.php?p=$1 [L,QSA]
+RewriteRule ^auth/google/callback/?$ auth/google-callback.php [L,QSA]
+RewriteRule ^auth/google/?$ auth/google.php [L,QSA]
+RewriteRule ^(about|nursery|faq|shipping|returns|cancellation|privacy|terms|wholesale)/?$ page.php?p=$1 [L,QSA]
 RewriteRule ^shop/?$ shop.php [L,QSA]
 RewriteRule ^cart/?$ cart.php [L]
 RewriteRule ^checkout/?$ checkout.php [L]
@@ -36,6 +41,25 @@ RewriteRule ^setup/?$ setup.php [L]
 RewriteRule ^admin/login/?$ admin/login.php [L]
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
 RewriteRule ^admin/([a-z0-9-]+)/?$ admin/$1.php [L,QSA]
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain application/javascript image/svg+xml
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 30 days"
+  ExpiresByType application/javascript "access plus 30 days"
+  ExpiresByType image/webp "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 30 days"
+  ExpiresByType font/woff2 "access plus 30 days"
+</IfModule>
+<FilesMatch "\.(php)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-store"
+  </IfModule>
+</FilesMatch>
+
+RewriteRule ^robots\.txt$ robots.php [L]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

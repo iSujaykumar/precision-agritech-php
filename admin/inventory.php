@@ -50,7 +50,7 @@ if ($tab === 'history') {
     pager_nav($page, $pages);
 } else {
     $rows = db()->query('SELECT id, name, stock_qty, reserved_qty FROM products ORDER BY name')->fetchAll();
-    echo '<div class="table-wrap"><table><tr><th>Tray</th><th>On hand</th><th>Reserved</th><th>Free</th><th>Change</th></tr>';
+    echo '<div class="table-wrap"><table><tr><th>Tray</th><th>On hand</th><th>Held by unpaid orders</th><th>Free</th><th>Change</th></tr>';
     foreach ($rows as $row) {
         $free = (int) $row['stock_qty'] - (int) $row['reserved_qty'];
         echo '<tr><td>' . e($row['name']) . '</td><td>' . (int) $row['stock_qty'] . '</td><td>' . (int) $row['reserved_qty'] . '</td><td>' . $free . '</td><td>';

@@ -3,6 +3,23 @@ declare(strict_types=1);
 require __DIR__ . '/common.php';
 admin_boot();
 admin_open('Nursery desk');
+foreach (desk_warnings() as $warning) {
+    echo '<p class="desk-warn" role="alert">' . e($warning) . '</p>';
+}
+$refunds = (int) db()->query("SELECT COUNT(*) FROM orders WHERE payment_status = 'refund_due'")->fetchColumn();
+$waitingPay = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status = 'payment_submitted'")->fetchColumn();
+if ($refunds > 0) {
+    echo '<p class="desk-warn"><a href="/admin/orders?pay=refund_due">Refunds due: ' . $refunds . '</a></p>';
+}
+if ($waitingPay > 0) {
+    echo '<p class="flash">Payment waiting to be checked: ' . $waitingPay . '</p>';
+}
+if (trim(setting('gstin', '')) === '') {
+    echo '<p class="flash">Confirm your GST status with your CA, then enter GSTIN in Settings.</p>';
+}
+if (trim(setting('delivery_pins', '')) === '') {
+    echo '<p class="flash">Set your delivery PIN codes.</p>';
+}
 $today = (int) db()->query("SELECT COUNT(*) FROM orders WHERE created_at >= CURDATE()")->fetchColumn();
 $month = (int) db()->query("SELECT COALESCE(SUM(total_inr),0) FROM orders WHERE payment_status = 'paid' AND created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')")->fetchColumn();
 $waiting = (int) db()->query("SELECT COUNT(*) FROM orders WHERE status IN ('placed','payment_pending')")->fetchColumn();

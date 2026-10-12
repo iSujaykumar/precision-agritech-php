@@ -4,18 +4,22 @@ SET FOREIGN_KEY_CHECKS=0;
 CREATE TABLE users (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
-  email VARCHAR(160) NOT NULL,
+  email VARCHAR(160) NULL,
   phone VARCHAR(20) NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NULL,
+  google_id VARCHAR(64) NULL,
   role VARCHAR(20) NOT NULL DEFAULT 'customer',
   status VARCHAR(20) NOT NULL DEFAULT 'active',
   phone_verified_at TIMESTAMP NULL,
+  email_verified_at TIMESTAMP NULL,
+  deletion_requested TINYINT(1) NOT NULL DEFAULT 0,
   last_login_at TIMESTAMP NULL,
   password_changed_at TIMESTAMP NULL,
   must_change_password TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY users_email (email),
-  UNIQUE KEY users_phone (phone)
+  UNIQUE KEY users_phone (phone),
+  UNIQUE KEY users_google (google_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE addresses (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -67,6 +71,7 @@ CREATE TABLE products (
   active TINYINT(1) NOT NULL DEFAULT 1,
   UNIQUE KEY products_slug (slug),
   UNIQUE KEY products_sku (sku),
+  KEY products_active_category (active, category_id),
   CONSTRAINT products_category_fk FOREIGN KEY (category_id) REFERENCES categories(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE orders (
@@ -76,7 +81,7 @@ CREATE TABLE orders (
   user_id INT UNSIGNED NULL,
   customer_name VARCHAR(120) NOT NULL,
   customer_phone VARCHAR(20) NOT NULL,
-  customer_email VARCHAR(160) NOT NULL,
+  customer_email VARCHAR(160) NULL,
   status VARCHAR(30) NOT NULL,
   payment_status VARCHAR(30) NOT NULL,
   payment_method VARCHAR(30) NOT NULL,
@@ -90,9 +95,34 @@ CREATE TABLE orders (
   state_name VARCHAR(80) NOT NULL,
   postal_code VARCHAR(12) NOT NULL,
   internal_note VARCHAR(500) NULL,
+  reserved_until DATETIME NULL,
+  payment_ref VARCHAR(40) NULL,
+  payment_note VARCHAR(255) NULL,
+  paid_amount_inr INT NULL,
+  paid_on DATE NULL,
+  paid_by INT UNSIGNED NULL,
+  driver_id INT UNSIGNED NULL,
+  delivery_date DATE NULL,
+  delivery_slot VARCHAR(20) NULL,
+  phone_confirmed TINYINT(1) NOT NULL DEFAULT 0,
+  cash_collected_inr INT NULL,
+  cash_reason VARCHAR(160) NULL,
+  cash_handed_at DATETIME NULL,
+  collected_by INT UNSIGNED NULL,
+  collected_at DATETIME NULL,
+  reservation_extended TINYINT(1) NOT NULL DEFAULT 0,
+  reminder_sent TINYINT(1) NOT NULL DEFAULT 0,
+  payment_alerted TINYINT(1) NOT NULL DEFAULT 0,
+  cancel_reason VARCHAR(255) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY orders_number (order_number),
   UNIQUE KEY orders_token (lookup_token),
+  KEY orders_status_created (status, created_at),
+  KEY orders_phone (customer_phone),
+  KEY orders_reserved (reserved_until),
+  KEY orders_status_reserved (status, reserved_until),
+  KEY orders_payment_ref (payment_ref),
+  KEY orders_driver_date (driver_id, delivery_date),
   CONSTRAINT orders_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE order_items (
@@ -105,6 +135,7 @@ CREATE TABLE order_items (
   unit_price_inr INT NOT NULL,
   quantity INT NOT NULL,
   line_total_inr INT NOT NULL,
+  KEY order_items_order (order_id),
   CONSTRAINT order_items_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   CONSTRAINT order_items_product_fk FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -128,6 +159,7 @@ CREATE TABLE reviews (
   verified TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY reviews_one (product_id, user_id),
+  KEY reviews_product_status (product_id, status),
   CONSTRAINT reviews_product_fk FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
   CONSTRAINT reviews_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -138,6 +170,7 @@ CREATE TABLE coupons (
   amount INT NOT NULL,
   min_order_inr INT NOT NULL DEFAULT 0,
   usage_limit INT NULL,
+  per_customer_limit INT NOT NULL DEFAULT 1,
   active TINYINT(1) NOT NULL DEFAULT 1,
   starts_at DATETIME NULL,
   ends_at DATETIME NULL,
@@ -147,10 +180,13 @@ CREATE TABLE coupon_redemptions (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   coupon_id INT UNSIGNED NOT NULL,
   order_id INT UNSIGNED NOT NULL,
-  customer_email VARCHAR(160) NOT NULL,
+  customer_email VARCHAR(160) NOT NULL DEFAULT '',
+  phone VARCHAR(20) NULL,
   amount_inr INT NOT NULL,
+  KEY coupon_redemptions_email (coupon_id, customer_email),
+  KEY coupon_redemptions_phone (coupon_id, phone),
   CONSTRAINT coupon_redemptions_coupon_fk FOREIGN KEY (coupon_id) REFERENCES coupons(id),
-  CONSTRAINT coupon_redemptions_order_fk FOREIGN KEY (order_id) REFERENCES orders(id)
+  CONSTRAINT coupon_redemptions_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE contact_messages (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -240,6 +276,85 @@ CREATE TABLE admin_audit_log (
   ip VARCHAR(64) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE drivers (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  vehicle_no VARCHAR(20) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ALTER TABLE orders ADD CONSTRAINT orders_driver_fk FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE SET NULL;
+CREATE TABLE cod_blocks (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  phone VARCHAR(20) NOT NULL,
+  note VARCHAR(200) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY cod_blocks_phone (phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE claims (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  reason VARCHAR(500) NOT NULL,
+  photos VARCHAR(800) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'new',
+  staff_reply VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY claims_order (order_id),
+  KEY claims_status (status),
+  CONSTRAINT claims_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE refunds (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  amount_inr INT NOT NULL,
+  method VARCHAR(40) NOT NULL,
+  utr VARCHAR(80) NULL,
+  paid_on DATE NOT NULL,
+  admin_user_id INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY refunds_order (order_id),
+  CONSTRAINT refunds_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE email_codes (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(160) NOT NULL,
+  purpose VARCHAR(30) NOT NULL,
+  code_hash CHAR(64) NOT NULL,
+  salt CHAR(16) NOT NULL,
+  attempts INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  ip VARCHAR(64) NOT NULL,
+  KEY email_codes_email (email, created_at),
+  KEY email_codes_lookup (email, purpose, expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE order_attempts (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(64) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY order_attempts_ip (ip, created_at),
+  KEY order_attempts_phone (phone, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE order_files (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  kind VARCHAR(30) NOT NULL,
+  path VARCHAR(255) NOT NULL,
+  created_by INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY order_files_order (order_id),
+  CONSTRAINT order_files_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE mail_log (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  to_email VARCHAR(160) NOT NULL,
+  subject VARCHAR(200) NOT NULL,
+  ok TINYINT(1) NOT NULL,
+  error VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY mail_log_created (created_at, ok)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 SET FOREIGN_KEY_CHECKS=1;
 INSERT INTO categories (id, slug, name, sort_order) VALUES
 (1, 'bedding', 'Bedding annuals', 1),
@@ -247,14 +362,14 @@ INSERT INTO categories (id, slug, name, sort_order) VALUES
 (3, 'shade', 'Shade beds', 3),
 (4, 'specialty', 'Specialty', 4);
 INSERT INTO products (slug, sku, name, scientific_name, variety, category_id, short_description, description, planting_info, care_info, flowering_info, colour, uses, image_url, unit_label, price_inr, compare_at_inr, stock_qty, min_order, availability, season_label, bestseller, is_new, on_offer) VALUES
-('marigold','PA-MAR-104','Marigold','Tagetes erecta','African mix',1,'Sturdy African marigold trays for beds, borders and garlands. Sold by the tray.','Nursery-raised marigold seedlings from Theur, ready for the winter and summer colour beds. The tray is the unit of sale — not single plants.','Space plants 20–25 cm apart in full sun after the tray has hardened.','Water at the base. Pinch the first bud if you want a bushier plant.','About 6–8 weeks from transplant, then continuously if deadheaded.','Yellow, gold, orange','Beds, borders, garlands, farm colour','/products/marigold.webp','tray (104 plants)',220,280,86,1,'in_stock','Year-round in Pune, strongest October–March',1,0,1),
+('marigold','PA-MAR-104','Marigold','Tagetes erecta','African mix',1,'Sturdy African marigold trays for beds, borders and garlands. Sold by the tray.','Nursery-raised marigold seedlings from Theur, ready for the winter and summer colour beds. The tray is the unit of sale — not single plants.','Space plants 20–25 cm apart in full sun after the tray has hardened.','Water at the base. Pinch the first bud if you want a bushier plant.','About 6–8 weeks from transplant, then continuously if deadheaded.','Yellow, gold, orange','Beds, borders, garlands, farm colour','/products/marigold.webp','tray (104 plants)',220,NULL,86,1,'in_stock','Year-round in Pune, strongest October–March',1,0,0),
 ('petunia','PA-PET-104','Petunia','Petunia hybrida','Spreading mix',2,'Spreading petunia for pots, hanging baskets and front beds through the cool season.','Compact petunia trays grown for winter colour in Pune. One tray is 104 plants. Large lots are confirmed by phone.','Transplant into full sun. Keep the crown above the soil line.','Feed lightly every two weeks. Do not let pots dry out completely.','Continuous through the cool months once established.','Pink, purple, white, red','Pots, baskets, front of beds','/products/petunia.webp','tray (104 plants)',260,NULL,64,1,'seasonal','October to February',1,0,0),
 ('vinca','PA-VIN-104','Vinca','Catharanthus roseus','Heat-tolerant mix',1,'Heat-tolerant vinca trays for sunny beds once the weather warms.','Madagascar periwinkle seedlings raised for landscapers who need a long-lasting sunny bed. Sold only by the tray.','Full sun, well-drained soil. Space 15–20 cm.','Avoid waterlogged beds. Established plants tolerate dry spells.','Continuous in warm weather.','Rose, white, blush','Roadside beds, farm borders, pots','/products/vinca.webp','tray (104 plants)',240,NULL,72,1,'in_stock','Warm months, available to book ahead',1,0,0),
 ('pansy','PA-PAN-104','Pansy','Viola wittrockiana','Clear-face mix',2,'Cool-season pansy trays for winter beds and pots around Pune.','Pansy is a winter crop at Theur. Trays are listed while the season is open. Prices are starting rates per tray.','Morning sun, afternoon shade if the week is hot. Space 15 cm.','Keep evenly moist. Remove spent blooms.','Through the cool season.','Blue, yellow, white, bicolour','Winter beds, pots, edging','/products/pansy.webp','tray (104 plants)',250,NULL,58,1,'seasonal','October to February',1,0,0),
 ('geranium','PA-GER-104','Geranium','Pelargonium hortorum','Zonal',4,'Zonal geranium trays for pots and bright verandas.','Geranium seedlings for retail pots and landscape containers. The count on the tray is 104 young plants.','Bright light, not harsh afternoon sun in April. Space 20 cm in pots.','Let the top of the mix dry slightly between waterings.','Clusters through the cool and mild months.','Red, salmon, white','Pots, verandas, gift plants','/products/geranium.webp','tray (104 plants)',360,NULL,34,1,'in_stock','Best October–March',1,0,0),
-('zinnia','PA-ZIN-104','Zinnia','Zinnia elegans','Cut-flower mix',1,'Cut-flower zinnia trays. Bright heads for beds and small bunches.','Zinnia trays for farms and florists who want a fast summer colour crop. Sold by the tray, not as loose plants.','Full sun after the soil is warm. Space 20 cm.','Water the soil, not the leaves, to keep mildew down.','About 7 weeks from transplant.','Pink, orange, red, lime','Cut flowers, beds','/products/zinnia.webp','tray (104 plants)',210,260,48,1,'in_stock','Warm season',0,0,1),
-('celosia','PA-CEL-104','Celosia','Celosia argentea','Plume',1,'Plume celosia for hot-colour beds and dried bunches.','Celosia seedlings raised for landscapers who need a strong accent in sunny beds. Price is per tray.','Full sun, rich but draining soil. Space 15–20 cm.','Do not overwater once established.','Plumes hold for weeks and dry well.','Red, orange, gold','Accent beds, drying','/products/celosia.webp','tray (104 plants)',230,290,40,1,'in_stock','Warm season',0,0,1),
-('sunflower','PA-SUN-104','Sunflower','Helianthus annuus','Dwarf branching',1,'Dwarf branching sunflower trays for beds, not the giant field type.','A shorter, branching sunflower so trays suit garden beds and farm gates. Still sold only as a full tray.','Full sun. Give 25 cm if you want side stems.','Stake only if the site is very windy. Water deeply.','About 8 weeks from transplant.','Gold','Beds, farm entrances, small bunches','/products/sunflower.webp','tray (104 plants)',340,400,28,1,'in_stock','Warm season',0,0,1),
+('zinnia','PA-ZIN-104','Zinnia','Zinnia elegans','Cut-flower mix',1,'Cut-flower zinnia trays. Bright heads for beds and small bunches.','Zinnia trays for farms and florists who want a fast summer colour crop. Sold by the tray, not as loose plants.','Full sun after the soil is warm. Space 20 cm.','Water the soil, not the leaves, to keep mildew down.','About 7 weeks from transplant.','Pink, orange, red, lime','Cut flowers, beds','/products/zinnia.webp','tray (104 plants)',210,NULL,48,1,'in_stock','Warm season',0,0,0),
+('celosia','PA-CEL-104','Celosia','Celosia argentea','Plume',1,'Plume celosia for hot-colour beds and dried bunches.','Celosia seedlings raised for landscapers who need a strong accent in sunny beds. Price is per tray.','Full sun, rich but draining soil. Space 15–20 cm.','Do not overwater once established.','Plumes hold for weeks and dry well.','Red, orange, gold','Accent beds, drying','/products/celosia.webp','tray (104 plants)',230,NULL,40,1,'in_stock','Warm season',0,0,0),
+('sunflower','PA-SUN-104','Sunflower','Helianthus annuus','Dwarf branching',1,'Dwarf branching sunflower trays for beds, not the giant field type.','A shorter, branching sunflower so trays suit garden beds and farm gates. Still sold only as a full tray.','Full sun. Give 25 cm if you want side stems.','Stake only if the site is very windy. Water deeply.','About 8 weeks from transplant.','Gold','Beds, farm entrances, small bunches','/products/sunflower.webp','tray (104 plants)',340,NULL,28,1,'in_stock','Warm season',0,0,0),
 ('antirrhinum','PA-ANT-104','Antirrhinum','Antirrhinum majus','Intermediate snapdragon',2,'Snapdragon trays for winter spikes in beds and bunches.','Intermediate antirrhinum from the Theur nursery, timed for the cool season around Pune.','Sun to light shade. Space 15 cm. Pinch once for branching.','Even moisture. Good air movement.','Spikes through winter.','Pink, white, yellow, red','Winter beds, cut spikes','/products/antirrhinum.webp','tray (104 plants)',270,NULL,44,1,'seasonal','October to February',0,0,0),
 ('dianthus','PA-DIA-104','Dianthus','Dianthus chinensis','China pink',2,'China pink trays for scented winter edging.','Dianthus seedlings for edging and pots in the cool season. Catalogue price is the starting rate per tray.','Full sun, sharp drainage. Space 15 cm.','Avoid wet crowns overnight.','Fringed blooms through the cool months.','Pink, crimson, white','Edging, pots','/products/dianthus.webp','tray (104 plants)',255,NULL,36,1,'seasonal','October to February',0,0,0),
 ('cineraria','PA-CIN-104','Cineraria','Pericallis hybrida','Daisy mix',2,'Cool-season cineraria for shaded winter pots.','Cineraria likes the cool, bright shade of a Pune winter. Trays are listed while that window is open.','Bright shade, never hot afternoon sun. One plant per 15 cm pot, or 20 cm in beds.','Keep moist. Do not splash the leaves late in the day.','Daisy heads in mid to late winter.','Blue, magenta, white, bicolour','Shade pots, winter display','/products/cineraria.webp','tray (104 plants)',300,NULL,22,1,'seasonal','November to February',0,1,0),
@@ -282,4 +397,36 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('payment_instructions','The nursery confirms bank transfer before the trays leave. Cash on delivery is collected when the trays are delivered.'),
 ('announcement',''),
 ('announcement_on','0'),
-('shop_paused','0');
+('shop_paused','0'),
+('reservation_hours_bank','24'),
+('reservation_hours_cod','72'),
+('require_email','1'),
+('cod_enabled','1'),
+('require_phone_confirm','1'),
+('upi_id','precision9958@fbl'),
+('upi_payee_name','Precision Agritech Private Limited'),
+('seller_legal_name','Precision Agritech Private Limited'),
+('bank_account_name',''),
+('bank_name',''),
+('bank_account_number',''),
+('bank_ifsc',''),
+('upi_qr_image',''),
+('gstin',''),
+('cin',''),
+('grievance_officer_name',''),
+('grievance_officer_phone',''),
+('grievance_officer_email',''),
+('delivery_pins',''),
+('delivery_area_text','We deliver with our own nursery vehicles.'),
+('zone_shipping',''),
+('cod_min_inr','0'),
+('cod_max_inr','5000'),
+('show_driver_phone','0'),
+('claim_hours','48'),
+('hsn_code',''),
+('gst_rate',''),
+('cleanup_last_run','0'),
+('max_unpaid_phone','2'),
+('max_unpaid_ip','3'),
+('max_trays_phone','60'),
+('cod_fail_limit','2');
