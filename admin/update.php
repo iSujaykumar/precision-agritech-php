@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log('Update button: ' . $err->getMessage());
     }
 }
-admin_open('Update everything');
+admin_open('Update everything', 'settings');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

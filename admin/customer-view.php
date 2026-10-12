@@ -45,7 +45,7 @@ if ($user && ($user['role'] ?? '') === 'admin') {
     header('Location: /admin/staff');
     exit;
 }
-admin_open('Customer');
+admin_open('Customer', 'customers');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

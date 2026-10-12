@@ -135,6 +135,9 @@ function render_header(string $title, string $description = '', string $chrome =
     <a href="/nursery"<?= nav_here('/nursery') ?>>Our nursery</a>
     <a href="/wholesale"<?= nav_here('/wholesale') ?>>Wholesale</a>
     <a href="/price-list">Price list</a>
+    <?php if (calc_menu_on()): ?>
+      <button class="linkish nav-calc" type="button" data-calc-open aria-expanded="false" aria-controls="calc-panel"><?= e(calc_label()) ?></button>
+    <?php endif; ?>
     <?php if ($user): ?>
       <a href="/account"<?= nav_here('/account') ?>><?= e(ui_label('account')) ?></a>
       <form method="post" action="/logout">
@@ -156,88 +159,70 @@ function render_header(string $title, string $description = '', string $chrome =
 
 function admin_menu(): void
 {
-    $counts = desk_counts();
-    $links = [
-        'Desk' => ['/admin', 0],
-        'Orders' => ['/admin/orders', $counts['orders']],
-        'Products' => ['/admin/products', 0],
-        'Stock' => ['/admin/stock', 0],
-        'Customers' => ['/admin/customers', 0],
-        'Enquiries' => ['/admin/messages', $counts['enquiries']],
-        'Update' => ['/admin/update', 0],
-        'Help' => ['/admin/help', 0],
-        'Settings' => ['/admin/settings', 0],
-    ];
     $path = rtrim((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), '/') ?: '/';
-    $alias = [
-        '/admin/product-edit' => '/admin/products',
-        '/admin/categories' => '/admin/products',
-        '/admin/inventory' => '/admin/products',
-        '/admin/inventory-history' => '/admin/products',
-        '/admin/order-view' => '/admin/orders',
-        '/admin/customer-view' => '/admin/customers',
-        '/admin/wholesale' => '/admin/messages',
-        '/admin/staff' => '/admin/settings',
-        '/admin/audit-log' => '/admin/settings',
-        '/admin/payments' => '/admin/settings',
-        '/admin/delivery' => '/admin/settings',
-        '/admin/deliveries' => '/admin/orders',
-        '/admin/claims' => '/admin/orders',
-        '/admin/health' => '/admin/settings',
-        '/admin/offers' => '/admin/products',
-        '/admin/price-lists' => '/admin/products',
-        '/admin/invoices' => '/admin/settings',
-        '/admin/invoice' => '/admin/orders',
-        '/admin/homepage' => '/admin/settings',
-        '/admin/pages' => '/admin/settings',
-        '/admin/migrate' => '/admin/settings',
-        '/admin/mail-log' => '/admin/settings',
-        '/admin/cod-block' => '/admin/settings',
-        '/admin/stock' => '/admin/stock',
-        '/admin/prices' => '/admin/stock',
-        '/admin/photos' => '/admin/products',
-        '/admin/attention' => '/admin',
-        '/admin/update' => '/admin/update',
-        '/admin/help' => '/admin/help',
-        '/admin/finder' => '/admin/help',
-        '/admin/months' => '/admin/settings',
-        '/admin/labels' => '/admin/settings',
-        '/admin/restock' => '/admin',
-    ];
-    $here = $alias[$path] ?? $path;
+    $here = desk_path_group($path);
+    $groups = desk_groups();
+    $tabs = desk_tab_sets();
     echo '<nav class="admin-nav" id="admin-nav" aria-label="Desk">';
-    foreach ($links as $label => [$href, $count]) {
-        $on = rtrim($href, '/') === $here;
-        echo '<a href="' . e($href) . '"' . ($on ? ' aria-current="page"' : '') . '>' . e($label);
-        if ($count > 0) {
-            echo ' <span class="count-badge">' . (int) $count . '</span>';
+    echo '<form class="desk-finder" method="get" action="/admin/finder" role="search">';
+    echo '<label class="finder-label">Where do I change this? <input name="q" type="search" placeholder="price, stock, offer" data-finder autocomplete="off"></label>';
+    echo '<div class="finder-drop" data-finder-drop hidden></div></form>';
+    echo '<script type="application/json" id="desk-finder-data">' . json_encode(finder_items(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) . '</script>';
+    foreach ($groups as $id => $group) {
+        $on = $here === $id;
+        $count = (int) $group['count'];
+        $badge = $count > 0 ? ' <span class="count-badge">' . $count . '</span>' : '';
+        $child = $tabs[$id] ?? [];
+        if ($id === 'settings') {
+            $child = array_merge($tabs['settings'], $tabs['settings_more']);
         }
-        echo '</a>';
+        echo '<details class="admin-group"' . ($on ? ' open' : '') . '>';
+        echo '<summary><a href="' . e($group['href']) . '"' . ($on ? ' aria-current="page"' : '') . '>' . e($group['label']) . $badge . '</a></summary>';
+        if ($child) {
+            echo '<div class="admin-sub">';
+            foreach ($child as $label => $href) {
+                echo '<a href="' . e($href) . '">' . e($label) . '</a>';
+            }
+            echo '</div>';
+        }
+        echo '</details>';
     }
     echo '</nav>';
 }
 
 function admin_tabs(string $group): void
 {
-    $sets = [
-        'products' => ['Products' => '/admin/products', 'Categories' => '/admin/categories', 'Stock' => '/admin/inventory', 'Offers' => '/admin/offers', 'Price lists' => '/admin/price-lists', 'Reviews' => '/admin/reviews'],
-        'enquiries' => ['Messages' => '/admin/messages', 'Wholesale' => '/admin/wholesale'],
-        'settings' => ['Shop' => '/admin/settings', 'Phones' => '/admin/phones', 'Banks' => '/admin/banks', 'Homepage' => '/admin/homepage', 'Pages' => '/admin/pages', 'Payments' => '/admin/payments', 'Invoices' => '/admin/invoices', 'Delivery' => '/admin/delivery', 'Staff' => '/admin/staff', 'Email log' => '/admin/mail-log', 'Health' => '/admin/health', 'Database update' => '/admin/migrate', 'Activity log' => '/admin/audit-log'],
-    ];
-    if (!isset($sets[$group])) {
+    $sets = desk_tab_sets();
+    if ($group === 'today' || $group === '') {
         return;
     }
-    $path = rtrim((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), '/') ?: '/';
-    if ($path === '/admin/inventory-history') {
-        $path = '/admin/inventory';
+    $links = $sets[$group] ?? [];
+    $more = [];
+    if ($group === 'settings') {
+        $more = $sets['settings_more'] ?? [];
     }
-    if ($path === '/admin/product-edit') {
-        $path = '/admin/products';
+    if (!$links && !$more) {
+        return;
     }
+    $current = admin_request_href();
     echo '<nav class="subnav" aria-label="Section">';
-    foreach ($sets[$group] as $label => $href) {
-        $on = rtrim($href, '/') === $path;
+    foreach ($links as $label => $href) {
+        $on = $href === $current || ($href === '/admin/banks' && $current === '/admin/payments');
         echo '<a href="' . e($href) . '"' . ($on ? ' aria-current="page"' : '') . '>' . e($label) . '</a>';
+    }
+    if ($more) {
+        $moreOn = false;
+        foreach ($more as $href) {
+            if ($href === $current) {
+                $moreOn = true;
+            }
+        }
+        echo '<details class="subnav-more"' . ($moreOn ? ' open' : '') . '><summary>More</summary><div>';
+        foreach ($more as $label => $href) {
+            $on = $href === $current;
+            echo '<a href="' . e($href) . '"' . ($on ? ' aria-current="page"' : '') . '>' . e($label) . '</a>';
+        }
+        echo '</div></details>';
     }
     echo '</nav>';
 }
@@ -303,19 +288,30 @@ $cin = trim(shop_setting('cin', ''));
   <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="#fff" d="M20.5 3.5A11 11 0 0 0 2.1 16.8L1 22.3l5.6-1.1A11 11 0 0 0 20.5 3.5zM12 20.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3.3.7.7-3.2-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.7.9-.3.2-.5.1a6.7 6.7 0 0 1-2-1.2 7.4 7.4 0 0 1-1.4-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.3a.5.5 0 0 0 0-.5c0-.1-.5-1.3-.7-1.7s-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3 2.9 2.9 0 0 0-.9 2.2 5 5 0 0 0 1.1 2.7 11.4 11.4 0 0 0 4.3 3.8 14 14 0 0 0 1.4.5 3.4 3.4 0 0 0 1.6.1 2.6 2.6 0 0 0 1.7-1.2 2.1 2.1 0 0 0 .2-1.2c-.1-.1-.2-.1-.4-.2z"/></svg>
 </a>
 <?php endif; ?>
+<?php
+$calcPath = rtrim((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), '/') ?: '/';
+if ($calcPath !== '/calculator') {
+    render_calc_panel('dialog');
+}
+$mobileWa = wa_href('Hello Precision Agritech. I want to ask about seedlings.');
+$barCount = 0;
+try {
+    $barCount = cart_count();
+} catch (Throwable $err) {
+    $barCount = 0;
+}
+?>
+<nav class="mobile-bar" aria-label="Quick actions">
+  <?php if (calc_menu_on()): ?><button class="btn" type="button" data-calc-open><?= e(calc_label()) ?></button><?php endif; ?>
+  <a class="btn" href="/cart"><?= e(ui_label('cart')) ?> (<?= (int) $barCount ?>)</a>
+  <?php if ($mobileWa !== ''): ?><a class="btn" href="<?= e($mobileWa) ?>" target="_blank" rel="noopener"><?= e(ui_label('whatsapp')) ?></a><?php endif; ?>
+</nav>
 <script src="/assets/js/nav.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/nav.js') ?>"></script>
 <script src="/assets/js/rail.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/rail.js') ?>"></script>
 <script src="/assets/js/cart.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/cart.js') ?>"></script>
 <script src="/assets/js/pay.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/pay.js') ?>"></script>
 <script src="/assets/js/signin.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/signin.js') ?>"></script>
 <script src="/assets/js/calc.js?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/js/calc.js') ?>"></script>
-<?php
-$mobileWa = wa_href('Hello Precision Agritech. I want to ask about seedlings.');
-?>
-<nav class="mobile-bar" aria-label="Quick actions">
-  <a class="btn" href="/cart"><?= e(ui_label('cart')) ?> (<?= (int) $count ?>)</a>
-  <?php if ($mobileWa !== ''): ?><a class="btn" href="<?= e($mobileWa) ?>" target="_blank" rel="noopener"><?= e(ui_label('whatsapp')) ?></a><?php endif; ?>
-</nav>
 <?php elseif ($chrome === 'admin'): ?>
 <script src="/assets/js/admin.js"></script>
 <?php endif; ?>
@@ -365,7 +361,7 @@ function product_card(array $product, bool $eager = false): void
     $banner = discount_banner_text();
     $wa = wa_order_href($product, 1);
     ?>
-<article class="card">
+<article class="card" data-cat="<?= e((string) ($product['category_slug'] ?? '')) ?>">
   <a class="card-photo" href="<?= e($href) ?>">
     <img src="<?= e($image) ?>"<?php if ($srcset !== ''): ?> srcset="<?= e($srcset) ?>" sizes="(max-width:640px) 50vw, 25vw"<?php endif; ?> alt="<?= e($product['name']) ?> seedling tray" width="800" height="600" decoding="async"<?= $eager ? '' : ' loading="lazy"' ?>>
     <?php if ($badge !== ''): ?><span class="sale-badge"><?= e($badge) ?></span><?php endif; ?>

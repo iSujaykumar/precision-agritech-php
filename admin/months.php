@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('That could not be saved.', false);
     }
 }
-admin_open('Plant this month');
+admin_open('Plant this month', 'homepage');
 echo '<form method="post">' . csrf_field();
 foreach ($names as $month => $label) {
     echo '<label>' . e($label) . ' <input name="m' . $month . '" value="' . e(month_plant_text($month)) . '"></label>';

@@ -33,13 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $only = (string) ($_GET['filter'] ?? '') === 'placeholder';
-$sql = 'SELECT id, name, slug, image_is_placeholder FROM products WHERE parent_product_id IS NULL AND farmer_only = 0';
-if ($only) {
-    $sql .= ' AND image_is_placeholder = 1';
-}
-$sql .= ' ORDER BY name';
-$rows = db()->query($sql)->fetchAll();
-admin_open('Plant photos');
+$rows = photo_rows($only);
+admin_open('Plant photos', 'plants');
 echo '<p><a href="/admin/photos">All</a> · <a href="/admin/photos?filter=placeholder">Plants with placeholder photos</a></p>';
 echo '<form method="post" enctype="multipart/form-data">' . csrf_field();
 echo '<label>Choose many files. The file name must be the plant slug. <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple required></label>';

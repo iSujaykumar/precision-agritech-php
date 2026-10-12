@@ -42,8 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set($err->getMessage(), false);
     }
 }
-$rows = db()->query('SELECT id, name, variety, stock_qty, reserved_qty, active, list_only FROM products WHERE parent_product_id IS NULL AND farmer_only = 0 ORDER BY name')->fetchAll();
-admin_open('Stock quick edit');
+$rows = stock_rows((string) ($_GET['filter'] ?? ''));
+admin_open('Stock quick edit', 'plants');
+$filter = (string) ($_GET['filter'] ?? '');
+echo '<p class="filters"><a href="/admin/stock"' . ($filter === '' ? ' aria-current="page"' : '') . '>All plants</a> ';
+echo '<a href="/admin/stock?filter=low"' . ($filter === 'low' ? ' aria-current="page"' : '') . '>Low stock</a> ';
+echo '<a href="/admin/stock?filter=out"' . ($filter === 'out' ? ' aria-current="page"' : '') . '>Out of stock</a> ';
+echo '<a href="/admin/inventory-history">History</a></p>';
 echo '<form method="post">';
 echo csrf_field();
 echo '<div class="table-wrap"><table><tr><th>Plant</th><th>Free</th><th>Reserved</th><th>Stock</th></tr>';

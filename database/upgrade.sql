@@ -652,3 +652,32 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('lists_loaded','0')
 ON DUPLICATE KEY UPDATE `key` = `key`;
 UPDATE settings SET `value` = '' WHERE `key` = 'invoice_terms' AND CHAR_LENGTH(`value`) > 180;
+DROP PROCEDURE IF EXISTS pa_add_column;
+DELIMITER $$
+CREATE PROCEDURE pa_add_column(IN tbl VARCHAR(64), IN col VARCHAR(64), IN ddl TEXT)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = tbl AND COLUMN_NAME = col
+  ) THEN
+    SET @pa_ddl = ddl;
+    PREPARE pa_stmt FROM @pa_ddl;
+    EXECUTE pa_stmt;
+    DEALLOCATE PREPARE pa_stmt;
+  END IF;
+END $$
+DELIMITER ;
+CALL pa_add_column('products', 'offer_seedling_paise', 'ALTER TABLE products ADD COLUMN offer_seedling_paise INT NULL');
+DROP PROCEDURE IF EXISTS pa_add_column;
+INSERT INTO settings (`key`, `value`) VALUES
+('calc_menu_on','1'),
+('browse_on','1'),
+('browse_title','Browse all plants'),
+('browse_chip_order',''),
+('offer_allows_bulk','1'),
+('nursery_min_seedling_paise','100'),
+('home_sections',''),
+('calc_label_en',''),
+('calc_label_mr','')
+ON DUPLICATE KEY UPDATE `key` = `key`;
+

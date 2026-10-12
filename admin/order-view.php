@@ -306,7 +306,7 @@ $order = db()->prepare('SELECT * FROM orders WHERE id = ?');
 $order->execute([$id]);
 $row = $order->fetch();
 if (!$row) {
-    admin_open('Order');
+    admin_open('Order', 'orders');
     echo '<p>Order not found.</p>';
     admin_close();
     exit;
@@ -324,7 +324,7 @@ if (strlen($phone) === 10) {
     $phone = '91' . $phone;
 }
 $wa = $phone !== '' ? 'https://wa.me/' . $phone . '?text=' . rawurlencode('Hello, this is Precision Agritech about order ' . $row['order_number'] . '.') : '';
-admin_open('Order ' . $row['order_number']);
+admin_open('Order ' . $row['order_number'], 'orders');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

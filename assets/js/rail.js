@@ -1,6 +1,6 @@
 (function () {
   function amount(rail) {
-    var card = rail.querySelector(".card");
+    var card = rail.querySelector(".card:not([hidden])") || rail.querySelector(".card");
     if (!card) return Math.max(160, rail.clientWidth * 0.8);
     var styles = window.getComputedStyle(rail);
     var gap = parseFloat(styles.columnGap || styles.gap || "16");
@@ -42,5 +42,25 @@
     });
     window.addEventListener("resize", sync);
     sync();
+  });
+
+  document.querySelectorAll("[data-browse-chips]").forEach(function (bar) {
+    var section = bar.closest("section");
+    if (!section) return;
+    bar.querySelectorAll("[data-cat]").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        var cat = chip.getAttribute("data-cat");
+        bar.querySelectorAll("[data-cat]").forEach(function (other) {
+          other.setAttribute("aria-pressed", other === chip ? "true" : "false");
+        });
+        section.querySelectorAll(".rail .card").forEach(function (card) {
+          var show = cat === "all" || card.getAttribute("data-cat") === cat;
+          card.hidden = !show;
+        });
+        var rail = section.querySelector(".rail");
+        if (rail) rail.scrollLeft = 0;
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
   });
 })();

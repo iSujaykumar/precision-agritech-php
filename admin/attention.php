@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set($err->getMessage(), false);
     }
 }
-admin_open('Needs attention');
+admin_open('Needs attention', 'plants');
 $sql = "SELECT id, name, slug, image_url, image_is_placeholder, stock_qty, reserved_qty, short_description, active, list_only, needs_copy
     FROM products WHERE parent_product_id IS NULL AND farmer_only = 0
     AND (active = 0 OR list_only = 1 OR needs_copy = 1 OR stock_qty - reserved_qty <= 0 OR image_is_placeholder = 1 OR short_description = '' OR image_url = '')

@@ -27,7 +27,7 @@ $count->execute($params);
 [$page, $pages, $offset] = list_bounds((int) $count->fetchColumn(), 25);
 $stmt = db()->prepare('SELECT * FROM contact_messages' . $where . ' ORDER BY id DESC LIMIT 25 OFFSET ' . (int) $offset);
 $stmt->execute($params);
-admin_open('Messages', 'enquiries');
+admin_open('Messages', 'messages');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

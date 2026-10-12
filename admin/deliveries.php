@@ -29,7 +29,7 @@ $groups = [];
 foreach ($rows as $row) {
     $groups[(string) ($row['driver_name'] ?? 'Unassigned')][] = $row;
 }
-admin_open('Today\'s deliveries');
+admin_open('Today\'s deliveries', 'orders');
 if (!empty($error)) {
     echo '<p class="flash bad">' . e($error) . '</p>';
 }

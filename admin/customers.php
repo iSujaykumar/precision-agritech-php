@@ -19,7 +19,7 @@ $sql = 'SELECT u.id, u.name, u.email, u.phone, u.status, u.last_login_at,
   FROM users u' . $where . ' ORDER BY u.id DESC LIMIT 25 OFFSET ' . (int) $offset;
 $stmt = db()->prepare($sql);
 $stmt->execute($params);
-admin_open('Customers');
+admin_open('Customers', 'customers');
 echo '<form method="get" class="inline"><label>Search <input name="q" value="' . e($q) . '"></label><button class="btn" type="submit">Search</button></form>';
 echo '<div class="table-wrap"><table><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Spent</th><th>Last sign-in</th><th>Status</th></tr>';
 foreach ($stmt as $row) {

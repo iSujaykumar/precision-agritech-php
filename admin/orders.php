@@ -4,31 +4,9 @@ require __DIR__ . '/common.php';
 admin_boot();
 $status = (string) ($_GET['status'] ?? '');
 $pay = (string) ($_GET['pay'] ?? '');
+$bucket = (string) ($_GET['bucket'] ?? '');
 $q = trim((string) ($_GET['q'] ?? ''));
-$where = ' WHERE 1=1';
-$params = [];
-$allowed = ['placed', 'payment_pending', 'payment_submitted', 'payment_confirmed', 'confirmed', 'preparing', 'packed', 'out_for_delivery', 'dispatched', 'delivery_failed', 'delivered', 'cancelled'];
-if (($_GET['check'] ?? '') === '1') {
-    $where .= " AND status = 'payment_submitted'";
-}
-if (in_array($status, $allowed, true)) {
-    $where .= ' AND status = ?';
-    $params[] = $status;
-}
-if ($pay === 'paid') {
-    $where .= " AND payment_status = 'paid'";
-} elseif ($pay === 'unpaid') {
-    $where .= " AND payment_status IN ('unpaid','pending')";
-} elseif ($pay === 'refund_due') {
-    $where .= " AND payment_status = 'refund_due'";
-}
-if ($q !== '') {
-    $where .= ' AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)';
-    $like = '%' . str_replace(['%', '_'], '', $q) . '%';
-    $params[] = $like;
-    $params[] = $like;
-    $params[] = $like;
-}
+[$where, $params] = orders_filter_sql($_GET);
 if (($_GET['export'] ?? '') === 'csv') {
     $stmt = db()->prepare('SELECT order_number, created_at, customer_name, customer_phone, status, payment_status, total_inr FROM orders' . $where . ' ORDER BY id DESC');
     $stmt->execute($params);
@@ -48,7 +26,7 @@ $count->execute($params);
 $stmt = db()->prepare('SELECT id, order_number, customer_name, status, payment_status, total_inr, created_at FROM orders' . $where . ' ORDER BY id DESC LIMIT 25 OFFSET ' . (int) $offset);
 $stmt->execute($params);
 $rows = $stmt->fetchAll();
-admin_open('Orders');
+admin_open('Orders', 'orders');
 $tabs = ['' => 'All', 'placed' => 'New', 'payment_submitted' => 'Waiting for payment check', 'payment_pending' => 'Payment pending', 'payment_confirmed' => 'Paid', 'preparing' => 'Preparing', 'dispatched' => 'Dispatched', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled'];
 echo '<nav class="subnav">';
 foreach ($tabs as $key => $label) {

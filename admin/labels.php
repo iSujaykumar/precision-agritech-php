@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('That could not be saved.', false);
     }
 }
-admin_open('Shop labels');
+admin_open('Shop labels', 'homepage');
 foreach (['en' => 'English', 'mr' => 'Marathi'] as $lang => $title) {
     $custom = json_decode(setting('ui_labels_' . $lang, ''), true);
     if (!is_array($custom)) {

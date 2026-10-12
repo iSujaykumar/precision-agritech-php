@@ -815,4 +815,5 @@ require dirname(__DIR__) . '/includes/signin.php';
 require dirname(__DIR__) . '/includes/layout.php';
 require dirname(__DIR__) . '/includes/final.php';
 require dirname(__DIR__) . '/includes/lists.php';
+require dirname(__DIR__) . '/includes/home_desk.php';
 schema_guard();

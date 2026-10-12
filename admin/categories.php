@@ -105,7 +105,7 @@ foreach ($rows as $row) {
         $edit = $row;
     }
 }
-admin_open('Categories', 'products');
+admin_open('Categories', 'plants');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

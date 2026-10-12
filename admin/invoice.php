@@ -12,7 +12,7 @@ $stmt->execute([$id]);
 $order = $stmt->fetch();
 if (!$order) {
     http_response_code(404);
-    admin_open('Invoice');
+    admin_open('Invoice', 'orders');
     echo '<p>Order not found.</p>';
     admin_close();
     exit;
@@ -22,7 +22,7 @@ header('Pragma: no-cache');
 $paid = (string) $order['payment_status'] === 'paid';
 if ($kind !== 'proforma' && !$paid) {
     http_response_code(404);
-    admin_open('Invoice');
+    admin_open('Invoice', 'orders');
     echo '<p>A tax invoice is available only after the order is paid. Use the proforma link before that.</p>';
     admin_close();
     exit;

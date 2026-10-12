@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $rows = db()->query('SELECT id, name, variety, price_per_seedling_paise FROM products WHERE active = 1 AND parent_product_id IS NULL AND farmer_only = 0 ORDER BY name')->fetchAll();
-admin_open('Price quick edit');
+admin_open('Price quick edit', 'offers');
 echo '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="undo"><button class="btn" type="submit">Undo last price change</button></form>';
 echo '<div class="table-wrap"><table><tr><th>Plant</th><th>Rate per seedling</th><th>Tray (150)</th><th></th></tr>';
 foreach ($rows as $row) {

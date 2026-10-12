@@ -70,6 +70,7 @@ CREATE TABLE products (
   on_offer TINYINT(1) NOT NULL DEFAULT 0,
   offer_starts_at DATETIME NULL,
   offer_ends_at DATETIME NULL,
+  offer_seedling_paise INT NULL,
   seedlings_override INT NULL,
   price_per_seedling_paise INT NULL,
   farmer_only TINYINT(1) NOT NULL DEFAULT 0,

@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = safe_error($err, 'That page could not be saved.');
     }
 }
-admin_open('Pages', 'settings');
+admin_open('Pages', 'homepage');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

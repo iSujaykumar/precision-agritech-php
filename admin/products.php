@@ -76,7 +76,7 @@ foreach ($rows as $row) {
         $expiredOffers[] = $named;
     }
 }
-admin_open('Products', 'products');
+admin_open('Products', 'plants');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

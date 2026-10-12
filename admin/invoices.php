@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-admin_open('Invoices', 'settings');
+admin_open('Invoices', 'orders');
 if (!empty($error)) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

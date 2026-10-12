@@ -269,7 +269,7 @@ function require_desk(array $admin, string $need): void
         return;
     }
     http_response_code(403);
-    admin_open('Not allowed');
+    admin_open('Not allowed', 'today');
     echo '<p class="flash bad" role="alert">That page needs a higher desk role.</p>';
     admin_close();
     exit;

@@ -142,6 +142,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             audit_log((int) $admin['id'], 'product_create', 'product', $id, null, $name);
         }
+        if (!isset($_POST['on_offer'])) {
+            $pdo->prepare('UPDATE products SET offer_seedling_paise = NULL WHERE id = ?')->execute([$id]);
+        }
         $pdo->commit();
         flash_set('Product saved');
         header('Location: /admin/products');
@@ -163,7 +166,7 @@ $p = $product ?: [
     'price_per_seedling_paise' => '', 'seedlings_override' => '', 'farmer_only' => 0, 'is_overgrown' => 0,
     'marathi_name' => '', 'purposes' => '', 'list_only' => 0, 'tray_paise' => '',
 ];
-admin_open($product ? 'Edit product' : 'Add product', 'products');
+admin_open($product ? 'Edit product' : 'Add product', 'plants');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }

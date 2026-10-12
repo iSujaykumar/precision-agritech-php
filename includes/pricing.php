@@ -116,6 +116,22 @@ function farmer_price_map(): array
     return $map;
 }
 
+
+function offer_rate_applied(array $base, array $product): array
+{
+    $cut = (int) ($product['offer_seedling_paise'] ?? 0);
+    if ($cut < 1 || (int) ($product['on_offer'] ?? 0) !== 1 || !offer_window_open($product)) {
+        return $base;
+    }
+    $tray = max(1, (int) ($base['tray'] ?? 150));
+    $exact = exact_tray_paise($cut, $tray);
+    $base['paise'] = $cut;
+    $base['tray_paise'] = $exact;
+    $base['rupees'] = intdiv($exact + 50, 100);
+    $base['offer'] = true;
+    return $base;
+}
+
 function selling_price(array $product): array
 {
     $retail = (int) ($product['price_inr'] ?? 0);
@@ -141,14 +157,14 @@ function selling_price(array $product): array
         'blocked' => false,
     ];
     if (!customer_is_farmer() && (int) ($product['farmer_only'] ?? 0) !== 1) {
-        return $base;
+        return offer_rate_applied($base, $product);
     }
     if (!customer_is_farmer()) {
-        return $base;
+        return offer_rate_applied($base, $product);
     }
     $hit = farmer_price_map()[(int) ($product['id'] ?? 0)] ?? null;
     if ($hit === null) {
-        return $base;
+        return offer_rate_applied($base, $product);
     }
     if (!$hit['open']) {
         if (setting('farmer_fallback_seasonal', '0') === '1') {
@@ -248,6 +264,12 @@ function seasonal_base_paise(array $lines): int
         }
         $product = $line['product'] ?? [];
         if (!$include && (int) ($product['is_overgrown'] ?? 0) === 1) {
+            continue;
+        }
+        $offerCut = (int) ($product['offer_seedling_paise'] ?? 0) > 0
+            && (int) ($product['on_offer'] ?? 0) === 1
+            && offer_window_open($product);
+        if ($offerCut && setting('offer_allows_bulk', '1') !== '1') {
             continue;
         }
         if (isset($line['line_paise'])) {

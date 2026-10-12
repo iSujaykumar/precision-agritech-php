@@ -33,15 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         if ($action === 'delete') {
-            $used = db()->prepare('SELECT COUNT(*) FROM coupon_redemptions WHERE coupon_id = ?');
-            $used->execute([$id]);
-            $times = (int) $used->fetchColumn();
-            if ($times > 0) {
-                throw new RuntimeException('Used ' . $times . ' times - turn it off instead');
-            }
-            db()->prepare('DELETE FROM coupons WHERE id = ?')->execute([$id]);
-            audit_log((int) $admin['id'], 'coupon_delete', 'coupon', $id, null, 'deleted');
-            flash_set('Coupon deleted');
+            db()->prepare('UPDATE coupons SET active = 0 WHERE id = ?')->execute([$id]);
+            audit_log((int) $admin['id'], 'coupon_hide', 'coupon', $id, null, 'hidden');
+            flash_set('Coupon hidden. Turn it on to restore it.');
             header('Location: /admin/coupons');
             exit;
         }
@@ -96,7 +90,7 @@ foreach ($rows as $row) {
         $edit = $row;
     }
 }
-admin_open('Coupons');
+admin_open('Coupons', 'offers');
 if ($error) {
     echo '<p class="flash bad" role="alert">' . e($error) . '</p>';
 }
@@ -112,7 +106,7 @@ foreach ($rows as $row) {
     echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="' . (int) $row['id'] . '"><input type="hidden" name="active" value="' . $next . '"><button class="linkish" type="submit">' . ($row['active'] ? 'Turn off' : 'Turn on') . '</button></form> ';
     echo '<a href="/admin/coupons?edit=' . (int) $row['id'] . '">Edit</a> ';
     if ($used === 0) {
-        echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="' . (int) $row['id'] . '"><button class="linkish" type="submit" data-confirm="Delete this coupon?">Delete</button></form>';
+        echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="' . (int) $row['id'] . '"><button class="linkish" type="submit">Hide</button></form>';
     }
     echo '</td></tr>';
 }

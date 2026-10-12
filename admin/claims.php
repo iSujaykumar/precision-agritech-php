@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $rows = db()->query('SELECT c.*, o.order_number FROM claims c JOIN orders o ON o.id = c.order_id ORDER BY c.id DESC LIMIT 50')->fetchAll();
-admin_open('Claims');
+admin_open('Claims', 'orders');
 if (!empty($error)) {
     echo '<p class="flash bad">' . e($error) . '</p>';
 }

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 admin_boot();
-admin_open('Help');
+admin_open('Help', 'help');
 $jobs = [
     ['Change stock', 'Open Stock. Type the tray count or use plus and minus. Press Save all.', '/admin/stock'],
     ['Change a price', 'Open Prices. Type the rate per seedling. The tray price updates. Press Save.', '/admin/prices'],

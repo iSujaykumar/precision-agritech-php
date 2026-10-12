@@ -538,6 +538,7 @@ function ui_label_defaults(): array
             'pay' => 'Pay',
             'done' => 'Done',
             'lang' => 'मराठी',
+            'calculator' => 'Order calculator',
         ],
         'mr' => [
             'shop' => 'दुकान',
@@ -556,6 +557,7 @@ function ui_label_defaults(): array
             'pay' => 'पेमेंट',
             'done' => 'पूर्ण',
             'lang' => 'English',
+            'calculator' => 'ऑर्डर कॅल्क्युलेटर',
         ],
     ];
 }

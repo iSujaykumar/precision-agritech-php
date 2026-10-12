@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-admin_open('Price lists', 'products');
+admin_open('Price lists', 'offers');
 echo '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="load-sheets"><button class="btn" type="submit">Load the supplied 2026-27 and farmer sheets</button></form>';
 echo '<p class="muted">Running this again updates rates and does not create a second copy of a variety. Existing photos, stock and descriptions of the current plants stay. Ptilotus is not changed.</p>';
 if ($error) {
@@ -152,7 +152,7 @@ foreach ($lists as $list) {
     foreach ($items as $item) {
         $tray = tray_rupees((int) $item['price_per_seedling_paise'], seedlings_per_tray(null));
         echo '<tr><td>' . e((string) $item['item_name']) . '</td><td>' . e((string) $item['variety']) . '</td><td>' . (int) $item['price_per_seedling_paise'] . '</td><td>' . inr($tray) . '</td><td>';
-        echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="toggle"><input type="hidden" name="item_id" value="' . (int) $item['id'] . '"><input type="hidden" name="active" value="' . ((int) $item['active'] === 1 ? '0' : '1') . '"><button class="text-link" type="submit">' . ((int) $item['active'] === 1 ? 'Deactivate' : 'Activate') . '</button></form>';
+        echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="toggle"><input type="hidden" name="item_id" value="' . (int) $item['id'] . '"><input type="hidden" name="active" value="' . ((int) $item['active'] === 1 ? '0' : '1') . '"><button class="text-link" type="submit">' . ((int) $item['active'] === 1 ? 'Hide' : 'Restore') . '</button></form>';
         echo '</td></tr>';
     }
     echo '</table></div>';

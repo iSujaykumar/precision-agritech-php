@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 $rows = db()->query("SELECT r.id, r.contact, r.created_at, p.name FROM restock_requests r JOIN products p ON p.id = r.product_id WHERE r.status = 'new' ORDER BY r.id DESC")->fetchAll();
-admin_open('Back in stock requests');
+admin_open('Back in stock requests', 'plants');
 if (!$rows) {
     echo '<p>No one is waiting right now.</p>';
 }
