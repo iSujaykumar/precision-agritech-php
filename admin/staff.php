@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'owner');
+require_role($admin, 'owner');
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 db()->prepare('UPDATE users SET desk_role = ? WHERE id = ?')->execute([$deskRole, $id]);
                 audit_log((int) $admin['id'], 'staff_role', 'user', $id, (string) ($row['desk_role'] ?? ''), $deskRole);
-                flash_set('Desk role saved');
+                flash_set('Role saved');
             } else {
                 throw new RuntimeException('That action is not available.');
             }
@@ -89,7 +89,7 @@ if ($error) {
 echo '<div class="table-wrap"><table><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr>';
 foreach ($rows as $row) {
     $id = (int) $row['id'];
-    echo '<tr><td>' . e($row['name']) . '</td><td>' . e($row['email']) . '</td><td>' . e((string) $row['phone']) . '</td><td>' . e((string) ($row['desk_role'] ?? 'owner')) . '</td><td>' . e((string) $row['status']) . '</td><td>' . e((string) ($row['last_login_at'] ?: '—')) . '</td><td>';
+    echo '<tr><td>' . e($row['name']) . '</td><td>' . e($row['email']) . '</td><td>' . e((string) $row['phone']) . '</td><td>' . e((string) ($row['desk_role'] ?? 'owner')) . '</td><td>' . e((string) $row['status']) . '</td><td>' . e((string) ($row['last_login_at'] ?: '-')) . '</td><td>';
     echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="role"><input type="hidden" name="id" value="' . $id . '"><select name="desk_role">';
     foreach (['owner', 'manager', 'staff'] as $roleName) {
         echo '<option value="' . $roleName . '"' . (($row['desk_role'] ?? 'owner') === $roleName ? ' selected' : '') . '>' . $roleName . '</option>';
@@ -103,7 +103,7 @@ foreach ($rows as $row) {
 }
 echo '</table></div>';
 echo '<h2>Add staff</h2><form method="post" class="narrow">' . csrf_field() . '<input type="hidden" name="action" value="add">';
-echo '<label>Name <input name="name" required></label><label>Email <input name="email" type="email" required></label><label>Mobile <input name="phone" required></label><label>Temporary password <input name="password" type="password" minlength="12" required></label><label>Desk role <select name="desk_role"><option value="staff">staff</option><option value="manager">manager</option><option value="owner">owner</option></select></label><button class="btn" type="submit">Add staff</button></form>';
+echo '<label>Name <input name="name" required></label><label>Email <input name="email" type="email" required></label><label>Mobile <input name="phone" required></label><label>Temporary password <input name="password" type="password" minlength="12" required></label><label>Role <select name="desk_role"><option value="staff">staff</option><option value="manager">manager</option><option value="owner">owner</option></select></label><button class="btn" type="submit">Add staff</button></form>';
 echo '<h2>Reset a password</h2><form method="post" class="narrow">' . csrf_field() . '<input type="hidden" name="action" value="reset">';
 echo '<label>Staff <select name="id">';
 foreach ($rows as $row) {

@@ -221,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $label = (string) $line['product']['name'];
             $variety = trim((string) ($line['product']['variety'] ?? ''));
             if ($variety !== '' && !str_contains($label, $variety)) {
-                $label .= ' — ' . $variety;
+                $label .= ', ' . $variety;
             }
             $marathi = (string) ($sell['marathi'] ?? '');
             if ($marathi === '') {
@@ -291,7 +291,7 @@ render_header('Checkout | Precision Agritech');
   <?php if (!$quote['lines']): ?><p>Your cart is empty. <a href="/shop">Shop seedlings</a></p><?php else: ?>
   <?php if ($quote['lines']): ?>
   <details class="card summary summary-mobile">
-    <summary>Order summary — <?= inr((int) $quote['total']) ?></summary>
+    <summary>Order summary, <?= inr((int) $quote['total']) ?></summary>
     <?php foreach ($quote['lines'] as $line): ?>
       <p><span><?= (int) $line['qty'] ?> × <?= e((string) $line['product']['name']) ?></span><span><?= inr((int) $line['line']) ?></span></p>
     <?php endforeach; ?>
@@ -347,7 +347,7 @@ render_header('Checkout | Precision Agritech');
       <p class="consent">We use your details only to deliver your order. <a href="/privacy">Privacy Policy</a></p>
     </form>
   </div>
-  <aside class="card summary summary-desk">
+  <aside class="card summary summary-side">
     <h2>Your trays</h2>
     <?php foreach ($quote['lines'] as $line): ?>
       <p><span><?= (int) $line['qty'] ?> × <?= e((string) $line['product']['name']) ?></span><span><?= inr((int) $line['line']) ?></span></p>

@@ -60,7 +60,7 @@ render_header('Seasonal price list 2026-27 | Precision Agritech', 'Per seedling 
     </tr>
     <?php $n++; endforeach; ?>
   </table></div>
-  <?php if (!$rows): ?><p>The seasonal list has not been loaded yet. Ask the nursery desk to press Update everything.</p><?php endif; ?>
+  <?php if (!$rows): ?><p>The seasonal list has not been loaded yet. Ask the nursery to press Update everything.</p><?php endif; ?>
   <?php $terms = invoice_term_lines(); if ($terms): ?>
   <h2>Terms</h2>
   <ol><?php foreach ($terms as $term): ?><li><?= e($term) ?></li><?php endforeach; ?></ol>

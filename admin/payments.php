@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'manager');
+require_role($admin, 'manager');
 $error = null;
 if (($_GET['download'] ?? '') === 'svg' || (($_GET['download'] ?? '') === 'png')) {
     $sample = upi_pay_link(setting('upi_id', ''), setting('upi_payee_name', 'Precision Agritech Private Limited'), 'TEST', 1);

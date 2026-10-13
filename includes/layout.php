@@ -78,7 +78,7 @@ function render_header(string $title, string $description = '', string $chrome =
 <html lang="<?= e(shop_lang()) ?>">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title><?= e($title) ?></title>
   <?php if ($description !== ''): ?><meta name="description" content="<?= e($description) ?>"><?php endif; ?>
   <?php if ($chrome !== 'shop'): ?><meta name="robots" content="noindex"><?php endif; ?>
@@ -101,11 +101,11 @@ function render_header(string $title, string $description = '', string $chrome =
   <link rel="stylesheet" href="/assets/css/admin.css?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/css/admin.css') ?>">
   <?php endif; ?>
 </head>
-<body class="<?= $chrome === 'shop' ? 'shop' : 'desk' ?>">
+<body class="<?= $chrome === 'shop' ? 'shop' : 'admin' ?>">
 <a class="skip" href="#content">Skip to content</a>
 <?php if ($chrome === 'admin'): ?>
 <header class="admin-bar">
-  <a class="logo" href="/admin">Nursery desk</a>
+  <a class="logo" href="/admin">Admin</a>
   <button class="nav-toggle admin-toggle" type="button" aria-expanded="false" aria-controls="admin-nav">Menu</button>
   <details class="staff-menu">
     <summary><?= e((string) ($user['name'] ?? $user['email'] ?? 'Staff')) ?></summary>
@@ -163,14 +163,14 @@ function render_header(string $title, string $description = '', string $chrome =
 function admin_menu(): void
 {
     $path = rtrim((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), '/') ?: '/';
-    $here = desk_path_group($path);
-    $groups = desk_groups();
-    $tabs = desk_tab_sets();
+    $here = section_for_path($path);
+    $groups = admin_groups();
+    $tabs = section_tabs();
     echo '<nav class="admin-nav" id="admin-nav" aria-label="Desk">';
-    echo '<form class="desk-finder" method="get" action="/admin/finder" role="search">';
+    echo '<form class="admin-finder" method="get" action="/admin/finder" role="search">';
     echo '<label class="finder-label">Where do I change this? <input name="q" type="search" placeholder="price, stock, offer" data-finder autocomplete="off"></label>';
     echo '<div class="finder-drop" data-finder-drop hidden></div></form>';
-    echo '<script type="application/json" id="desk-finder-data">' . json_encode(finder_items(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) . '</script>';
+    echo '<script type="application/json" id="admin-finder-data">' . json_encode(finder_items(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) . '</script>';
     foreach ($groups as $id => $group) {
         $on = $here === $id;
         $count = (int) $group['count'];
@@ -195,7 +195,7 @@ function admin_menu(): void
 
 function admin_tabs(string $group): void
 {
-    $sets = desk_tab_sets();
+    $sets = section_tabs();
     if ($group === 'today' || $group === '') {
         return;
     }

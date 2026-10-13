@@ -10,13 +10,13 @@ function admin_boot(): array
 
 function admin_open(string $title, string $section = ''): void
 {
-    render_header($title . ' | Nursery desk', '', 'admin');
+    render_header($title . ' | Admin', '', 'admin');
     echo '<section class="section admin-page"><div class="wrap">';
     if ($section !== '') {
         admin_tabs($section);
     }
     echo '<h1>' . e($title) . '</h1>';
-    $help = desk_help_text();
+    $help = admin_help_text();
     if ($help !== '') {
         echo '<p class="muted">' . e($help) . '</p>';
     }

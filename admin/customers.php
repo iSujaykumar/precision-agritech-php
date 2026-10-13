@@ -23,7 +23,7 @@ admin_open('Customers', 'customers');
 echo '<form method="get" class="inline"><label>Search <input name="q" value="' . e($q) . '"></label><button class="btn" type="submit">Search</button></form>';
 echo '<div class="table-wrap"><table><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Spent</th><th>Last sign-in</th><th>Status</th></tr>';
 foreach ($stmt as $row) {
-    echo '<tr><td><a href="/admin/customer-view?id=' . (int) $row['id'] . '">' . e($row['name']) . '</a></td><td>' . e($row['email']) . '</td><td>' . e((string) $row['phone']) . '</td><td>' . (int) $row['order_count'] . '</td><td>' . inr((int) $row['spent']) . '</td><td>' . e((string) ($row['last_login_at'] ?: '—')) . '</td><td>' . e((string) $row['status']) . '</td></tr>';
+    echo '<tr><td><a href="/admin/customer-view?id=' . (int) $row['id'] . '">' . e($row['name']) . '</a></td><td>' . e($row['email']) . '</td><td>' . e((string) $row['phone']) . '</td><td>' . (int) $row['order_count'] . '</td><td>' . inr((int) $row['spent']) . '</td><td>' . e((string) ($row['last_login_at'] ?: '-')) . '</td><td>' . e((string) $row['status']) . '</td></tr>';
 }
 echo '</table></div>';
 pager_nav($page, $pages);

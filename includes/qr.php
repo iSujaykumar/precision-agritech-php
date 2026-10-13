@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/qrcode.php';
+require_once dirname(__DIR__) . '/vendor/qrcode.php';
 
 function safe_shop_href(string $href, string $fallback): string
 {

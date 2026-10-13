@@ -28,6 +28,7 @@ function rate_limited(string $bucket, int $max, int $minutes): bool
 
 function note_rate(string $bucket): void
 {
+    // Same table as sign-in failures. The bucket is a label, not an email address.
     note_login_failure(substr($bucket, 0, 160));
 }
 

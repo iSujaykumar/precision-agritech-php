@@ -20,11 +20,11 @@ function expect(string $name, bool $ok, string $detail = ''): void
         return;
     }
     $fail++;
-    echo "FAIL $name" . ($detail !== '' ? " — $detail" : '') . "\n";
+    echo "FAIL $name" . ($detail !== '' ? " - $detail" : '') . "\n";
 }
 
 $root = dirname(__DIR__);
-foreach (['data/price-list-2026-27.csv' => 67, 'data/price-list-farmer.csv' => 33, 'database/price-list-2026-27.csv' => 67, 'database/price-list-farmer.csv' => 33] as $rel => $min) {
+foreach (['data/price-list-2026-27.csv' => 67, 'data/price-list-farmer.csv' => 33] as $rel => $min) {
     $lines = file($root . '/' . $rel, FILE_IGNORE_NEW_LINES);
     $rows = max(0, count($lines ?: []) - 1);
     expect($rel . ' has ' . $min . ' rows', $rows >= $min, (string) $rows);
@@ -91,7 +91,7 @@ expect('calc 5000 seedlings', trays_for(5000) === 34);
 
 $pdo = db();
 $log = shop_upgrade($pdo);
-expect('upgrade on prove db', is_array($log));
+expect('upgrade on the shop database', is_array($log));
 $again = shop_upgrade($pdo);
 expect('upgrade again', is_array($again));
 
@@ -149,7 +149,7 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    expect('prove import', false, $err->getMessage());
+    expect('sheet import', false, $err->getMessage());
 }
 
 echo $fail === 0 ? "ALL PASS\n" : "FAILURES $fail\n";

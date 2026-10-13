@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'manager');
+require_role($admin, 'manager');
 $fields = [
     'shop_phone' => 'Shop phone',
     'whatsapp_number' => 'WhatsApp number',

@@ -1,0 +1,25 @@
+Open points. Nothing in this list was changed.
+
+The printed terms say payment is 50% in advance and that the price is the one at the time of the order. The FAQ, the about page, checkout and the product line still mention cash on delivery and 150 seedlings in a tray. Those sentences were left as they are.
+
+The contact page still says a complaint is acknowledged within 48 hours.
+
+Bank rows copied from the price-list PDF stay hidden until someone ticks them as checked. Health stays unhappy until the digits are confirmed against the bank.
+
+There is no card or UPI gateway. Staff still mark each payment by hand. Live vehicle tracking is not connected, so the site does not promise it.
+
+config.php has empty defaults and loads config/config.local.php when that file exists. Passwords stay in config.local.php. That file is listed in .gitignore. config.php itself is not ignored, because the site will not boot without the loader.
+
+The price-list CSVs live only in data/. The importer already read them from there. The copies under database/ were the same bytes and have been removed.
+
+/overgrown is the page for trays that are past their best. The address and the words on the page stay, because that is what the nursery calls them.
+
+/admin/proof serves a private photo attached to a claim. The address stays so old links keep working.
+
+The database already stores schema_version as 2026.10.12-final, the setting v2_flags_locked, and claim photos with the field name proof. Those names were left so existing rows and forms keep working. Google and Twilio URLs that contain v2 were left because they are the providers' addresses.
+
+A few functions are never called from a page: admin_warnings, admin_counts, order_plain_status, review_limit_hit, order_attempt_limited, otp_debug_notice, upsert_sheet_product. They were left in place.
+
+The SQL was run on MariaDB here. It was not run on MySQL 5.7 or MySQL 8.
+
+register.php, forgot-password.php, reset-password.php and verify-mobile.php only redirect to /login. The same redirect is in .htaccess. They are still linked as old addresses, so they were not deleted.

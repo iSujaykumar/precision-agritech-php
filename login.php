@@ -202,7 +202,7 @@ render_header('Sign in | Precision Agritech', 'Sign in to Precision Agritech.');
       <button class="btn btn-block" type="submit">Send code</button>
     </form>
   <?php endif; ?>
-  <p class="muted">No account needed — you can also <a href="/shop">order as a guest</a>.</p>
+  <p class="muted">No account needed. You can also <a href="/shop">order as a guest</a>.</p>
   <p class="consent">By continuing you agree we may receive your name and email from Google, email you a sign-in code, and use your mobile number for delivery. <a href="/privacy">Privacy Policy</a></p>
 </div></section>
 <?php render_footer(); ?>

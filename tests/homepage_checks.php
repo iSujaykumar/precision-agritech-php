@@ -52,20 +52,20 @@ foreach (glob($root . '/admin/*.php') ?: [] as $file) {
         $missing[] = basename($file);
     }
 }
-$desk = file_get_contents($root . '/includes/desk.php') ?: '';
-expect('not-allowed page has a group', str_contains($desk, "admin_open('Not allowed', 'today')"));
-expect('every desk page passes a group', $missing === [], implode(',', $missing));
+$office = file_get_contents($root . '/includes/office.php') ?: '';
+expect('not-allowed page names its section', str_contains($office, "admin_open('Not allowed', 'today')"));
+expect('every admin page passes a section', $missing === [], implode(',', $missing));
 $inventory = file_get_contents($root . '/admin/inventory.php') ?: '';
 expect('old stock page redirects to the one stock page', str_contains($inventory, "Location: /admin/stock"));
-$home = file_get_contents($root . '/includes/home_desk.php') ?: '';
+$home = file_get_contents($root . '/includes/homepage.php') ?: '';
 expect('browse rail has a no-JavaScript note', str_contains($home, '<noscript>'));
 expect('offers rail has the promo card', str_contains($home, 'promo-card'));
 $css = file_get_contents($root . '/assets/css/site.css') ?: '';
 expect('phone rails show two cards', str_contains($css, 'calc((100% - 0.75rem) / 2)'));
-expect('page does not scroll sideways', str_contains($css, 'overflow-x: hidden'));
+expect('page does not scroll sideways', str_contains($css, 'overflow-wrap: break-word') && str_contains($css, '.table-wrap { width: 100%; overflow-x: auto; }') && !str_contains($css, 'html, body { overflow-x: hidden'));
 
-foreach (desk_metrics() as $row) {
-    $again = desk_href_count($row['href']);
+foreach (admin_metrics() as $row) {
+    $again = admin_link_count($row['href']);
     expect('count matches list for ' . $row['label'], (int) $row['count'] === $again, (string) $row['count'] . ' vs ' . $again);
 }
 $orders = file_get_contents($root . '/admin/orders.php') ?: '';
@@ -109,7 +109,7 @@ $sell = selling_price($offer);
 expect('live offer price is the cut seedling rate', (int) $sell['paise'] === 300 && (int) $sell['tray_paise'] === 45000);
 
 if ($fail > 0) {
-    echo "FAIL home desk ($fail)\n";
+    echo "FAIL homepage checks ($fail)\n";
     exit(1);
 }
-echo "PASS home desk\n";
+echo "PASS homepage checks\n";

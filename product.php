@@ -150,7 +150,7 @@ render_header($product['name'] . ' trays | Precision Agritech', $product['short_
       <p class="price"><?= $sell['blocked'] ? 'Price on request' : e(price_pair_text($sell)) ?></p>
       <p class="muted">Nursery grown at Theur. Sold by the tray (150 seedlings). Call or WhatsApp for bulk.</p>
       <?php $banner = discount_banner_text(); if ($banner !== ''): ?><p class="muted"><?= e($banner) ?></p><?php endif; ?>
-      <p>Grown at Theur, Pune · <?= (int) available_trays($product) ?> trays ready · Delivery in 2–4 days after payment is confirmed.</p>
+      <p>Grown at Theur, Pune · <?= (int) available_trays($product) ?> trays ready · Delivery in 2-4 days after payment is confirmed.</p>
       <?php if ($rating): ?><p class="rating-line"><?= stars_markup($rating['avg'], $rating['n']) ?> <span class="muted"><?= e(number_format($rating['avg'], 1)) ?> · <?= (int) $rating['n'] ?> reviews</span></p><?php endif; ?>
       <p><?= e($product['description']) ?></p>
       <?php if ($stock <= 0 && (string) ($product['availability'] ?? '') === 'on_request'): ?>

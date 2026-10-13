@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/includes/bootstrap.php';
 
-// Owner to supply separate return/cancellation wording if wanted.
+// Returns and cancellation use the same eight lines as the terms until separate wording is written.
 $saleClauses = [
     'Order confirmation should be made in writing or over phone with immediate advance payment of minimum 50%.',
     'Advance payment covers box packing, transportation, and freight expenses.',

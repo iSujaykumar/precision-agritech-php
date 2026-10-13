@@ -1,0 +1,50 @@
+Precision Agritech responsive notes
+13 Oct 2026
+
+What was already working
+The shop and the admin area already reflow. The viewport tag is width=device-width, initial-scale=1, viewport-fit=cover. There is no maximum-scale and pinch zoom is left on. Images scale, the page wrap is min(72rem, 100% minus the side gap), and wide tables sit in .table-wrap so they scroll inside the table, not the page. Product rails scroll sideways on their own. The hero is 70vh with 70svh after it. The calculator panel is 100vh with 100dvh after it, and on a phone it is a bottom sheet. The UPI mark is fluid, never under about 180px, with white padding and pixelated rendering. Buttons are at least 44px. The header, the bottom bar and the WhatsApp button already pad for the notch and the home indicator.
+
+What was changed
+assets/css/site.css
+On screens up to 700px the sticky cart bar sits 8px above the fixed bottom bar. The page padding is tall enough that the last content is not hidden behind either bar, including the home-indicator inset. Text fields use at least 16px type on those screens so a phone does not zoom in when a field is focused. The admin finder goes full width there. Filter chips keep an 8px gap on a coarse pointer.
+
+assets/css/admin.css
+Admin fields under 700px use at least 16px type and a 44px tap height. Admin cards stay one column under 480px, two columns from there up to the tablet sizes, and three on a desktop. That rule was already in this file. It was checked again, not rewritten.
+
+assets/js/calc.js
+If the calculator sheet is open, the screen is under 701px, and the keyboard covers more than 40px, the sheet moves up by that amount. Otherwise the inline position is cleared and the CSS rules apply.
+
+tests/homepage_checks.php
+The check named "page does not scroll sideways" used to look for overflow-x: hidden on the whole page. That rule is not in the CSS, on purpose. Hiding overflow covers a real overflow instead of fixing it, and it can break sticky bars. The check now looks for overflow-wrap on the body and for .table-wrap scrolling on its own, and it fails if html, body is given overflow-x: hidden.
+
+Widths tested
+280x653, 320x568, 360x640, 375x667, 390x844, 412x915, 430x932, 480x854, 600x960, 640x360, 667x375, 717x512, 768x1024, 834x1194, 844x390, 915x412, 1024x768, 1024x1366, 1112x834, 1180x820, 1280x720, 1366x768, 1440x900, 1536x864, 1920x1080, 2560x1440, 3840x2160.
+
+Public pages: home, shop, a product, cart, checkout, login, contact, price list, calculator, about, nursery, faq, shipping, returns, cancellation, privacy, terms, wholesale, account, track, reviews, overgrown, and a missing page (404). Admin pages: home, orders, one order, products, product edit, stock, invoices, offers, customers, price lists, settings, payments, help, staff, messages, deliveries, phones, reviews, mail log, coupons, categories, banks, wholesale, audit log, homepage, photos, claims, and the admin login.
+
+1,201 loads. After each page had finished loading, the page itself did not scroll sideways. One early reading of 9px on product edit at 280px did not happen again once the page had settled. The section links that stick out on that page are inside the tab strip, which scrolls on its own.
+
+At 280px the logo does not cover the Menu button (logo ends at 176, Menu starts at 183, Menu is 44px tall). At 360px the product photo is 328 by 246 and Add to cart is 328 by 44. Checkout fields are 16.8px type. Shop is 2 columns on a phone, 1 column under 360px, 3 columns at 768px, 4 columns at 1280px. Admin cards are 1, 2 and 3 columns at 360, 480 and 1280. The sample UPI mark on the payments page is 256 by 256 at both 320 and 390. A landscape phone header is about 16 percent of the height. The mobile menu opens, stops the page behind it from scrolling, and Escape closes it. In landscape the open menu scrolls inside itself.
+
+200 percent and 400 percent reflow were checked as a 640px and a 320px viewport (half and a quarter of 1280). Setting CSS zoom is not the same as browser reflow and was not used.
+
+Desktop
+At 1280 the public nav is still a horizontal row, the hero and the four-across rails are unchanged, and the page wrap stays 1152px inside the 72rem cap. Large monitors keep that same centred column. Nothing on desktop was restyled.
+
+Screenshots
+Saved outside the project at responsive-shots/after/ for 360, 768 and 1280. Home, shop, product, cart, checkout, login, contact, price list, calculator, the text pages, reviews, 404, and the main admin pages. There is no before/ folder. The pages were already fitting before these edits, so a before set was not kept. Cart and checkout shots at 360 were taken with one marigold tray in the basket. That tray was removed afterwards. The staff session cart is empty.
+
+What was tried by hand
+Shop filter, add to cart, quantity stepper, checkout up to the three payment choices, calculator open and Escape, admin order page (the status control is there). The order was not placed, and the status was not saved, because both write stock, mail and an audit row. The checkout page does not draw the UPI mark. The existing copy says the exact-amount mark is on the order page after the order is placed. The sample mark on Admin, Payments was measured instead. Print still hides the footer. The public header still prints, which is how the print rule already worked, so it was left. No script error was thrown on the pages opened for this pass.
+
+Tests
+php -l on tests/homepage_checks.php. node check on assets/js/calc.js. tests/admin_checks.php, catalog_rules.php, homepage_checks.php, price_lists.php, pricing_rules.php, shop_checks.php and upi_qr.php all passed. tests/smoke.sh against the local site passed. Lighthouse is not installed here, so there is no Performance, Accessibility or Best Practices score. Nothing is claimed.
+
+Left alone, and why
+The old breakpoints (640, 700, 800, 900, 1024) were not replaced with a new set. The shop grid was not switched to auto-fill. Both would change how many cards a tablet shows. The current steps already give 1, 2, 3 and 4 columns at the widths above.
+Admin tables were not rebuilt as cards. They already sit in .table-wrap with a sticky first column. A card layout would need a label on every cell and would be a second design.
+Long paragraphs were not narrowed to 65 characters. The 72rem wrap is the desktop measure.
+Phone numbers inside a footer sentence stay on the line. Turning them into 44px blocks would open up the footer spacing that was fixed earlier. The Shop and Company links are the tall tap targets.
+Google sign-in is not on this copy, so there is no Google button to resize. The six code boxes appear only after a code is sent.
+/farmer-prices returns 404 for a visitor who is not allowed to see farmer rates. That is access control, not a layout bug.
+MySQL 5.7, MySQL 8, a live UPI payment and a live WhatsApp send were not run.

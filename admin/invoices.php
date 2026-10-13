@@ -44,7 +44,7 @@ if (($_GET['export'] ?? '') === 'csv' || ($_GET['export'] ?? '') === 'tally') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_desk($admin, 'manager');
+    require_role($admin, 'manager');
     try {
         require_csrf();
         $keys = [

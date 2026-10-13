@@ -6,8 +6,8 @@ if (PHP_SAPI !== 'cli') {
 }
 require dirname(__DIR__) . '/includes/qr.php';
 
-if (!function_exists('desk_allows')) {
-    function desk_allows(string $role, string $need): bool
+if (!function_exists('role_allows')) {
+    function role_allows(string $role, string $need): bool
     {
         $rank = ['staff' => 1, 'manager' => 2, 'owner' => 3];
         return ($rank[$role] ?? 0) >= ($rank[$need] ?? 3);
@@ -53,7 +53,7 @@ $check(str_contains($missing, 'UPI is not configured') && !str_contains($missing
 $upload = upi_qr_block('name@ok', 'Nursery', 'PA999999', 250, 'upload', '/uploads/products/qr.webp');
 $check(str_contains($upload, '/uploads/products/qr.webp') && str_contains($upload, '250'), 'uploaded qr keeps the amount in text');
 
-$check(desk_allows('staff', 'staff') && !desk_allows('staff', 'manager') && desk_allows('owner', 'owner'), 'desk roles');
+$check(role_allows('staff', 'staff') && !role_allows('staff', 'manager') && role_allows('owner', 'owner'), 'staff roles');
 $check(csv_cell('=cmd') === "'=cmd" && csv_cell('ok') === 'ok', 'csv formula guard');
 $check(safe_shop_href('https://evil.example', '/shop') === '/shop', 'homepage link stays on site');
 

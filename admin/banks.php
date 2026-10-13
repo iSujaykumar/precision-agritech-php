@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'owner');
+require_role($admin, 'owner');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
     try {
@@ -30,7 +30,7 @@ $flash = flash_take();
 if ($flash) {
     echo '<p class="flash ' . e($flash['kind']) . '">' . e($flash['message']) . '</p>';
 }
-echo '<p class="desk-warn">These account numbers were read from the price-list PDF. Check every digit against the bank or a cheque before you show them. Nothing here is shown to customers until you tick the verification box.</p>';
+echo '<p class="admin-warn">These account numbers were read from the price-list PDF. Check every digit against the bank or a cheque before you show them. Nothing here is shown to customers until you tick the verification box.</p>';
 echo '<form method="post">' . csrf_field();
 echo '<div class="table-wrap"><table><tr><th>Bank</th><th>Account</th><th>IFSC</th><th>I verified these bank details against the bank/cheque</th><th>Show</th></tr>';
 foreach ($rows as $row) {

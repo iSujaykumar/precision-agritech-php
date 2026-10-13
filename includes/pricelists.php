@@ -285,7 +285,7 @@ function load_supplied_lists(PDO $pdo): array
     $tray = 150;
     $report = [];
     $stockNotes = [];
-    apply_v2_defaults($pdo);
+    apply_shop_defaults($pdo);
     $seasonalId = (int) $pdo->query("SELECT id FROM price_lists WHERE slug = 'seasonal-2026-27'")->fetchColumn();
     $farmerId = (int) $pdo->query("SELECT id FROM price_lists WHERE slug = 'farmer'")->fetchColumn();
     if ($seasonalId < 1 || $farmerId < 1) {
@@ -496,7 +496,7 @@ function load_supplied_lists(PDO $pdo): array
     $lines[] = '';
     $lines[] = 'Shop cards are the 19 older plants, Ptilotus, and these 10: ' . implode(', ', shop_new_slugs()) . '.';
     $lines[] = 'Other sheet plants stay on the full price list until someone presses Show this plant in the shop.';
-    file_put_contents(dirname(__DIR__) . '/IMPORT_REPORT.txt', implode("\n", $lines) . "\n");
+    file_put_contents(dirname(__DIR__) . '/uploads/private/last-sheet-load.txt', implode("\n", $lines) . "\n");
     $GLOBALS['pa_settings_dirty'] = true;
     return ['rows' => $report, 'matched_parents' => $matchedParents, 'new_parents' => $createdParents, 'farmer_rows' => $farmerN, 'groups' => count($groups), 'stock_defaults' => $stockNotes];
 }
@@ -636,3 +636,4 @@ function schema_guard(): void
     echo '</body></html>';
     exit;
 }
+

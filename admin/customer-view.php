@@ -61,7 +61,7 @@ if (!empty($user['deletion_requested'])) {
     echo '<p class="flash">This customer asked to delete the account and data.</p>';
     echo '<form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $user['id'] . '"><input type="hidden" name="action" value="deletion"><button class="btn" type="submit">Disable account and mark the request handled</button></form>';
 }
-echo '<p>Last sign-in: ' . e((string) ($user['last_login_at'] ?: '—')) . '</p>';
+echo '<p>Last sign-in: ' . e((string) ($user['last_login_at'] ?: '-')) . '</p>';
 echo '<form method="post">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $user['id'] . '"><input type="hidden" name="action" value="farmer">';
 echo '<label><input type="checkbox" name="farmer" value="1"' . ((int) ($user['farmer'] ?? 0) === 1 ? ' checked' : '') . '> Farmer rates (staff only; the customer cannot choose this)</label> ';
 echo '<button class="btn" type="submit">Save farmer rates</button></form>';

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'manager');
+require_role($admin, 'manager');
 $keys = ['about', 'nursery', 'faq', 'shipping', 'returns', 'cancellation', 'privacy', 'terms', 'wholesale'];
 $error = null;
 $current = (string) ($_GET['page'] ?? 'shipping');

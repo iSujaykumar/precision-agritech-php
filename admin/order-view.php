@@ -440,7 +440,7 @@ if ($error) {
   <input type="hidden" name="action" value="cash">
   <label>Cash collected <input name="amount" type="number" min="1" value="<?= (int) $row['total_inr'] ?>"></label>
   <label>Reason if it differs <input name="cash_reason" maxlength="160" placeholder="Short change or discount"></label>
-  <button class="btn" type="submit">Delivered — cash collected</button>
+  <button class="btn" type="submit">Delivered, cash collected</button>
 </form>
 <form method="post" enctype="multipart/form-data">
   <?= csrf_field() ?>

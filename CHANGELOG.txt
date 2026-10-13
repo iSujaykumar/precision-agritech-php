@@ -1,50 +1,11 @@
-CHANGELOG — 13 October 2026, fix round
+13 Oct 2026
+Footer phone numbers sit on separate lines without a double gap. Admin menus stay closed until you hover or tab onto them. The offers card no longer mentions the office. Shop and company links in the footer are tall enough to tap on a phone.
 
-Footer links inside a paragraph are inline, so the phone numbers are no longer double-spaced. Desk group menus stay closed until hover or keyboard focus, including on the page you are already on. The offers card no longer mentions the desk. The terms test accepts Windows paths.
+13 Oct 2026
+The three shop numbers are labelled Sales. Terms, returns and cancellation use the wording from the printed price list. Privacy and the grievance link were removed from the footer only. Admin pages got their own stylesheet.
 
-CHANGELOG — 13 October 2026
+12 Oct 2026
+Shop cut to 30 plant cards. Order calculator added to the menu. Seasonal and farmer price lists loaded. Tray price is the seedling rate times 150, in paise. UPI QR on the order page. Invoices, proforma and credit notes. Offers, new arrivals and a database update that can be run twice.
 
-Public pages
-Offers no longer shows "More offers soon". The three shop numbers are labelled Sales once in the footer. Privacy and Grievance officer links are gone from the footer only. Terms, Returns and Cancellation use the owner's eight price-list clauses.
-
-Nursery desk
-New assets/css/admin.css, loaded only on desk pages. Desktop groups open as dropdowns, the finder list is not clipped, tables and inputs are denser, and the staff menu is a dropdown. Help lines no longer start with a question mark. The stock quantity box uses a class instead of an inline width.
-
-CHANGELOG — audit pass 2026-10-12
-
-tests/catalog_rules.php
-Exits immediately unless it is run from the command line, so a browser cannot run database tests.
-
-.htaccess
-Denies /tests/ and every .txt file except robots.txt.
-
-dev-router.php
-Same denials for the local preview server. This file is not uploaded to Hostinger; .htaccess does that job there.
-
-shop.php
-Adds price high-to-low sorting and New / Offers filters. Search keeps the active filter. Offers uses the shared date rule.
-
-product.php
-Adds a breadcrumb trail and BreadcrumbList structured data. The selling price is unchanged.
-
-assets/css/site.css
-Styles the breadcrumb and turns off card motion when the visitor prefers reduced motion.
-
-admin/products.php
-Shows which offers are live, scheduled, or expired.
-
-includes/migrate.php
-Reads database/upgrade.sql and applies it without stored procedures. Skips anything that already exists.
-
-admin/migrate.php
-Staff-only, CSRF-protected button for that update. Linked from Desk → Settings.
-
-includes/layout.php
-Adds the Database update tab.
-
-tests/smoke.sh
-Checks that the catalog test and the setup notes are not publicly readable.
-
-Not changed
-database/schema.sql and database/upgrade.sql were already aligned. No columns were added in this pass.
-config/config.local.php was not opened for editing and is not in the zip.
+Earlier
+Customer sign-in by email code, staff passwords, stock reservations, coupons, reviews, wholesale enquiries and the basic catalogue.

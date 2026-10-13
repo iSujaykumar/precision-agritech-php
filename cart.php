@@ -159,7 +159,7 @@ render_header('Cart | Precision Agritech', 'Review your seedling trays before ch
       <?php endif; ?>
       <ul class="reassure">
         <li><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="#1f6b45" d="M6.2 11.2 2.9 7.9l1.1-1.1 2.2 2.2 5-5 1.1 1.1z"/></svg> Trays are hardened at the Theur nursery before they leave</li>
-        <li><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="#1f6b45" d="M6.2 11.2 2.9 7.9l1.1-1.1 2.2 2.2 5-5 1.1 1.1z"/></svg> Delivery in 2–4 days after payment is confirmed</li>
+        <li><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="#1f6b45" d="M6.2 11.2 2.9 7.9l1.1-1.1 2.2 2.2 5-5 1.1 1.1z"/></svg> Delivery in 2-4 days after payment is confirmed</li>
         <?php if ($help !== ''): ?><li><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="#1f6b45" d="M6.2 11.2 2.9 7.9l1.1-1.1 2.2 2.2 5-5 1.1 1.1z"/></svg> <a href="<?= e($help) ?>" target="_blank" rel="noopener">Need help? Chat on WhatsApp</a></li><?php endif; ?>
       </ul>
     </aside>

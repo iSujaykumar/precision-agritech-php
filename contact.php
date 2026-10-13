@@ -38,7 +38,7 @@ render_header('Contact | Precision Agritech');
     <?php if ($wa !== ''): ?> · <a href="<?= e($wa) ?>" target="_blank" rel="noopener">Chat on WhatsApp</a><?php endif; ?>
   </p>
   <p class="muted"><?= e(shop_setting('opening_hours', '')) ?></p>
-  <?php if ($done): ?><p class="flash">Message saved. The nursery will read it from the desk.</p><?php endif; ?>
+  <?php if ($done): ?><p class="flash">Message saved. The nursery will read it in the office.</p><?php endif; ?>
   <?php if ($error): ?><p class="flash"><?= e($error) ?></p><?php endif; ?>
   <form method="post">
     <?= csrf_field() ?>

@@ -1,5 +1,0 @@
-1. Back up the current website files and the database.
-2. Upload this zip and unpack it over the site. Do not replace config/config.local.php.
-3. Sign in at /admin/login.
-4. Open Update everything and wait until the result is green.
-5. Look at the homepage (Order calculator in the top menu, Browse all plants as one row) and the Today page.

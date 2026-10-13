@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'manager');
+require_role($admin, 'manager');
 $result = null;
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -28,7 +28,7 @@ $version = setting('schema_version', '');
 $loaded = setting('lists_loaded', '0');
 echo '<p>Database version: ' . e($version !== '' ? $version : 'not updated yet') . '. Price sheets loaded: ' . ($loaded === '1' ? 'yes' : 'no') . '.</p>';
 if ($version !== '2026.10.12-final' || $loaded !== '1') {
-    echo '<p class="desk-warn">The update has not finished. Press the button.</p>';
+    echo '<p class="admin-warn">The update has not finished. Press the button.</p>';
 }
 echo '<form method="post">' . csrf_field();
 echo '<button class="btn" type="submit">Update everything</button></form>';

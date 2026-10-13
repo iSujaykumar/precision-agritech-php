@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'manager');
+require_role($admin, 'manager');
 $error = null;
 
 function coupon_status(array $row, int $used): string
@@ -100,7 +100,7 @@ foreach ($rows as $row) {
     $status = coupon_status($row, $used);
     $discount = $row['kind'] === 'percent' ? ((int) $row['amount'] . '%') : ('Rs ' . (int) $row['amount'] . ' off');
     $limit = $row['usage_limit'] === null ? 'No limit' : (string) (int) $row['usage_limit'];
-    echo '<tr><td>' . e($row['code']) . '</td><td>' . e($discount) . '</td><td>' . inr((int) $row['min_order_inr']) . '</td><td>' . $used . ' / ' . e($limit) . '</td><td>' . e((string) ($row['ends_at'] ?: '—')) . '</td>';
+    echo '<tr><td>' . e($row['code']) . '</td><td>' . e($discount) . '</td><td>' . inr((int) $row['min_order_inr']) . '</td><td>' . $used . ' / ' . e($limit) . '</td><td>' . e((string) ($row['ends_at'] ?: '-')) . '</td>';
     echo '<td><span class="pill pill-' . e(strtolower(str_replace(' ', '-', $status))) . '">' . e($status) . '</span></td><td>';
     $next = $row['active'] ? 0 : 1;
     echo '<form method="post" class="inline">' . csrf_field() . '<input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="' . (int) $row['id'] . '"><input type="hidden" name="active" value="' . $next . '"><button class="linkish" type="submit">' . ($row['active'] ? 'Turn off' : 'Turn on') . '</button></form> ';

@@ -80,7 +80,7 @@ document.querySelectorAll('.admin-group').forEach(function (group) {
 });
 var finder = document.querySelector('[data-finder]');
 var drop = document.querySelector('[data-finder-drop]');
-var finderData = document.getElementById('desk-finder-data');
+var finderData = document.getElementById('admin-finder-data');
 if (finder && drop && finderData) {
   var jobs = [];
   try { jobs = JSON.parse(finderData.textContent || '[]'); } catch (err) { jobs = []; }
@@ -138,10 +138,18 @@ if (settingsSearch) {
     }
   }
   groups.forEach(function (g) {
-    g.addEventListener('mouseenter', function () { if (wide.matches) { openOne(g); } });
-    g.addEventListener('mouseleave', function () { if (wide.matches) { clearTimeout(timer); timer = setTimeout(closeAll, 150); } });
-    g.addEventListener('focusin', function () { if (wide.matches) { openOne(g); } });
-    g.addEventListener('focusout', function (e) { if (wide.matches && !g.contains(e.relatedTarget)) { g.classList.remove('is-active'); g.removeAttribute('open'); } });
+    g.addEventListener("mouseenter", function () { if (wide.matches) { openOne(g); } });
+    g.addEventListener("mouseleave", function () { if (wide.matches) { clearTimeout(timer); timer = setTimeout(closeAll, 150); } });
+    g.addEventListener("focusin", function () { if (wide.matches) { openOne(g); } });
+    g.addEventListener("focusout", function (e) { if (wide.matches && !g.contains(e.relatedTarget)) { g.classList.remove("is-active"); g.removeAttribute("open"); } });
+    g.addEventListener("click", function (e) {
+      if (!wide.matches) return;
+      if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+      var link = e.target.closest ? e.target.closest("summary a") : null;
+      if (!link || g.classList.contains("is-active")) return;
+      e.preventDefault();
+      openOne(g);
+    });
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && wide.matches) { closeAll(); } });
   if (wide.addEventListener) { wide.addEventListener('change', sync); }

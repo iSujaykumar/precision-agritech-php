@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = safe_error($err, 'The password could not be changed.');
     }
 }
-render_header('Change password | Nursery desk', '', 'admin');
+render_header('Change password | Admin', '', 'admin');
 ?>
 <section class="section"><div class="wrap narrow">
   <h1>Change password</h1>

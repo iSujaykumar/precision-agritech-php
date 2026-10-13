@@ -92,7 +92,7 @@ expect('discount minimum was put back', setting('seasonal_discount_min_inr', '')
 expect('calculator switch was put back', setting('calc_menu_on', '') === $beforeCalc);
 expect('section order was put back', setting('home_sections', '') === $beforeOrder);
 if ($fail > 0) {
-    echo "FAIL desk proof ($fail)\n";
+    echo "FAIL admin checks ($fail)\n";
     exit(1);
 }
-echo "PASS desk proof\n";
+echo "PASS admin checks\n";

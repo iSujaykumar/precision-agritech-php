@@ -803,7 +803,11 @@ function adjust_stock(PDO $pdo, int $productId, int $change, string $reason, int
         ->execute([$productId, $adminId, $change, $before, $after, $reason]);
     audit_log($adminId, 'stock', 'product', $productId, (string) $before, (string) $after);
 }
-require dirname(__DIR__) . '/includes/desk.php';
+require dirname(__DIR__) . '/includes/office.php';
+require dirname(__DIR__) . '/includes/phones.php';
+require dirname(__DIR__) . '/includes/reviews.php';
+require dirname(__DIR__) . '/includes/uploads.php';
+require dirname(__DIR__) . '/includes/order_mail.php';
 require dirname(__DIR__) . '/includes/otp.php';
 require dirname(__DIR__) . '/includes/mail.php';
 require dirname(__DIR__) . '/includes/pricing.php';
@@ -813,7 +817,9 @@ require dirname(__DIR__) . '/includes/qr.php';
 require dirname(__DIR__) . '/includes/commerce.php';
 require dirname(__DIR__) . '/includes/signin.php';
 require dirname(__DIR__) . '/includes/layout.php';
-require dirname(__DIR__) . '/includes/final.php';
-require dirname(__DIR__) . '/includes/lists.php';
-require dirname(__DIR__) . '/includes/home_desk.php';
+require dirname(__DIR__) . '/includes/catalog.php';
+require dirname(__DIR__) . '/includes/shop_update.php';
+require dirname(__DIR__) . '/includes/pricelists.php';
+require dirname(__DIR__) . '/includes/homepage.php';
+require dirname(__DIR__) . '/includes/admin_nav.php';
 schema_guard();

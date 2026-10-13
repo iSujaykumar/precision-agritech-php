@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/common.php';
 $admin = admin_boot();
-require_desk($admin, 'staff');
+require_role($admin, 'staff');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
     $id = (int) ($_POST['id'] ?? 0);

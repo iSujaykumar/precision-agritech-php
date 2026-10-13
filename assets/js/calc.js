@@ -158,4 +158,23 @@
       if (button) window.setTimeout(function () { button.disabled = true; }, 0);
     });
   });
+  if (window.visualViewport && panel && !panel.classList.contains("calc-page")) {
+    var liftForKeyboard = function () {
+      if (panel.hidden || window.matchMedia("(min-width: 701px)").matches) {
+        panel.style.bottom = "";
+        panel.style.maxHeight = "";
+        return;
+      }
+      var inset = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
+      if (inset > 40) {
+        panel.style.bottom = Math.round(inset) + "px";
+        panel.style.maxHeight = Math.max(160, Math.round(window.visualViewport.height - 8)) + "px";
+      } else {
+        panel.style.bottom = "";
+        panel.style.maxHeight = "";
+      }
+    };
+    window.visualViewport.addEventListener("resize", liftForKeyboard);
+    window.visualViewport.addEventListener("scroll", liftForKeyboard);
+  }
 })();

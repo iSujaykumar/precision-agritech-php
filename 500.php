@@ -6,7 +6,7 @@ http_response_code(500);
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Something went wrong | Precision Agritech</title>
   <link rel="stylesheet" href="/assets/css/site.css">
 </head>

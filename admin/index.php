@@ -12,17 +12,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'dism
 admin_open('Today', 'today');
 $updateDue = setting('schema_version', '') !== '2026.10.12-final' || setting('lists_loaded', '0') !== '1';
 if ($updateDue) {
-    echo '<p class="desk-warn"><a href="/admin/update">The shop update has not run. Open Update everything.</a></p>';
+    echo '<p class="admin-warn"><a href="/admin/update">The shop update has not run. Open Update everything.</a></p>';
 }
 $metrics = [];
-foreach (desk_metrics() as $row) {
+foreach (admin_metrics() as $row) {
     $metrics[$row['key']] = $row;
 }
 $now = array_filter($metrics, static fn ($row) => $row['band'] === 'now' && (int) $row['count'] > 0);
 usort($now, static fn ($a, $b) => ($a['priority'] ?? 9) <=> ($b['priority'] ?? 9));
 $now = array_slice($now, 0, 5);
 if ($now) {
-    echo '<h2>Do this now</h2><div class="desk-now">';
+    echo '<h2>Do this now</h2><div class="admin-now">';
     $n = 1;
     foreach ($now as $row) {
         echo '<a class="btn" href="' . e($row['href']) . '">' . $n . '. ' . e($row['label']) . ' (' . (int) $row['count'] . ')</a>';
@@ -46,17 +46,17 @@ if ($tips && $tipDay !== $today) {
     }
     echo '</ul><form method="post">' . csrf_field() . '<input type="hidden" name="action" value="dismiss_tips"><button class="btn" type="submit">Hide for today</button></form></div>';
 }
-echo '<h2>Orders</h2><div class="desk-cards">';
+echo '<h2>Orders</h2><div class="admin-cards">';
 foreach (['today', 'week', 'dispatch', 'unpaid'] as $key) {
     $row = $metrics[$key];
     echo '<a class="card card-body" href="' . e($row['href']) . '"><strong>' . (int) $row['count'] . '</strong><br>' . e($row['label']) . '</a>';
 }
-echo '</div><h2>Stock</h2><div class="desk-cards">';
+echo '</div><h2>Stock</h2><div class="admin-cards">';
 foreach (['low', 'out', 'photos'] as $key) {
     $row = $metrics[$key];
     echo '<a class="card card-body" href="' . e($row['href']) . '"><strong>' . (int) $row['count'] . '</strong><br>' . e($row['label']) . '</a>';
 }
-echo '</div><h2>Shop</h2><div class="desk-cards">';
+echo '</div><h2>Shop</h2><div class="admin-cards">';
 foreach (['offers', 'reviews', 'messages', 'wholesale'] as $key) {
     $row = $metrics[$key];
     echo '<a class="card card-body" href="' . e($row['href']) . '"><strong>' . (int) $row['count'] . '</strong><br>' . e($row['label']) . '</a>';

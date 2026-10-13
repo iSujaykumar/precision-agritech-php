@@ -37,12 +37,12 @@ if (isset($_GET['export'])) {
 
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_desk($admin, 'manager');
+    require_role($admin, 'manager');
     try {
         require_csrf();
         $action = (string) ($_POST['action'] ?? '');
         if ($action === 'load-sheets') {
-            require_desk($admin, 'owner');
+            require_role($admin, 'owner');
             $pdo = db();
             $pdo->beginTransaction();
             $loaded = load_supplied_lists($pdo);
