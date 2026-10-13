@@ -1,3 +1,7 @@
+CHANGELOG — 13 October 2026, fix round
+
+Footer links inside a paragraph are inline, so the phone numbers are no longer double-spaced. Desk group menus stay closed until hover or keyboard focus, including on the page you are already on. The offers card no longer mentions the desk. The terms test accepts Windows paths.
+
 CHANGELOG — 13 October 2026
 
 Public pages

@@ -229,10 +229,11 @@ main form.card-add, .card-add { display: block; margin-top: auto; padding-top: 0
 .band-action { margin: 0; justify-self: end; }
 .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; align-items: stretch; }
 .footer { border-top: 1px solid var(--line); background: var(--surface); }
-.footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 2rem; padding: 2.5rem 0 1.5rem; align-items: start; }
+.footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 1.5rem 2rem; padding: 2rem 0 1rem; align-items: start; }
 .footer-title { margin: 0 0 0.65rem; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-.footer a { display: block; margin: 0; padding: 0.35rem 0; }
-.footer p { margin: 0.15rem 0; }
+.footer a { display: block; margin: 0; padding: 0.2rem 0; }
+.footer p { margin: 0.2rem 0; }
+.footer p a { display: inline; padding: 0; }
 .footer-copy { border-top: 1px solid var(--line); padding: 0.9rem 0 1.4rem; color: var(--muted); font-size: 0.95rem; }
 .footer-copy p { margin: 0; }
 main form { display: grid; gap: 0.7rem; }

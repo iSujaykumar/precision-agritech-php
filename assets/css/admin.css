@@ -18,7 +18,7 @@ body.desk summary:focus-visible {
 }
 body.desk .flash.ok { background: #c8e6d4; color: #143026; }
 body.desk .flash.bad { background: #f6d0c8; color: #5c1c16; }
-body.desk .count-badge { vertical-align: middle; background: var(--sale); color: var(--surface); }
+body.desk .count-badge { vertical-align: middle; margin-left: 0.35rem; background: var(--sale); color: var(--surface); }
 body.desk .pill-active { background: #c8e6d4; color: #143026; }
 body.desk .pill-off { background: #e6e2da; color: var(--deep); }
 body.desk .pill-expired { background: #f6d0c8; color: #5c1c16; }
@@ -158,10 +158,9 @@ body.desk .auth-card { width: min(26rem, 100%); margin-inline: auto; }
     gap: 0.2rem 0.35rem;
   }
   body.desk .admin-group { position: relative; }
-  body.desk .admin-group > .admin-sub { display: none; }
-  body.desk .admin-group:hover > .admin-sub,
-  body.desk .admin-group:focus-within > .admin-sub,
-  body.desk .admin-group[open] > .admin-sub {
+  body.desk .admin-group > .admin-sub,
+  body.desk .admin-group[open] > .admin-sub { display: none; }
+  body.desk .admin-group.is-active > .admin-sub {
     display: flex;
     position: absolute;
     top: 100%;

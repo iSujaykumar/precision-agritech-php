@@ -612,7 +612,7 @@ function render_offers_rail(array $cards): void
     if ($discountOn) {
         $text = $banner !== '' ? $banner : '10% off on orders above Rs 5,000';
         echo '<article class="card promo-card"><div class="card-body"><h3>' . e($text) . '</h3>';
-        echo '<p class="muted">Packing and transport are not included. The discount follows the setting in the desk.</p>';
+        echo '<p class="muted">Packing and transport are not included.</p>';
         echo '<button class="btn" type="button" data-calc-open>Open the order calculator</button></div></article>';
     }
     foreach ($live as $plant) {

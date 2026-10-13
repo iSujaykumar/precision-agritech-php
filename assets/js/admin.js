@@ -113,3 +113,38 @@ if (settingsSearch) {
     });
   });
 }
+(function () {
+  var groups = document.querySelectorAll('.admin-group');
+  if (!groups.length || !window.matchMedia) { return; }
+  var wide = window.matchMedia('(min-width: 701px)');
+  var timer = null;
+  function closeAll() {
+    groups.forEach(function (g) { g.classList.remove('is-active'); g.removeAttribute('open'); });
+  }
+  function openOne(g) {
+    clearTimeout(timer);
+    groups.forEach(function (o) { if (o !== g) { o.classList.remove('is-active'); o.removeAttribute('open'); } });
+    g.setAttribute('open', '');
+    g.classList.add('is-active');
+  }
+  function sync() {
+    if (wide.matches) {
+      closeAll();
+    } else {
+      groups.forEach(function (g) {
+        g.classList.remove('is-active');
+        if (g.querySelector('summary a[aria-current="page"]')) { g.setAttribute('open', ''); } else { g.removeAttribute('open'); }
+      });
+    }
+  }
+  groups.forEach(function (g) {
+    g.addEventListener('mouseenter', function () { if (wide.matches) { openOne(g); } });
+    g.addEventListener('mouseleave', function () { if (wide.matches) { clearTimeout(timer); timer = setTimeout(closeAll, 150); } });
+    g.addEventListener('focusin', function () { if (wide.matches) { openOne(g); } });
+    g.addEventListener('focusout', function (e) { if (wide.matches && !g.contains(e.relatedTarget)) { g.classList.remove('is-active'); g.removeAttribute('open'); } });
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && wide.matches) { closeAll(); } });
+  if (wide.addEventListener) { wide.addEventListener('change', sync); }
+  sync();
+}());
+
