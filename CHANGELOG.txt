@@ -1,3 +1,11 @@
+CHANGELOG — 13 October 2026
+
+Public pages
+Offers no longer shows "More offers soon". The three shop numbers are labelled Sales once in the footer. Privacy and Grievance officer links are gone from the footer only. Terms, Returns and Cancellation use the owner's eight price-list clauses.
+
+Nursery desk
+New assets/css/admin.css, loaded only on desk pages. Desktop groups open as dropdowns, the finder list is not clipped, tables and inputs are denser, and the staff menu is a dropdown. Help lines no longer start with a question mark. The stock quantity box uses a class instead of an inline width.
+
 CHANGELOG — audit pass 2026-10-12
 
 tests/catalog_rules.php

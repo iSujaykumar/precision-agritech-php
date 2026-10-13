@@ -505,7 +505,7 @@ function load_business_settings(PDO $pdo): void
 {
     $data = business_details();
     $phones = $data['phones'] ?? ['8080370152', '8421577787', '8421577725'];
-    $labels = ['Nursery', 'Office', 'Desk'];
+    $labels = ['Sales', 'Sales', 'Sales'];
     $ins = $pdo->prepare('INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled) SELECT ?, ?, ?, 1, 1, 1 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = ?)');
     foreach (array_values($phones) as $i => $digits) {
         $digits = preg_replace('/\D+/', '', (string) $digits) ?? '';
@@ -520,6 +520,8 @@ function load_business_settings(PDO $pdo): void
     $pdo->exec("UPDATE settings SET `value` = '918080370152' WHERE `key` = 'whatsapp_number' AND `value` NOT IN ('918080370152','918421577787','918421577725')");
     $pdo->exec("UPDATE settings SET `value` = '8080370152' WHERE `key` = 'grievance_officer_phone' AND `value` NOT IN ($in)");
     $pdo->exec("DELETE FROM phone_numbers WHERE digits NOT IN ($in)");
+    $pdo->exec("UPDATE phone_numbers SET label = 'Sales' WHERE digits IN ('8080370152','8421577787','8421577725') AND label IN ('Nursery','Office','Desk')");
+    $pdo->exec("UPDATE settings SET `value` = '' WHERE `key` IN ('page_terms','page_returns','page_cancellation')");
     $put = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `key` = `key`');
     foreach ([
         'whatsapp_mode' => 'random',

@@ -97,6 +97,9 @@ function render_header(string $title, string $description = '', string $chrome =
   <?php if ($jsonLd !== ''): ?><script type="application/ld+json"><?= $jsonLd ?></script><?php endif; ?>
   <link rel="icon" href="/favicon.svg">
   <link rel="stylesheet" href="/assets/css/site.css?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/css/site.css') ?>">
+  <?php if ($chrome === 'admin' || $chrome === 'staff'): ?>
+  <link rel="stylesheet" href="/assets/css/admin.css?v=<?= (int) @filemtime(dirname(__DIR__) . '/assets/css/admin.css') ?>">
+  <?php endif; ?>
 </head>
 <body class="<?= $chrome === 'shop' ? 'shop' : 'desk' ?>">
 <a class="skip" href="#content">Skip to content</a>
@@ -251,7 +254,7 @@ $cin = trim(shop_setting('cin', ''));
       <strong><?= e($legal) ?></strong>
       <?php if ($address !== ''): ?><p><?= e($address) ?></p><?php endif; ?>
       <?php if ($hours !== ''): ?><p><?= e($hours) ?></p><?php endif; ?>
-      <?php if ($phone !== ''): ?><p><?= shop_phone_links() ?></p><?php endif; ?>
+      <?php if ($phone !== ''): ?><p><?= shop_phone_links(false) ?></p><?php endif; ?>
       <?php if ($wa !== ''): ?><p><a href="<?= e($wa) ?>" target="_blank" rel="noopener">Chat on WhatsApp</a></p><?php endif; ?>
       <?php if ($email !== ''): ?><p><a href="mailto:<?= e($email) ?>"><?= e($email) ?></a></p><?php endif; ?>
       <?php if ($gstin !== ''): ?><p>GSTIN <?= e($gstin) ?></p><?php endif; ?>
@@ -276,9 +279,7 @@ $cin = trim(shop_setting('cin', ''));
       <a href="/about">About</a>
       <a href="/nursery">Our nursery</a>
       <a href="/wholesale">Wholesale</a>
-      <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
-      <a href="/contact#grievance">Grievance officer</a>
     </div>
   </div>
   <div class="wrap footer-copy"><p>© <?= date('Y') ?> <?= e($legal) ?></p></div>

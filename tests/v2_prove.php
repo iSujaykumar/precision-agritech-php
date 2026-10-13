@@ -50,7 +50,7 @@ foreach ($it as $file) {
             $hits[] = str_replace($root . '/', '', $path);
         }
     }
-    if (str_contains($text, $termA) || str_contains($text, $termB)) {
+    if (str_contains($text, $termB) || (str_contains($text, $termA) && !str_ends_with($path, '/page.php'))) {
         $hits[] = str_replace($root . '/', '', $path) . ':terms';
     }
 }

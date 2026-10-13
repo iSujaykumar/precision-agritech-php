@@ -562,13 +562,13 @@ CREATE TABLE IF NOT EXISTS phone_numbers (
   UNIQUE KEY phone_numbers_digits (digits)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
-SELECT '8080370152', 'Nursery', 1, 1, 1, 1 FROM DUAL
+SELECT '8080370152', 'Sales', 1, 1, 1, 1 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8080370152');
 INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
-SELECT '8421577787', 'Office', 2, 1, 1, 1 FROM DUAL
+SELECT '8421577787', 'Sales', 2, 1, 1, 1 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8421577787');
 INSERT INTO phone_numbers (digits, label, sort_order, enabled, show_public, whatsapp_enabled)
-SELECT '8421577725', 'Desk', 3, 1, 1, 1 FROM DUAL
+SELECT '8421577725', 'Sales', 3, 1, 1, 1 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM phone_numbers WHERE digits = '8421577725');
 CREATE TABLE IF NOT EXISTS bank_accounts (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -680,4 +680,6 @@ INSERT INTO settings (`key`, `value`) VALUES
 ('calc_label_en',''),
 ('calc_label_mr','')
 ON DUPLICATE KEY UPDATE `key` = `key`;
+UPDATE phone_numbers SET label = 'Sales' WHERE digits IN ('8080370152','8421577787','8421577725') AND label IN ('Nursery','Office','Desk');
+UPDATE settings SET `value` = '' WHERE `key` IN ('page_terms','page_returns','page_cancellation');
 

@@ -18,7 +18,7 @@ function admin_open(string $title, string $section = ''): void
     echo '<h1>' . e($title) . '</h1>';
     $help = desk_help_text();
     if ($help !== '') {
-        echo '<p class="muted">? ' . e($help) . '</p>';
+        echo '<p class="muted">' . e($help) . '</p>';
     }
     $flash = flash_take();
     if ($flash) {

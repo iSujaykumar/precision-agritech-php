@@ -186,18 +186,27 @@ function shop_phone_digits(): string
     return $digits;
 }
 
-function shop_phone_links(): string
+function shop_phone_links(bool $labels = true): string
 {
     $rows = public_phone_rows();
     if (!$rows) {
         $digits = shop_phone_digits();
-        return '<a href="tel:+91' . e($digits) . '">' . e($digits) . '</a>';
+        $link = '<a href="tel:+91' . e($digits) . '">' . e($digits) . '</a>';
+        return $labels ? $link : 'Sales<br>' . $link;
     }
     $parts = [];
     foreach ($rows as $row) {
         $digits = (string) $row['digits'];
-        $label = trim((string) $row['label']);
-        $parts[] = '<a href="tel:+91' . e($digits) . '">' . e($digits) . '</a>' . ($label !== '' ? ' <span class="muted">' . e($label) . '</span>' : '');
+        $link = '<a href="tel:+91' . e($digits) . '">' . e($digits) . '</a>';
+        if ($labels) {
+            $label = trim((string) $row['label']);
+            $parts[] = $link . ($label !== '' ? ' <span class="muted">' . e($label) . '</span>' : '');
+        } else {
+            $parts[] = $link;
+        }
+    }
+    if (!$labels) {
+        return 'Sales<br>' . implode('<br>', $parts);
     }
     return implode('<br>', $parts);
 }

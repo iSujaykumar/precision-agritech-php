@@ -34,7 +34,7 @@ PASS public pages HTTP 200: /, /shop, /calculator, /price-list, /cart, /checkout
 PASS owner desk HTTP 200 on Today, orders (including payments to confirm and to pack), deliveries, claims, invoices, plants, stock, photos, categories, attention, restock, prices, price lists, offers, coupons, customers, reviews, messages, wholesale, homepage, months, labels, pages, settings, phones, banks, payments, delivery, staff, email log, health, update, database update, activity log, help, finder, stock history, product edit. No Fatal error, Warning, Notice, Deprecated, or Unknown column.
 PASS /admin/inventory is HTTP 302 to /admin/stock
 PASS staff role: /admin/banks is HTTP 403 and says Not allowed. Role put back to owner.
-PASS old phone 9011975959 is not in the project
+PASS the retired phone number is not in the project
 PASS browser at 1280 and 360: homepage, shop, product, cart, Today, stock and offers. No sideways page scroll. Calculator opened from the menu, 151 seedlings showed 2 trays (300 seedlings), Escape closed it.
 NOT RUN MySQL 5.7
 NOT RUN MySQL 8

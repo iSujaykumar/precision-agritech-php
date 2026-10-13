@@ -60,7 +60,12 @@ contains best-sellers 'id="best-sellers"' "$home"
 contains new-arrivals 'id="new-arrivals"' "$home"
 contains offers 'id="offers"' "$home"
 contains offers-promo 'promo-card' "$home"
-contains offers-honest 'More offers soon' "$home"
+if printf '%s' "$home" | grep -q 'More offers soon'; then
+  echo "FAIL offers-honest still shows More offers soon"
+  fail=1
+else
+  echo "PASS offers-honest"
+fi
 contains new-cosmos '>Cosmos<' "$home"
 contains new-aster '>Aster<' "$home"
 contains price-list-link 'Full price list' "$home"

@@ -90,26 +90,26 @@ $help = [
     'shipping_flat_inr' => 'Example: 180. This is packing and transport. It is not discounted.',
 ];
 echo '<section class="set-card" data-setting="prices discount bulk offer minimum"><h2>Prices and discount</h2>';
-echo '<p class="muted">? The bulk discount is on plants only. Packing and transport stay full price.</p>';
+echo '<p class="muted">The bulk discount is on plants only. Packing and transport stay full price.</p>';
 echo '<label><input type="checkbox" name="seasonal_discount_on" ' . (setting('seasonal_discount_on', '1') === '1' ? 'checked' : '') . '> Bulk discount on</label>';
 echo '<label>Percent <input name="seasonal_discount_percent" type="number" min="0" max="50" value="' . e(setting('seasonal_discount_percent', '10')) . '"></label>';
 echo '<label>Minimum in rupees <input name="seasonal_discount_min_inr" type="number" min="0" value="' . e(setting('seasonal_discount_min_inr', '5000')) . '"></label>';
-echo '<p class="muted">? Example: 5000 means the discount starts at Rs 5,000 of plants.</p>';
+echo '<p class="muted">Example: 5000 means the discount starts at Rs 5,000 of plants.</p>';
 echo '<label>Or count seedlings when the basis is seedlings <input name="discount_min_seedlings" type="number" min="0" value="' . e(setting('discount_min_seedlings', '5000')) . '"></label>';
 echo '<label>Basis <select name="discount_basis"><option value="rupees"' . (setting('discount_basis', 'rupees') === 'rupees' ? ' selected' : '') . '>Rupees</option><option value="seedlings"' . (setting('discount_basis', 'rupees') === 'seedlings' ? ' selected' : '') . '>Number of seedlings</option></select></label>';
 echo '<label><input type="checkbox" name="offer_allows_bulk" ' . (setting('offer_allows_bulk', '1') === '1' ? 'checked' : '') . '> Allow the bulk discount on plants that already have an offer price</label>';
 echo '<label>Nursery minimum, paise per seedling <input name="nursery_min_seedling_paise" type="number" min="1" value="' . e(setting('nursery_min_seedling_paise', '100')) . '"></label>';
-echo '<p class="muted">? 100 paise is Rs 1.00. An offer price will not go under this.</p>';
+echo '<p class="muted">100 paise is Rs 1.00. An offer price will not go under this.</p>';
 echo '<label>Banner text, leave blank for the automatic sentence <input name="discount_banner" value="' . e(setting('discount_banner', '')) . '"></label>';
 echo '</section>';
-echo '<section class="set-card" data-setting="bank upi"><h2>Bank and UPI</h2><p class="muted">? Bank accounts stay hidden until you mark one verified.</p><p class="btn-row"><a class="btn" href="/admin/banks">Bank accounts</a> <a class="btn" href="/admin/payments">UPI and QR</a></p></section>';
+echo '<section class="set-card" data-setting="bank upi"><h2>Bank and UPI</h2><p class="muted">Bank accounts stay hidden until you mark one verified.</p><p class="btn-row"><a class="btn" href="/admin/banks">Bank accounts</a> <a class="btn" href="/admin/payments">UPI and QR</a></p></section>';
 foreach ($groups as $title => $keysIn) {
     if (!$keysIn) {
         continue;
     }
     echo '<section class="set-card" data-setting="' . e(strtolower($title)) . '"><h2>' . e($title) . '</h2>';
     if ($title === 'Phone numbers and WhatsApp') {
-        echo '<p class="muted">? The shop only uses 8080370152, 8421577787 and 8421577725. Change the list on the Phones page.</p><p><a href="/admin/phones">Open phone numbers</a></p>';
+        echo '<p class="muted">The shop only uses 8080370152, 8421577787 and 8421577725. Change the list on the Phones page.</p><p><a href="/admin/phones">Open phone numbers</a></p>';
     }
     foreach ($keysIn as $key) {
         $label = $fields[$key] ?? $key;
@@ -122,7 +122,7 @@ foreach ($groups as $title => $keysIn) {
             echo '<label>' . e($label) . ' <input name="' . e($key) . '" type="' . $type . '" value="' . e($value) . '"></label>';
         }
         if (isset($help[$key])) {
-            echo '<p class="muted">? ' . e($help[$key]) . '</p>';
+            echo '<p class="muted">' . e($help[$key]) . '</p>';
         }
         echo '</div>';
     }

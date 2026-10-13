@@ -619,9 +619,6 @@ function render_offers_rail(array $cards): void
         product_card($plant);
     }
     echo '</div><button class="rail-btn rail-next" type="button" aria-label="Next">&#8250;</button></div>';
-    if (!$live) {
-        echo '<p class="rail-empty">More offers soon</p>';
-    }
     echo '</div></section>';
 }
 

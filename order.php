@@ -242,7 +242,7 @@ $showPay = in_array($order['payment_method'], ['upi', 'bank_transfer'], true) &&
   <?php endif; ?>
   <?php if ($driver && $order['status'] === 'out_for_delivery'): ?>
     <p>Out for delivery with <?= e(explode(' ', (string) $driver['name'])[0]) ?>, vehicle <?= e((string) $driver['vehicle_no']) ?>.
-      Nursery phone <a href="tel:+91<?= e(shop_phone_digits()) ?>"><?= e(shop_phone_digits()) ?></a>
+      Sales phone <a href="tel:+91<?= e(shop_phone_digits()) ?>"><?= e(shop_phone_digits()) ?></a>
       <?php if (setting('show_driver_phone', '0') === '1'): ?> · Driver <?= e((string) $driver['phone']) ?><?php endif; ?>
     </p>
   <?php endif; ?>

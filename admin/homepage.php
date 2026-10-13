@@ -94,10 +94,10 @@ foreach (['rail_best_on' => 'Show best sellers', 'rail_new_on' => 'Show new arri
 }
 echo '<label data-setting="browse title">Browse all plants title <input name="browse_title" value="' . e(setting('browse_title', 'Browse all plants')) . '"></label>';
 echo '<label data-setting="category chip order">Category chip order, names separated by commas <input name="browse_chip_order" value="' . e(setting('browse_chip_order', '')) . '" placeholder="Flowers, Foliage"></label>';
-echo '<p class="muted">? Leave the chip order blank to use the shop category order.</p>';
+echo '<p class="muted">Leave the chip order blank to use the shop category order.</p>';
 echo '<label data-setting="calculator english">Order calculator label in English <input name="calc_label_en" value="' . e(setting('calc_label_en', '')) . '" placeholder="Order calculator"></label>';
 echo '<label data-setting="calculator marathi">Order calculator label in Marathi <input name="calc_label_mr" value="' . e(setting('calc_label_mr', '')) . '" placeholder="ऑर्डर कॅल्क्युलेटर"></label>';
-echo '<h2>Section order</h2><p class="muted">? Untick a section to hide it. Up and Down move it. Save at the bottom.</p>';
+echo '<h2>Section order</h2><p class="muted">Untick a section to hide it. Up and Down move it. Save at the bottom.</p>';
 foreach (home_section_state() as $id => $on) {
     $label = home_section_defs()[$id];
     echo '<p data-setting="' . e($label) . '"><label><input type="checkbox" name="section_on[' . e($id) . ']" ' . ($on ? 'checked' : '') . '> ' . e($label) . '</label> ';

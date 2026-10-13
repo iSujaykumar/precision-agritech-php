@@ -2,6 +2,18 @@
 declare(strict_types=1);
 require __DIR__ . '/includes/bootstrap.php';
 
+// Owner to supply separate return/cancellation wording if wanted.
+$saleClauses = [
+    'Order confirmation should be made in writing or over phone with immediate advance payment of minimum 50%.',
+    'Advance payment covers box packing, transportation, and freight expenses.',
+    'Discount is not applicable on packaging and transportation charges.',
+    'Prices applicable at the time of dispatch will be final.',
+    'Varieties may be withdrawn without prior notice and replaced with suitable alternatives.',
+    'Packaging, transportation (road/rail/air) charges will be extra at actual cost.',
+    'Prices are subject to change without prior notice.',
+    'Any dispute will be under Pune jurisdiction only.',
+];
+
 $pages = [
     'about' => ['About', [
         'Precision Agritech Private Limited grows flower seedling trays at Theur, near Pune. The tray is the unit of sale. Each tray holds 150 seedlings.',
@@ -21,18 +33,8 @@ $pages = [
         'You can check out as a guest. An account is only for sign-in and for seeing past orders.',
     ]],
     'shipping' => ['Shipping', []],
-    'returns' => ['Returns and replacement', [
-        'Live seedlings can be replaced or refunded when the nursery agrees the tray was damaged, short, or not what you ordered.',
-        'Report the problem from your order page within 48 hours of delivery, with up to three photos. The nursery replies by email.',
-        'A fair outcome is a replacement tray or a refund of the affected trays. We do not refuse every claim.',
-        'Trays that were healthy on delivery and later failed from weather, watering or planting are not a nursery claim.',
-    ]],
-    'cancellation' => ['Cancellation and refund', [
-        'You can ask to cancel before the trays leave the nursery. Call or WhatsApp with the order number.',
-        'If a UPI or bank payment has not been confirmed, cancelling releases the trays. If we have already confirmed payment, we refund the amount you paid to the same method, after the nursery records it.',
-        'Cash on delivery orders that are cancelled before dispatch have nothing to refund.',
-        'A reservation that expires unpaid is cancelled automatically and the trays go back on sale.',
-    ]],
+    'returns' => ['Returns', $saleClauses],
+    'cancellation' => ['Cancellation', $saleClauses],
     'privacy' => ['Privacy policy', [
         'We collect your name, mobile number, delivery address, and email if you give one, so we can grow, deliver and support your order.',
         'If you continue with Google, we receive your name and the email Google has verified. We do not receive your Google password.',
@@ -42,13 +44,7 @@ $pages = [
         'Orders and account details are kept while we need them for delivery, accounts and legal records. You can ask for access, a correction, or deletion from your account page or the contact page.',
         'The grievance officer on the contact page handles privacy complaints.',
     ]],
-    'terms' => ['Terms of sale', [
-        'The seller is Precision Agritech Private Limited, Theur, Pune. The contract is formed when the nursery confirms the order, not merely when the website accepts the form.',
-        'The server calculates the price, discount and delivery charge from the nursery catalogue. A changed price in the browser is ignored.',
-        'UPI and bank transfer orders reserve trays until the time shown on the order. Cash on delivery is confirmed by phone before dispatch.',
-        'Risk in the plants passes when they are delivered to the address you gave. Report damage within the claim window.',
-        'These terms are a plain-language summary for customers. They do not limit any right you have under Indian law.',
-    ]],
+    'terms' => ['TERMS & CONDITIONS', $saleClauses],
     'wholesale' => ['Wholesale', [
         'For farm and landscaping lots, call the nursery or send the form. A form does not reserve trays.',
         'Wholesale prices can differ from the tray price on this site. The office confirms the lot, the date and the payment before dispatch.',
@@ -120,7 +116,11 @@ render_header($title . ' | Precision Agritech');
   <?php if ($key === 'nursery'): ?>
     <img src="/brand/nursery-fields.webp" alt="The nursery fields at Theur" width="1600" height="1200" loading="lazy" decoding="async">
   <?php endif; ?>
-  <?php foreach ($body as $paragraph): ?><p><?= e($paragraph) ?></p><?php endforeach; ?>
+  <?php if (in_array($key, ['terms', 'returns', 'cancellation'], true)): ?>
+    <ol><?php foreach ($body as $paragraph): ?><li><?= e($paragraph) ?></li><?php endforeach; ?></ol>
+  <?php else: ?>
+    <?php foreach ($body as $paragraph): ?><p><?= e($paragraph) ?></p><?php endforeach; ?>
+  <?php endif; ?>
   <?php if ($key === 'wholesale'): ?>
     <?php if ($done): ?><p class="flash">Request saved.</p><?php endif; ?>
     <?php if ($error): ?><p class="flash"><?= e($error) ?></p><?php endif; ?>

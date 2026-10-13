@@ -56,7 +56,7 @@ foreach ($rows as $row) {
     $free = (int) $row['stock_qty'] - (int) $row['reserved_qty'];
     echo '<tr><td>' . e($row['name']) . ($row['list_only'] ? ' <span class="muted">(price list only)</span>' : '') . '<input type="hidden" name="id[]" value="' . (int) $row['id'] . '"></td>';
     echo '<td>' . $free . '</td><td>' . (int) $row['reserved_qty'] . '</td>';
-    echo '<td><button class="step" type="button" data-step="minus" aria-label="Less">−</button> <input name="qty[]" type="number" min="0" value="' . (int) $row['stock_qty'] . '" style="width:5rem"> <button class="step" type="button" data-step="plus" aria-label="More">+</button></td></tr>';
+    echo '<td><button class="step" type="button" data-step="minus" aria-label="Less">−</button> <input class="stock-qty" name="qty[]" type="number" min="0" value="' . (int) $row['stock_qty'] . '"> <button class="step" type="button" data-step="plus" aria-label="More">+</button></td></tr>';
 }
 echo '</table></div><button class="btn" type="submit">Save all</button></form>';
 echo '<script src="/assets/js/cart.js"></script>';
